@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { Container, TextField, Button, Typography } from "@mui/material";
+import {
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Paper,
+  Box,
+} from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import "./Login.css"; // ✅ Import CSS file
 
 function Login() {
   const [username, setUsername] = useState("");
@@ -22,24 +30,30 @@ function Login() {
   };
 
   return (
-    <Container>
-      <Typography variant="h4">Login</Typography>
-      <TextField
-        label="Username"
-        fullWidth
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-      />
-      <TextField
-        label="Password"
-        type="password"
-        fullWidth
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <Button variant="contained" color="primary" onClick={handleLogin}>
-        Login
-      </Button>
+    <Container className="login-container">
+      <Paper className="login-box" elevation={3}>
+        <Typography className="login-title">Login</Typography>
+        <Box>
+          <TextField
+            className="login-input"
+            label="Username"
+            fullWidth
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <TextField
+            className="login-input"
+            label="Password"
+            type="password"
+            fullWidth
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Box>
+        <Button className="login-button" onClick={handleLogin}>
+          Login
+        </Button>
+      </Paper>
     </Container>
   );
 }

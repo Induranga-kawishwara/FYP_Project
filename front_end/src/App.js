@@ -1,5 +1,10 @@
 import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+} from "react-router-dom";
 import Login from "./components/pages/LoginPage/Login";
 import Signup from "./components/pages/Signup/Signup";
 import Profile from "./components/pages/Profile/Profile";
@@ -10,11 +15,14 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
+        {/* ✅ Redirect "/" to "/shopfinder" (Home Page) */}
+        <Route path="/" element={<Navigate replace to="/shopfinder" />} />
+
         <Route path="/signup" element={<Signup />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/shopfinder" element={<ShopFinder />} />
         <Route path="/explain-review" element={<ExplainReview />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </Router>
   );

@@ -173,6 +173,13 @@ def classify_reviews_by_rating(reviews):
     return positive_reviews, negative_reviews, avg_rating, weighted_average_rating, majority_rating
 
 
+def summarize_text(text, max_length=100):
+    """Summarizes text to a maximum length, without cutting off the meaning abruptly."""
+    if len(text) > max_length:
+        return text[:max_length]  # Just cut the text to the max length without adding "..."
+    return text
+
+
 def generate_summary(reviews):
     """Generates a combined detailed summary of both positive and negative reviews with key points."""
     if not reviews:
@@ -205,7 +212,7 @@ def generate_summary(reviews):
         # Generate Combined Detailed Summary (more structured & concise)
         detailed_summary = summarizer(
             "Summarize the reviews: " + combined_text,
-            max_length=150,   # Keeping it short
+            max_length=100,   # Keeping it short
             num_return_sequences=1,
             max_new_tokens=50
         )[0]["generated_text"]

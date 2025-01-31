@@ -7,8 +7,6 @@ import joblib
 import pandas as pd
 import googlemaps
 import numpy as np
-import re
-import string
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -18,6 +16,7 @@ import lime.lime_text
 import numpy as np
 import xgboost as xgb
 import requests
+import google_map_scraper  # Import scraper script
 
 # ✅ Download NLTK Resources
 nltk.download("stopwords")
@@ -165,13 +164,11 @@ def explain_review():
 
 # ✅ Search Shops for a Product
 @app.route("/search_product", methods=["GET"])
-# @jwt_required()
 def search_product():
     product_name = request.args.get("product")
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
 
-    # ✅ Fetch shops from Google Places API
     url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={product_name}+store&key={GOOGLE_API_KEY}"
     response = requests.get(url).json()
 
@@ -186,46 +183,35 @@ def search_product():
         shop = {
             "shop_name": place["name"],
             "address": place.get("formatted_address", "N/A"),
-            "rating": float(place.get("rating", 0)),  # ✅ Convert NumPy float to Python float
+            "rating": float(place.get("rating", 0)),
             "place_id": place["place_id"],
             "lat": float(place["geometry"]["location"]["lat"]),
             "lng": float(place["geometry"]["location"]["lng"])
         }
 
-        # ✅ Fetch reviews for each shop
-        details_url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={shop['place_id']}&fields=reviews&key={GOOGLE_API_KEY}"
-        details_response = requests.get(details_url).json()
-        
-        reviews = []
-        if "result" in details_response and "reviews" in details_response["result"]:
-            reviews = [review["text"] for review in details_response["result"]["reviews"]]
+        # ✅ Fetch Google Reviews using place_id
+        all_reviews = google_map_scraper.scrape_reviews(shop["place_id"])
 
-        if reviews:
-            # ✅ Identify fake and real reviews
-            real_reviews, real_reviews = detect_fake_reviews(reviews)
+        if all_reviews:
+            real_reviews, fake_reviews = detect_fake_reviews(all_reviews)
+            real_review_texts = [review["text"] for review in real_reviews]  # Extract only text
 
-            # ✅ Compute overall rating from all real reviews
-            overall_predicted_rating = predict_review_rating([" ".join(real_reviews)])[0] if real_reviews else 0
-            
-            # ✅ Generate summary from real reviews
-            summary = generate_summary(real_reviews) if real_reviews else "No valid reviews available."
+            overall_predicted_rating = predict_review_rating([" ".join(real_review_texts)]) if real_review_texts else 0
+            summary = generate_summary(real_review_texts) if real_review_texts else "No valid reviews available."
 
-            shop["reviews"] = real_reviews  # Only real reviews (raw)
+            shop["reviews"] = real_reviews
             shop["summary"] = summary
-            shop["fake_reviews"] = real_reviews  # Fake reviews
-            shop["predicted_rating"] = int(overall_predicted_rating)  # ✅ Single overall rating
+            shop["fake_reviews"] = fake_reviews
+            shop["predicted_rating"] = int(overall_predicted_rating)
         else:
             shop["reviews"] = []
             shop["summary"] = "No reviews available."
             shop["fake_reviews"] = []
-            shop["predicted_rating"] = 0  # Default if no reviews available
+            shop["predicted_rating"] = 0
 
         shops.append(shop)
 
     return jsonify({"shops": shops})
-
-
-
 
 # ✅ Fetch Shop Reviews and Process Them
 @app.route("/search_shop", methods=["GET"])

@@ -1,10 +1,8 @@
-import json
 import time
+import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 
 # ✅ Setup Selenium WebDriver
@@ -15,122 +13,96 @@ options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
+# ✅ Convert Google Review Date Format to Datetime
+def parse_review_date(date_text):
+    """
+    Converts Google review date text (e.g., 'a week ago', '2 months ago') into a proper datetime object.
+    """
+    current_date = datetime.datetime.now()
 
+    if "a day ago" in date_text:
+        return current_date - datetime.timedelta(days=1)
+    elif "a week ago" in date_text:
+        return current_date - datetime.timedelta(weeks=1)
+    elif "a month ago" in date_text:
+        return current_date - datetime.timedelta(days=30)
 
-
-def get_places(driver, lat, lng, radius_km, category, subcategory):
-    places = []
-    search_query = f'{subcategory} {category}'
-    url = f'https://www.google.com/maps/search/{search_query}/@{lat},{lng},{radius_km}z'
-    
-    driver.get(url)
-    time.sleep(2)  # Allow time for page to load
-
-    page_content = driver.page_source
-    soup = BeautifulSoup(page_content, "html.parser")
-    data_elements = soup.find_all("div", class_="Nv2PK")
-    
-    for element in data_elements[:10]:
+    parts = date_text.split()
+    if len(parts) == 3:
         try:
-            name = element.select_one('.qBF1Pd').text.strip() if element.select_one('.qBF1Pd') else ''
-            rating = element.select_one('.MW4etd').text.strip() if element.select_one('.MW4etd') else ''
-            link = element.select_one('a').get('href') if element.select_one('a') else ''
+            num = int(parts[0])
+            unit = parts[1]
 
-            places.append({
-                'name': name,
-                'address': '',
-                'phone_number': '',
-                'rating': rating,
-                'link': link,
-                'reviews': []  # Placeholder for reviews
-            })
-        except Exception:
-            continue
-    
-    return places
+            if "day" in unit:
+                return current_date - datetime.timedelta(days=num)
+            elif "week" in unit:
+                return current_date - datetime.timedelta(weeks=num)
+            elif "month" in unit:
+                return current_date - datetime.timedelta(days=num * 30)
+            elif "year" in unit:
+                return current_date - datetime.timedelta(days=num * 365)
+        except ValueError:
+            return None
 
+    return None
+
+# ✅ Scroll to Load All Reviews
 def scroll_reviews(driver):
-    """ Scrolls down in the reviews section until no new reviews load. """
+    """Scrolls through all available reviews."""
     try:
-        # Locate the reviews container
         reviews_container = driver.find_element(By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf")
-        
-        # Get the initial scroll height
         last_height = driver.execute_script("return arguments[0].scrollHeight;", reviews_container)
-        
+
         while True:
-            # Scroll down
             driver.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", reviews_container)
-            time.sleep(2)  # Allow time for new reviews to load
-            
-            # Get the new scroll height after scrolling
+            time.sleep(2)
+
             new_height = driver.execute_script("return arguments[0].scrollHeight;", reviews_container)
-            
-            # If new_height is the same as last_height, stop scrolling
             if new_height == last_height:
-                print("No more reviews to load.")
                 break
-            
-            last_height = new_height  # Update last height for next comparison
+
+            last_height = new_height
     except Exception as e:
         print(f"Error while scrolling reviews: {e}")
 
-def get_reviews(driver, place):
+# ✅ Scrape Reviews for a Specific Shop
+def scrape_reviews(place_id):
+    driver = webdriver.Chrome(options=options)
     reviews = []
-    driver.get(place['link'])
-    time.sleep(3)  # Allow time for page to load
+    three_months_ago = datetime.datetime.now() - datetime.timedelta(days=90)
 
-    # Click on the "Reviews" tab
+    url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+    driver.get(url)
+    time.sleep(3)
+
     try:
-        reviews_tab_button = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Reviews for']")
-        reviews_tab_button.click()
+        reviews_tab = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Reviews for']")
+        reviews_tab.click()
         time.sleep(2)
     except Exception:
-        return place  # Return if reviews tab is not found
+        driver.quit()
+        return []
 
-    # Scroll inside the reviews section until no more reviews load
     scroll_reviews(driver)
 
-    # Scrape reviews
-    page_content = driver.page_source
-    soup = BeautifulSoup(page_content, "html.parser")
+    soup = BeautifulSoup(driver.page_source, "html.parser")
     review_divs = soup.find_all("div", class_="jftiEf")
 
     for review_div in review_divs:
         try:
             author = review_div.find('div', class_='d4r55').text.strip()
-            date = review_div.find('span', class_='rsqaWe').text.strip()
-            text = review_div.find('span', class_='wiI7pd').text.strip()
+            date_text = review_div.find('span', class_='rsqaWe').text.strip()
+            review_date = parse_review_date(date_text)
 
-            reviews.append({
-                'author': author,
-                'date': date,
-                'text': text
-            })
+            if review_date and review_date >= three_months_ago:
+                text = review_div.find('span', class_='wiI7pd').text.strip()
+                reviews.append({
+                    "author": author,
+                    "date": review_date.strftime("%Y-%m-%d"),
+                    "text": text
+                })
         except Exception:
             continue
-
-    place["reviews"] = reviews
-    return place
-
-if __name__ == "__main__":
-    latitude = 30.7046
-    longitude = 76.7179
-    radius_km = 10
-    category = 'Restaurant'
-    subcategory = 'Vegetarian'
-
-    driver = webdriver.Chrome(options=options)
-
-    places = get_places(driver, latitude, longitude, radius_km, category, subcategory)
-
-    for i, place in enumerate(places):
-        places[i] = get_reviews(driver, place)
-
+    print(reviews)
     driver.quit()
-
-    output_file = "google_places_reviews.json"
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(places, f, indent=4, ensure_ascii=False)
-
-    print(f"🎉 Reviews saved successfully in '{output_file}'!")
+    return reviews  # ✅ Return only reviews

@@ -188,30 +188,33 @@ def generate_summary(reviews):
 
     # Prepare Combined Text for Summarization
     combined_text = ""
-    
-    # Adding Positive Reviews
+
+    # Adding Positive Reviews (concise & on-point)
     if positive_reviews:
-        combined_text += "Why it's good: " + ". ".join(positive_reviews[:5]) + ". "
+        combined_text += "Pros: " + ". ".join(positive_reviews[:3]) + ". "
     else:
         combined_text += "No positive reviews available. "
 
-    # Adding Negative Reviews
+    # Adding Negative Reviews (concise & on-point)
     if negative_reviews:
-        combined_text += "Why it's bad: " + ". ".join(negative_reviews[:5]) + ". "
+        combined_text += "Cons: " + ". ".join(negative_reviews[:3]) + ". "
     else:
         combined_text += "No negative reviews available. "
 
     try:
-        # Generate Combined Detailed Summary
+        # Generate Combined Detailed Summary (more structured & concise)
         detailed_summary = summarizer(
-            "Provide a summary of the reviews: " + combined_text,
-            max_length=250,
+            "Summarize the reviews: " + combined_text,
+            max_length=150,   # Keeping it short
             num_return_sequences=1,
-            max_new_tokens=80
+            max_new_tokens=50
         )[0]["generated_text"]
 
+        # Trim to ensure it stays concise
+        concise_summary = summarize_text(detailed_summary, max_length=150)
+
         return {
-            "detailed_summary": detailed_summary,
+            "detailed_summary": concise_summary,
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
@@ -225,6 +228,7 @@ def generate_summary(reviews):
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
         }
+
 def convert_numpy_types(data):
     """Recursively convert numpy types to native Python types."""
     if isinstance(data, dict):

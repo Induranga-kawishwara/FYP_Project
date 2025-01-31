@@ -13,10 +13,15 @@ from nltk.stem import WordNetLemmatizer
 from textblob import TextBlob
 from transformers import pipeline
 import lime.lime_text
-import numpy as np
 import xgboost as xgb
 import requests
 import google_map_scraper  # Import scraper script
+from dotenv import load_dotenv
+import os
+from tenacity import retry, wait_fixed, stop_after_attempt
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Download NLTK Resources
 nltk.download("stopwords")
@@ -24,7 +29,7 @@ nltk.download("wordnet")
 
 # Initialize Flask App
 app = Flask(__name__)
-app.config["JWT_SECRET_KEY"] = "18EFE2D8D8CBA28188FA3285259F5A4EA052F22DC31CBEF351544CAA5CC932B5"
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 jwt = JWTManager(app)
 CORS(app)
 bcrypt = Bcrypt(app)
@@ -45,7 +50,7 @@ CREATE TABLE IF NOT EXISTS users (
 conn.commit()
 
 # Load Google API Key
-GOOGLE_API_KEY = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w"
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
 
 # Load Pretrained Models
@@ -63,6 +68,13 @@ lime_explainer = lime.lime_text.LimeTextExplainer(class_names=["1-star", "2-star
 # Initialize Text Preprocessing
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words("english"))
+
+# Retry decorator for API calls
+@retry(wait=wait_fixed(2), stop=stop_after_attempt(3))
+def get_google_response(url):
+    response = requests.get(url, timeout=180)
+    response.raise_for_status()
+    return response.json()
 
 def detect_fake_reviews(reviews):
     if not reviews:
@@ -88,10 +100,6 @@ def detect_fake_reviews(reviews):
     # Ensure Feature Names Match Training Data
     expected_features = ["sentiment_score", "contains_promo_words", "contains_sarcasm_words", "days_since_review"]
 
-    # Check If Features Match Training Data
-    print(f"\nExpected Features: {expected_features}")
-    print(f"Model Features: {fake_review_model.feature_names}\n")
-
     # Fix Feature Mismatch
     feature_df = feature_df[expected_features]  # Ensure only relevant features are used
 
@@ -105,9 +113,6 @@ def detect_fake_reviews(reviews):
     # Separate Fake and Real Reviews
     real_reviews = [reviews[i] for i in range(len(reviews)) if predictions[i] == 0]  # 0 = Real
     fake_reviews = [reviews[i] for i in range(len(reviews)) if predictions[i] == 1]  # 1 = Fake
-
-    print(f"\nReal Reviews: {len(real_reviews)}")
-    print(f"Fake Reviews: {len(fake_reviews)}\n")
 
     return real_reviews, fake_reviews
 
@@ -169,11 +174,9 @@ def classify_reviews_by_rating(reviews):
 
 
 def generate_summary(reviews):
-    """Generates Positive & Negative Summaries + Overall Ratings."""
+    """Generates a combined detailed summary of both positive and negative reviews with key points."""
     if not reviews:
         return {
-            "positive_summary": "No positive reviews available.",
-            "negative_summary": "No negative reviews available.",
             "detailed_summary": "No reviews available for summary.",
             "average_rating": 0.00,
             "weighted_average_rating": 0.00,
@@ -183,37 +186,31 @@ def generate_summary(reviews):
     # Classify Reviews using XGBoost Ratings
     positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
 
-    # Prepare Summarization Input
-    positive_text = " ".join(positive_reviews[:5]) if positive_reviews else "No positive reviews available."
-    negative_text = " ".join(negative_reviews[:5]) if negative_reviews else "No negative reviews available."
-    detailed_text = " ".join(reviews[:10]) if reviews else "No reviews available for summary."
+    # Prepare Combined Text for Summarization
+    combined_text = ""
+    
+    # Adding Positive Reviews
+    if positive_reviews:
+        combined_text += "Why it's good: " + ". ".join(positive_reviews[:5]) + ". "
+    else:
+        combined_text += "No positive reviews available. "
+
+    # Adding Negative Reviews
+    if negative_reviews:
+        combined_text += "Why it's bad: " + ". ".join(negative_reviews[:5]) + ". "
+    else:
+        combined_text += "No negative reviews available. "
 
     try:
-        # Generate Summaries using AI
-        positive_summary = summarizer(
-            "Summarize the positive reviews: " + positive_text,
-            max_length=150,
-            num_return_sequences=1,
-            max_new_tokens=50
-        )[0]["generated_text"]
-
-        negative_summary = summarizer(
-            "Summarize the negative reviews: " + negative_text,
-            max_length=150,
-            num_return_sequences=1,
-            max_new_tokens=50
-        )[0]["generated_text"]
-
+        # Generate Combined Detailed Summary
         detailed_summary = summarizer(
-            "Provide an in-depth summary of these reviews: " + detailed_text,
+            "Provide a summary of the reviews: " + combined_text,
             max_length=250,
             num_return_sequences=1,
             max_new_tokens=80
         )[0]["generated_text"]
 
         return {
-            "positive_summary": positive_summary,
-            "negative_summary": negative_summary,
             "detailed_summary": detailed_summary,
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
@@ -223,8 +220,6 @@ def generate_summary(reviews):
     except IndexError as e:
         print(f"⚠️ GPT-2 IndexError: {e}")
         return {
-            "positive_summary": "Error generating positive summary.",
-            "negative_summary": "Error generating negative summary.",
             "detailed_summary": "Error generating detailed summary.",
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
@@ -248,10 +243,7 @@ def search_product():
         return jsonify({"error": "Product name is required"}), 400
 
     url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={product_name}+store&key={GOOGLE_API_KEY}"
-    response = requests.get(url).json()
-
-    if "error_message" in response:
-        return jsonify({"error": response["error_message"]}), 500
+    response = get_google_response(url)
 
     if "results" not in response or not response["results"]:
         return jsonify({"error": "No shops found"}), 404
@@ -287,18 +279,23 @@ def search_product():
             shop["fake_reviews"] = []
             shop["predicted_rating"] = 0
 
+        # Ensure all numerical values are converted to native Python types
+        shop["rating"] = float(shop["rating"])  # Convert from int64 or any other NumPy type to float
+        shop["predicted_rating"] = int(shop["predicted_rating"])  # Ensure predicted_rating is an int
+        shop["lat"] = float(shop["lat"])  # Convert lat to float if not already
+        shop["lng"] = float(shop["lng"])  # Convert lng to float if not already
+
+
         shops.append(shop)
 
     return jsonify({"shops": shops})
 
 # Fetch Shop Reviews and Process Them
 @app.route("/search_shop", methods=["GET"])
-# @jwt_required()
 def search_shop():
     shop_id = request.args.get("place_id")
     details_url = f"https://maps.googleapis.com/maps/api/place/details/json?placeid={shop_id}&fields=reviews&key={GOOGLE_API_KEY}"
-    details_response = requests.get(details_url).json()
-    print(details_response)
+    details_response = get_google_response(details_url)
 
     if "result" not in details_response or "reviews" not in details_response["result"]:
         return jsonify({"error": "No reviews found"}), 404
@@ -306,7 +303,7 @@ def search_shop():
     reviews = [review["text"] for review in details_response["result"]["reviews"]]
 
     # Remove Fake Reviews
-    real_reviews = detect_fake_reviews(reviews)
+    real_reviews, _ = detect_fake_reviews(reviews)
 
     # Predict Ratings
     predicted_ratings = predict_review_rating(real_reviews)
@@ -315,7 +312,7 @@ def search_shop():
     summary = generate_summary(real_reviews)
 
     return jsonify({
-        "reviews": [{"text": review, "predicted_rating": rating} for review, rating in zip(real_reviews, predicted_ratings)],
+        "reviews": [{"text": review, "predicted_rating": predicted_ratings} for review in real_reviews],
         "summary": summary
     })
 
@@ -348,4 +345,3 @@ def login():
 # Run Flask App
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
-

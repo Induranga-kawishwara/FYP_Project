@@ -72,7 +72,7 @@ stop_words = set(stopwords.words("english"))
 # Retry decorator for API calls
 @retry(wait=wait_fixed(2), stop=stop_after_attempt(3))
 def get_google_response(url):
-    response = requests.get(url, timeout=180)
+    response = requests.get(url, timeout=300)
     response.raise_for_status()
     return response.json()
 
@@ -225,7 +225,18 @@ def generate_summary(reviews):
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
         }
-
+def convert_numpy_types(data):
+    """Recursively convert numpy types to native Python types."""
+    if isinstance(data, dict):
+        return {key: convert_numpy_types(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [convert_numpy_types(item) for item in data]
+    elif isinstance(data, np.int64):
+        return int(data)
+    elif isinstance(data, np.float64):
+        return float(data)
+    else:
+        return data
 
 # Explain Predictions using LIME
 @app.route("/explain_review", methods=["POST"])
@@ -279,12 +290,7 @@ def search_product():
             shop["fake_reviews"] = []
             shop["predicted_rating"] = 0
 
-        # Ensure all numerical values are converted to native Python types
-        shop["rating"] = float(shop["rating"])  # Convert from int64 or any other NumPy type to float
-        shop["predicted_rating"] = int(shop["predicted_rating"])  # Ensure predicted_rating is an int
-        shop["lat"] = float(shop["lat"])  # Convert lat to float if not already
-        shop["lng"] = float(shop["lng"])  # Convert lng to float if not already
-
+        shop = convert_numpy_types(shop)  # Convert numpy types to native types
 
         shops.append(shop)
 

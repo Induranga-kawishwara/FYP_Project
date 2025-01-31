@@ -89,8 +89,8 @@ def detect_fake_reviews(reviews):
     expected_features = ["sentiment_score", "contains_promo_words", "contains_sarcasm_words", "days_since_review"]
 
     # Check If Features Match Training Data
-    print(f"Expected Features: {expected_features}")
-    print(f"Model Features: {fake_review_model.feature_names}")
+    print(f"\nExpected Features: {expected_features}")
+    print(f"Model Features: {fake_review_model.feature_names}\n")
 
     # Fix Feature Mismatch
     feature_df = feature_df[expected_features]  # Ensure only relevant features are used
@@ -106,8 +106,8 @@ def detect_fake_reviews(reviews):
     real_reviews = [reviews[i] for i in range(len(reviews)) if predictions[i] == 0]  # 0 = Real
     fake_reviews = [reviews[i] for i in range(len(reviews)) if predictions[i] == 1]  # 1 = Fake
 
-    print(f"Real Reviews: {len(real_reviews)}")
-    print(f"Fake Reviews: {len(fake_reviews)}")
+    print(f"\nReal Reviews: {len(real_reviews)}")
+    print(f"Fake Reviews: {len(fake_reviews)}\n")
 
     return real_reviews, fake_reviews
 

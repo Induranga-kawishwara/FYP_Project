@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
 
-const googleMapsApiKey = "YOUR_GOOGLE_MAPS_API_KEY";
+const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
 function ShopFinder() {
   const [query, setQuery] = useState("");
@@ -18,10 +18,7 @@ function ShopFinder() {
 
   const searchShops = async () => {
     const response = await axios.get(
-      `http://127.0.0.1:5000/search_product?product=${query}`,
-      {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      }
+      `http://192.168.1.136:5000/search_product?product=${query}`
     );
     setShops(response.data.shops);
   };

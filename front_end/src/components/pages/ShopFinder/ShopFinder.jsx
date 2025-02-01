@@ -52,8 +52,7 @@ function ShopFinder() {
       const response = await axios.get(
         `http://192.168.1.136:5000/search_product?product=${query}`
       );
-      // setShops(response.data.shops);
-      console.log(response.data.shops);
+      setShops(response.data.shops);
     } catch (error) {
       console.error("Error searching shops:", error);
     } finally {
@@ -175,14 +174,14 @@ function ShopFinder() {
 
                     <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
                       <Rating
-                        value={shop.rating || 4.5}
+                        value={shop.predicted_rating || 0}
                         precision={0.5}
                         readOnly
                         size="small"
                         sx={{ mr: 1 }}
                       />
                       <Typography variant="body2" color="text.secondary">
-                        ({shop.review_count || 15} reviews)
+                        ({shop.reviews?.length || 0} Last 3 Months Reviews)
                       </Typography>
                     </Box>
 
@@ -194,6 +193,18 @@ function ShopFinder() {
                       />
                       <Typography variant="body2" color="text.secondary">
                         {shop.address}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <LocationOnIcon
+                        color="action"
+                        fontSize="small"
+                        sx={{ mr: 1 }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {shop.summary?.detailed_summary ||
+                          "No summary available"}
                       </Typography>
                     </Box>
 

@@ -16,7 +16,7 @@ options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Apple
 # Convert Google Review Date Format to Datetime
 def parse_review_date(date_text):
     """
-    Converts Google review date text (e.g., 'a week ago', '2 months ago') into a proper datetime object.
+    Converts Google review date text into a proper datetime object.
     """
     current_date = datetime.datetime.now()
 
@@ -105,4 +105,4 @@ def scrape_reviews(place_id):
             continue
     print(reviews)
     driver.quit()
-    return reviews  # ✅ Return only reviews
+    return reviews  # Return reviews

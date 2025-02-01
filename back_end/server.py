@@ -235,7 +235,7 @@ def generate_summary(reviews):
         }
 
     except IndexError as e:
-        print(f"⚠️ GPT-2 IndexError: {e}")
+        print(f"GPT-2 IndexError: {e}")
         return {
             "detailed_summary": "Error generating summary.",
             "average_rating": round(avg_rating, 2),

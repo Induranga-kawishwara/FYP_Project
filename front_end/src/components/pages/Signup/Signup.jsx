@@ -10,7 +10,7 @@ function Signup() {
 
   const handleSignup = async () => {
     try {
-      await axios.post("http://127.0.0.1:5000/signup", { username, password });
+      //await axios.post("http://127.0.0.1:5000/signup", { username, password });
       navigate("/");
     } catch (error) {
       alert("Signup failed!");

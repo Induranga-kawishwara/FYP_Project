@@ -18,11 +18,11 @@ function Login() {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post("http://127.0.0.1:5000/login", {
-        username,
-        password,
-      });
-      localStorage.setItem("token", response.data.token);
+      // const response = await axios.post("http://127.0.0.1:5000/login", {
+      //   username,
+      //   password,
+      // });
+      // localStorage.setItem("token", response.data.token);
       navigate("/shopfinder");
     } catch (error) {
       alert("Invalid username or password");

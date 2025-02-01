@@ -116,31 +116,30 @@ def detect_fake_reviews(reviews):
 
     return real_reviews, fake_reviews
 
-
 def predict_review_rating(reviews):
     """Predicts review ratings and returns a weighted average rating (0.00 format)."""
-    
-    # Ensure all reviews are strings
-    flat_reviews = []
-    for review in reviews:
-        if isinstance(review, list):  
-            flat_reviews.append(" ".join(str(r) for r in review))  # Convert list to string
-        else:
-            flat_reviews.append(str(review))  # Ensure it's a string
 
-    # Vectorize reviews
-    transformed_reviews = vectorizer.transform(flat_reviews)  # Ensure proper format
+    if not reviews:
+        return 0.0  # Return 0 if there are no reviews
+
+    # Ensure all reviews are strings
+    flat_reviews = [" ".join(str(r) for r in review) if isinstance(review, list) else str(review) for review in reviews]
+
+    # Vectorize reviews using the TF-IDF vectorizer
+    transformed_reviews = vectorizer.transform(flat_reviews)  
 
     # Convert to DMatrix for XGBoost
     dtest = xgb.DMatrix(transformed_reviews)
 
-    # Predict Star Ratings (1-5)
-    pred_probs = review_model.predict(dtest)
-    predicted_ratings = np.argmax(pred_probs, axis=1) + 1
-    avg_rating = np.mean(predicted_ratings)
+    # Predict probability distribution for each rating (1-5)
+    pred_probs = review_model.predict(dtest)  # shape: (num_reviews, 5)
 
+    # Compute the Weighted Average Rating (1-5 scale)
+    weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)  # Multiply probabilities by 1,2,3,4,5
+    avg_rating = np.mean(weighted_ratings)  # Compute final weighted average
     
     return round(avg_rating, 2)  # Return as 0.00 format
+
 
 
 def classify_reviews_by_rating(reviews):

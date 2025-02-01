@@ -18,14 +18,16 @@ import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
 import SearchIcon from "@mui/icons-material/Search";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import StoreIcon from "@mui/icons-material/Store";
+import DirectionsIcon from "@mui/icons-material/Directions";
 
-const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w"; // Use environment variable
+const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
 function ShopFinder() {
   const [query, setQuery] = useState("");
   const [shops, setShops] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [selectedShop, setSelectedShop] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -57,6 +59,14 @@ function ShopFinder() {
       console.error("Error searching shops:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to get directions
+  const getDirections = () => {
+    if (currentLocation && selectedShop) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.lat},${currentLocation.lng}&destination=${selectedShop.lat},${selectedShop.lng}&travelmode=driving`;
+      window.open(url, "_blank");
     }
   };
 
@@ -111,8 +121,10 @@ function ShopFinder() {
 
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
         <GoogleMap
-          center={currentLocation || { lat: 40.7128, lng: -74.006 }} // Default: NYC
-          zoom={currentLocation ? 14 : 12}
+          center={
+            selectedShop || currentLocation || { lat: 40.7128, lng: -74.006 }
+          }
+          zoom={selectedShop ? 16 : currentLocation ? 14 : 12}
           mapContainerStyle={{
             height: isMobile ? "300px" : "500px",
             width: "100%",
@@ -121,7 +133,6 @@ function ShopFinder() {
             boxShadow: theme.shadows[3],
           }}
         >
-          {/* 📍 User's Current Location Marker */}
           {currentLocation && (
             <Marker
               position={currentLocation}
@@ -130,19 +141,34 @@ function ShopFinder() {
               }}
             />
           )}
-
-          {/* 📌 Shop Markers */}
           {shops.map((shop, index) => (
             <Marker
               key={index}
               position={{ lat: shop.lat, lng: shop.lng }}
+              onClick={() => setSelectedShop(shop)}
               icon={{
-                url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                url:
+                  selectedShop === shop
+                    ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
+                    : "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
               }}
             />
           ))}
         </GoogleMap>
       </LoadScript>
+
+      {selectedShop && currentLocation && (
+        <Box sx={{ textAlign: "center", mt: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={getDirections}
+            startIcon={<DirectionsIcon />}
+          >
+            Get Directions to {selectedShop.shop_name}
+          </Button>
+        </Box>
+      )}
 
       {shops.length > 0 ? (
         <Box sx={{ mt: 4 }}>
@@ -156,20 +182,16 @@ function ShopFinder() {
                   sx={{
                     transition: "transform 0.2s",
                     "&:hover": { transform: "translateY(-4px)" },
+                    border: selectedShop === shop ? "2px solid green" : "none",
                   }}
+                  onClick={() => setSelectedShop(shop)}
                 >
                   <CardContent>
                     <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        mb: 1.5,
-                      }}
+                      sx={{ display: "flex", alignItems: "center", mb: 1.5 }}
                     >
                       <StoreIcon color="primary" sx={{ mr: 1.5 }} />
-                      <Typography variant="h6" component="div">
-                        {shop.shop_name}
-                      </Typography>
+                      <Typography variant="h6">{shop.shop_name}</Typography>
                     </Box>
 
                     <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
@@ -196,27 +218,26 @@ function ShopFinder() {
                       </Typography>
                     </Box>
 
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <LocationOnIcon
-                        color="action"
-                        fontSize="small"
-                        sx={{ mr: 1 }}
-                      />
+                    {/* Displaying Summary */}
+                    <Box sx={{ mt: 2 }}>
                       <Typography variant="body2" color="text.secondary">
+                        📊 **Summary:**{" "}
                         {shop.summary?.detailed_summary ||
                           "No summary available"}
                       </Typography>
-                    </Box>
-
-                    {shop.distance && (
-                      <Typography
-                        variant="body2"
-                        color="primary"
-                        sx={{ mt: 1, fontWeight: "bold" }}
-                      >
-                        {shop.distance} km away
+                      <Typography variant="body2" color="text.secondary">
+                        ⭐ **Average Rating:**{" "}
+                        {shop.summary?.average_rating || "N/A"}
                       </Typography>
-                    )}
+                      <Typography variant="body2" color="text.secondary">
+                        🔥 **Most Common Rating:**{" "}
+                        {shop.summary?.most_common_rating || "N/A"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        📈 **Weighted Average Rating:**{" "}
+                        {shop.summary?.weighted_average_rating || "N/A"}
+                      </Typography>
+                    </Box>
                   </CardContent>
                 </Card>
               </Grid>
@@ -225,11 +246,13 @@ function ShopFinder() {
         </Box>
       ) : (
         !isLoading && (
-          <Box sx={{ textAlign: "center", mt: 4 }}>
-            <Typography variant="h6" color="text.secondary">
-              Search for products to find nearby shops
-            </Typography>
-          </Box>
+          <Typography
+            variant="h6"
+            color="text.secondary"
+            sx={{ textAlign: "center", mt: 4 }}
+          >
+            Search for products to find nearby shops
+          </Typography>
         )
       )}
     </Container>

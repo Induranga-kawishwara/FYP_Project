@@ -135,10 +135,10 @@ def scrape_reviews(place_id):
     three_month_window = latest_review_date - datetime.timedelta(days=90)  # ✅ Fix: Use latest_review_date
     print(f"✅ Latest review: {latest_review_date.strftime('%Y-%m-%d')} | Collecting reviews from {three_month_window.strftime('%Y-%m-%d')} onwards")
 
-    # ✅ Scroll while checking review dates
+    # Scroll while checking review dates
     scroll_reviews(driver, three_month_window)
 
-    # ✅ Parse reviews after scrolling
+    # Parse reviews after scrolling
     soup = BeautifulSoup(driver.page_source, "html.parser")
     review_divs = soup.find_all("div", class_="jftiEf")
 
@@ -158,10 +158,10 @@ def scrape_reviews(place_id):
                         "text": text
                     })
                     old_review_count = 0  # Reset old review counter
-                    print(f"✅ Collecting Review: {review_date.strftime('%Y-%m-%d')}")
+                    print(f"Collecting Review: {review_date.strftime('%Y-%m-%d')}")
                 else:
                     old_review_count += 1
-                    print(f"⚠️ Old Review Ignored: {review_date.strftime('%Y-%m-%d')} (Count: {old_review_count}/5)")
+                    print(f"Old Review Ignored: {review_date.strftime('%Y-%m-%d')} (Count: {old_review_count}/5)")
 
                 # Stop Scraping if 5 Old Reviews Are Collected Consecutively
                 if old_review_count >= 5:
@@ -172,4 +172,4 @@ def scrape_reviews(place_id):
 
     driver.quit()
 
-    return reviews  # ✅ Return only reviews within the 3-month window
+    return reviews  # Return only reviews within the 3-month window

@@ -134,12 +134,11 @@ def predict_review_rating(reviews):
     # Convert to DMatrix for XGBoost
     dtest = xgb.DMatrix(transformed_reviews)
 
-    # Predict probability distribution for each rating (1-5)
+    # Predict Star Ratings (1-5)
     pred_probs = review_model.predict(dtest)
+    predicted_ratings = np.argmax(pred_probs, axis=1) + 1
+    avg_rating = np.mean(predicted_ratings)
 
-    # Compute the Weighted Average Rating
-    weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)  # 1-5 Scale
-    avg_rating = np.mean(weighted_ratings)  # Compute final average rating
     
     return round(avg_rating, 2)  # Return as 0.00 format
 
@@ -172,42 +171,32 @@ def classify_reviews_by_rating(reviews):
 
     return positive_reviews, negative_reviews, avg_rating, weighted_average_rating, majority_rating
 
-
-def summarize_text(text, max_length=100):
-    """Summarizes text to a maximum length, without cutting off the meaning abruptly."""
-    if len(text) > max_length:
-        return text[:max_length]  # Just cut the text to the max length without adding "..."
-    return text
-
-
 def generate_summary(reviews):
-    """Generates a meaningful and structured summary with key positive and negative points."""
+    """Generates a structured summary based on the last 3 months' reviews."""
+
     if not reviews:
         return {
-            "detailed_summary": "No reviews available.",
+            "detailed_summary": "No reviews available for the last 3 months.",
             "average_rating": 0.00,
             "weighted_average_rating": 0.00,
             "most_common_rating": 0
         }
 
-    # Classify Reviews using XGBoost Ratings
-    positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
+    # ✅ Classify reviews into positive & negative
+    positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)  # <-- FIXED (Use reviews directly)
 
-    # Extract key insights
-    combined_text = ""
+    # ✅ Log count of positive & negative reviews in the console
+    print(f"🔵 Positive Reviews Count (Last 3 Months): {len(positive_reviews)}")
+    print(f"🔴 Negative Reviews Count (Last 3 Months): {len(negative_reviews)}")
 
-    if positive_reviews:
-        combined_text += "Positives: " + ". ".join(positive_reviews[:5]) + ". "
-    else:
-        combined_text += "No major positive feedback. "
+    # ✅ Construct summary text
+    positive_text = "Positives (Based on last 3 months' reviews): " + ". ".join(positive_reviews[:5]) + "." if positive_reviews else "Positives (Last 3 months): No major positive feedback."
+    negative_text = "Negatives (Based on last 3 months' reviews): " + ". ".join(negative_reviews[:5]) + "." if negative_reviews else "Negatives (Last 3 months): No major complaints."
 
-    if negative_reviews:
-        combined_text += "Negatives: " + ". ".join(negative_reviews[:5]) + ". "
-    else:
-        combined_text += "No major complaints. "
+    combined_text = positive_text + " " + negative_text
 
     try:
-        # Generate Combined Summary
+        # ✅ Generate summary using GPT-2
         raw_summary = summarizer(
             "Summarize the key points of these reviews: " + combined_text,
             max_length=100,
@@ -215,27 +204,31 @@ def generate_summary(reviews):
             max_new_tokens=80
         )[0]["generated_text"]
 
-        # Post-processing for neutrality
+        # ✅ Post-processing to remove personal pronouns
         raw_summary = (
-            raw_summary.replace("I ", "Some customers ")
+            raw_summary.replace("I ", "Some visitors ")
                        .replace("We ", "Many visitors ")
                        .replace("My ", "Their ")
                        .replace("Our ", "The place's ")
         )
 
-        # Refine and format summary into key points
+        # ✅ Format into structured bullet points
         summary_lines = raw_summary.split(". ")
-        refined_summary = "\n- " + "\n- ".join(summary_lines[:5])  # Pick top 5 meaningful sentences
+        refined_summary = "\n- " + "\n- ".join(summary_lines[:5])
+
+        # ✅ Ensure "Negatives: No major complaints." is always included
+        if "Negatives:" not in refined_summary:
+            refined_summary += "\n- Negatives (Last 3 months): No major complaints."
 
         return {
-            "detailed_summary": refined_summary.strip(),
+            "detailed_summary": f"📅 Summary based on last 3 months' reviews:\n{refined_summary.strip()}",
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
         }
 
     except IndexError as e:
-        print(f"GPT-2 IndexError: {e}")
+        print(f"⚠️ GPT-2 IndexError: {e}")
         return {
             "detailed_summary": "Error generating summary.",
             "average_rating": round(avg_rating, 2),
@@ -301,7 +294,7 @@ def search_product():
             shop["reviews"] = real_reviews
             shop["summary"] = summary
             shop["fake_reviews"] = fake_reviews
-            shop["predicted_rating"] = int(overall_predicted_rating)
+            shop["predicted_rating"] = overall_predicted_rating
         else:
             shop["reviews"] = []
             shop["summary"] = "No reviews available."

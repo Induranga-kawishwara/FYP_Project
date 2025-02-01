@@ -28,6 +28,7 @@ function ShopFinder() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 }); // Default: NYC
   const [limeExplanation, setLimeExplanation] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const theme = useTheme();
@@ -37,10 +38,12 @@ function ShopFinder() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setCurrentLocation({
+          const userLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setCurrentLocation(userLocation);
+          setMapCenter(userLocation);
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -61,6 +64,11 @@ function ShopFinder() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const selectShop = (shop) => {
+    setSelectedShop(shop);
+    setMapCenter({ lat: shop.lat, lng: shop.lng }); // Update map center when a shop is clicked
   };
 
   const getDirections = () => {
@@ -144,9 +152,7 @@ function ShopFinder() {
 
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
         <GoogleMap
-          center={
-            selectedShop || currentLocation || { lat: 40.7128, lng: -74.006 }
-          }
+          center={mapCenter} // Update map center dynamically
           zoom={selectedShop ? 16 : currentLocation ? 14 : 12}
           mapContainerStyle={{
             height: isMobile ? "300px" : "500px",
@@ -168,7 +174,7 @@ function ShopFinder() {
             <Marker
               key={index}
               position={{ lat: shop.lat, lng: shop.lng }}
-              onClick={() => setSelectedShop(shop)}
+              onClick={() => selectShop(shop)}
             />
           ))}
         </GoogleMap>
@@ -215,17 +221,27 @@ function ShopFinder() {
           <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
             LIME Explanation
           </Typography>
-          <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+
+          <Box sx={{ maxHeight: 300, overflowY: "auto", p: 1 }}>
             {limeExplanation.length > 0 ? (
               limeExplanation.map((exp, index) => (
                 <Typography key={index} variant="body2" sx={{ mb: 1 }}>
-                  <strong>{exp.word}:</strong> {exp.weight.toFixed(3)}
+                  <strong style={{ color: "blue" }}>{exp.word}:</strong>
+                  <span style={{ color: exp.weight > 0 ? "green" : "red" }}>
+                    {exp.weight?.toFixed(3) || "N/A"}
+                  </span>
                 </Typography>
               ))
             ) : (
-              <Typography variant="body2">No explanation available.</Typography>
+              <Typography
+                variant="body2"
+                sx={{ textAlign: "center", color: "gray" }}
+              >
+                No explanation available.
+              </Typography>
             )}
           </Box>
+
           <Button
             fullWidth
             variant="contained"
@@ -248,7 +264,7 @@ function ShopFinder() {
                 "&:hover": { transform: "translateY(-4px)" },
                 border: selectedShop === shop ? "2px solid green" : "none",
               }}
-              onClick={() => setSelectedShop(shop)}
+              onClick={() => selectShop(shop)}
             >
               <CardContent>
                 <Typography variant="h6">{shop.shop_name}</Typography>

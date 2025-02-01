@@ -247,14 +247,48 @@ def convert_numpy_types(data):
         return float(data)
     else:
         return data
+    
+def predict_proba(texts):
+    """Predict probability distribution for LIME explainability."""
 
-# Explain Predictions using LIME
+    # Ensure texts are a list of strings
+    texts = [str(text) for text in texts]
+
+    # Convert to TF-IDF features
+    transformed_texts = vectorizer.transform(texts)
+    dtest = xgb.DMatrix(transformed_texts)
+
+    # Get probability scores (Ensure it's returned as a 2D array)
+    probabilities = review_model.predict(dtest)  
+
+    # Ensure probabilities match the number of perturbed samples LIME generates
+    if probabilities.ndim == 1:
+        probabilities = np.expand_dims(probabilities, axis=1)  # Reshape to (n_samples, 1)
+
+    return probabilities
+
+
+
 @app.route("/explain_review", methods=["POST"])
 def explain_review():
     review_text = request.json.get("review")
-    def predict_proba(texts): return review_model.predict_proba(vectorizer.transform(texts))
-    explanation = lime_explainer.explain_instance(review_text, predict_proba, num_features=10)
-    return jsonify({"explanation": [{"word": word, "weight": weight} for word, weight in explanation.as_list()]})
+    
+    if not review_text:
+        return jsonify({"error": "Review text is required"}), 400
+
+    # LIME needs a function returning probabilities for multiple samples
+    explanation = lime_explainer.explain_instance(
+        review_text,
+        lambda x: predict_proba(x),  # Ensure correct format
+        num_features=10
+    )
+
+    return jsonify({
+        "explanation": [{"word": word, "weight": weight} for word, weight in explanation.as_list()]
+    })
+
+
+
 
 # Search Shops for a Product
 @app.route("/search_product", methods=["GET"])

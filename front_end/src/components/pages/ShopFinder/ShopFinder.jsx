@@ -29,7 +29,7 @@ function ShopFinder() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 }); // Default: NYC
-  const [limeExplanation, setLimeExplanation] = useState([]);
+  const [limeExplanation, setLimeExplanation] = useState("");
   const [openModal, setOpenModal] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -68,7 +68,7 @@ function ShopFinder() {
 
   const selectShop = (shop) => {
     setSelectedShop(shop);
-    setMapCenter({ lat: shop.lat, lng: shop.lng }); // Update map center when a shop is clicked
+    setMapCenter({ lat: shop.lat, lng: shop.lng }); // Update map center
   };
 
   const getDirections = () => {
@@ -94,10 +94,24 @@ function ShopFinder() {
         { review: reviewText }
       );
 
-      setLimeExplanation(response.data.explanation);
+      console.log("LIME Response:", response.data); // Debugging log
+
+      // Check if response is an array
+      if (Array.isArray(response.data.explanation)) {
+        setLimeExplanation(
+          response.data.explanation
+            .map((exp) => `🔹 ${exp.word}: ${exp.weight.toFixed(3)}`)
+            .join("\n")
+        );
+      } else {
+        setLimeExplanation("No valid explanation available.");
+      }
+
       setOpenModal(true);
     } catch (error) {
       console.error("Error fetching explanation:", error);
+      setLimeExplanation("Error fetching explanation.");
+      setOpenModal(true);
     }
   };
 
@@ -152,7 +166,7 @@ function ShopFinder() {
 
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
         <GoogleMap
-          center={mapCenter} // Update map center dynamically
+          center={mapCenter}
           zoom={selectedShop ? 16 : currentLocation ? 14 : 12}
           mapContainerStyle={{
             height: isMobile ? "300px" : "500px",
@@ -180,7 +194,6 @@ function ShopFinder() {
         </GoogleMap>
       </LoadScript>
 
-      {/* Show Buttons Only When a Shop is Selected */}
       {selectedShop && (
         <Box sx={{ textAlign: "center", mt: 3 }}>
           <Button
@@ -203,7 +216,6 @@ function ShopFinder() {
         </Box>
       )}
 
-      {/* LIME Explanation Popup Modal */}
       <Modal open={openModal} onClose={() => setOpenModal(false)}>
         <Box
           sx={{
@@ -219,29 +231,17 @@ function ShopFinder() {
           }}
         >
           <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
-            LIME Explanation
+            Why This Rating?
           </Typography>
-
-          <Box sx={{ maxHeight: 300, overflowY: "auto", p: 1 }}>
-            {limeExplanation.length > 0 ? (
-              limeExplanation.map((exp, index) => (
-                <Typography key={index} variant="body2" sx={{ mb: 1 }}>
-                  <strong style={{ color: "blue" }}>{exp.word}:</strong>
-                  <span style={{ color: exp.weight > 0 ? "green" : "red" }}>
-                    {exp.weight?.toFixed(3) || "N/A"}
-                  </span>
-                </Typography>
-              ))
-            ) : (
-              <Typography
-                variant="body2"
-                sx={{ textAlign: "center", color: "gray" }}
-              >
-                No explanation available.
+          <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+            {limeExplanation ? (
+              <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
+                {limeExplanation}
               </Typography>
+            ) : (
+              <Typography variant="body2">No explanation available.</Typography>
             )}
           </Box>
-
           <Button
             fullWidth
             variant="contained"
@@ -254,7 +254,6 @@ function ShopFinder() {
         </Box>
       </Modal>
 
-      {/* Show Shop Cards */}
       <Grid container spacing={3} sx={{ mt: 4 }}>
         {shops.map((shop, index) => (
           <Grid item xs={12} md={6} key={index}>
@@ -272,11 +271,10 @@ function ShopFinder() {
                   value={shop.predicted_rating || 0}
                   precision={0.5}
                   readOnly
-                  size="small"
                 />
                 <Typography variant="body2">{shop.address}</Typography>
                 <Typography variant="body2">
-                  ⭐ Average Rating: {shop.summary?.average_rating || "N/A"}
+                  📖 {shop.summary?.detailed_summary}
                 </Typography>
               </CardContent>
             </Card>

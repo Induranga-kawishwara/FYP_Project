@@ -268,26 +268,25 @@ def predict_proba(texts):
     return probabilities
 
 
-
 @app.route("/explain_review", methods=["POST"])
 def explain_review():
     review_text = request.json.get("review")
-    
-    if not review_text:
-        return jsonify({"error": "Review text is required"}), 400
 
-    # LIME needs a function returning probabilities for multiple samples
+    # Ensure review_text is a string
+    if not review_text or not isinstance(review_text, str):
+        return jsonify({"error": "Invalid review text"}), 400
+
+    # Use LIME to explain prediction
     explanation = lime_explainer.explain_instance(
         review_text,
-        lambda x: predict_proba(x),  # Ensure correct format
+        predict_proba,  # Pass your probability function
         num_features=10
     )
 
-    return jsonify({
-        "explanation": [{"word": word, "weight": weight} for word, weight in explanation.as_list()]
-    })
-
-
+    # Ensure the response is always a list
+    explanation_list = [{"word": word, "weight": weight} for word, weight in explanation.as_list()]
+    
+    return jsonify({"explanation": explanation_list})
 
 
 # Search Shops for a Product

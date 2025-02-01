@@ -11,14 +11,14 @@ import {
   Box,
   CircularProgress,
   Rating,
+  Modal,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
 import SearchIcon from "@mui/icons-material/Search";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import StoreIcon from "@mui/icons-material/Store";
 import DirectionsIcon from "@mui/icons-material/Directions";
+import InsightsIcon from "@mui/icons-material/Insights";
 
 const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
@@ -28,10 +28,11 @@ function ShopFinder() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
+  const [limeExplanation, setLimeExplanation] = useState([]);
+  const [openModal, setOpenModal] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Get user’s current location
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -62,11 +63,33 @@ function ShopFinder() {
     }
   };
 
-  // Function to get directions
   const getDirections = () => {
     if (currentLocation && selectedShop) {
       const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.lat},${currentLocation.lng}&destination=${selectedShop.lat},${selectedShop.lng}&travelmode=driving`;
       window.open(url, "_blank");
+    } else {
+      alert("Please allow location access to get directions.");
+    }
+  };
+
+  const getLimeExplanation = async () => {
+    if (!selectedShop || !selectedShop.reviews.length) {
+      alert("No reviews available for explanation.");
+      return;
+    }
+
+    const reviewText = selectedShop.reviews[0].text;
+
+    try {
+      const response = await axios.post(
+        "http://192.168.1.136:5000/explain_review",
+        { review: reviewText }
+      );
+
+      setLimeExplanation(response.data.explanation);
+      setOpenModal(true);
+    } catch (error) {
+      console.error("Error fetching explanation:", error);
     }
   };
 
@@ -83,7 +106,7 @@ function ShopFinder() {
           mb: 4,
         }}
       >
-        Find Local Shops
+        Shops Finder
       </Typography>
 
       <Box sx={{ mb: 4 }}>
@@ -146,19 +169,14 @@ function ShopFinder() {
               key={index}
               position={{ lat: shop.lat, lng: shop.lng }}
               onClick={() => setSelectedShop(shop)}
-              icon={{
-                url:
-                  selectedShop === shop
-                    ? "https://maps.google.com/mapfiles/ms/icons/green-dot.png"
-                    : "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
-              }}
             />
           ))}
         </GoogleMap>
       </LoadScript>
 
-      {selectedShop && currentLocation && (
-        <Box sx={{ textAlign: "center", mt: 2 }}>
+      {/* Show Buttons Only When a Shop is Selected */}
+      {selectedShop && (
+        <Box sx={{ textAlign: "center", mt: 3 }}>
           <Button
             variant="contained"
             color="primary"
@@ -167,94 +185,88 @@ function ShopFinder() {
           >
             Get Directions to {selectedShop.shop_name}
           </Button>
-        </Box>
-      )}
-
-      {shops.length > 0 ? (
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: "bold" }}>
-            Found {shops.length} shops:
-          </Typography>
-          <Grid container spacing={3}>
-            {shops.map((shop, index) => (
-              <Grid item xs={12} md={6} key={index}>
-                <Card
-                  sx={{
-                    transition: "transform 0.2s",
-                    "&:hover": { transform: "translateY(-4px)" },
-                    border: selectedShop === shop ? "2px solid green" : "none",
-                  }}
-                  onClick={() => setSelectedShop(shop)}
-                >
-                  <CardContent>
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", mb: 1.5 }}
-                    >
-                      <StoreIcon color="primary" sx={{ mr: 1.5 }} />
-                      <Typography variant="h6">{shop.shop_name}</Typography>
-                    </Box>
-
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                      <Rating
-                        value={shop.predicted_rating || 0}
-                        precision={0.5}
-                        readOnly
-                        size="small"
-                        sx={{ mr: 1 }}
-                      />
-                      <Typography variant="body2" color="text.secondary">
-                        ({shop.reviews?.length || 0} Last 3 Months Reviews)
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <LocationOnIcon
-                        color="action"
-                        fontSize="small"
-                        sx={{ mr: 1 }}
-                      />
-                      <Typography variant="body2" color="text.secondary">
-                        {shop.address}
-                      </Typography>
-                    </Box>
-
-                    {/* Displaying Summary */}
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        📊 **Summary:**{" "}
-                        {shop.summary?.detailed_summary ||
-                          "No summary available"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ⭐ **Average Rating:**{" "}
-                        {shop.summary?.average_rating || "N/A"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        🔥 **Most Common Rating:**{" "}
-                        {shop.summary?.most_common_rating || "N/A"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        📈 **Weighted Average Rating:**{" "}
-                        {shop.summary?.weighted_average_rating || "N/A"}
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      ) : (
-        !isLoading && (
-          <Typography
-            variant="h6"
-            color="text.secondary"
-            sx={{ textAlign: "center", mt: 4 }}
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={getLimeExplanation}
+            startIcon={<InsightsIcon />}
+            sx={{ ml: 2 }}
           >
-            Search for products to find nearby shops
-          </Typography>
-        )
+            Explain with LIME
+          </Button>
+        </Box>
       )}
+
+      {/* LIME Explanation Popup Modal */}
+      <Modal open={openModal} onClose={() => setOpenModal(false)}>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 400,
+            bgcolor: "white",
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
+            LIME Explanation
+          </Typography>
+          <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+            {limeExplanation.length > 0 ? (
+              limeExplanation.map((exp, index) => (
+                <Typography key={index} variant="body2" sx={{ mb: 1 }}>
+                  <strong>{exp.word}:</strong> {exp.weight.toFixed(3)}
+                </Typography>
+              ))
+            ) : (
+              <Typography variant="body2">No explanation available.</Typography>
+            )}
+          </Box>
+          <Button
+            fullWidth
+            variant="contained"
+            color="error"
+            sx={{ mt: 2 }}
+            onClick={() => setOpenModal(false)}
+          >
+            Close
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* Show Shop Cards */}
+      <Grid container spacing={3} sx={{ mt: 4 }}>
+        {shops.map((shop, index) => (
+          <Grid item xs={12} md={6} key={index}>
+            <Card
+              sx={{
+                transition: "transform 0.2s",
+                "&:hover": { transform: "translateY(-4px)" },
+                border: selectedShop === shop ? "2px solid green" : "none",
+              }}
+              onClick={() => setSelectedShop(shop)}
+            >
+              <CardContent>
+                <Typography variant="h6">{shop.shop_name}</Typography>
+                <Rating
+                  value={shop.predicted_rating || 0}
+                  precision={0.5}
+                  readOnly
+                  size="small"
+                />
+                <Typography variant="body2">{shop.address}</Typography>
+                <Typography variant="body2">
+                  ⭐ Average Rating: {shop.summary?.average_rating || "N/A"}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
     </Container>
   );
 }

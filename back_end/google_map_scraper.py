@@ -71,13 +71,13 @@ def scroll_reviews(driver, three_month_window):
                 if review_date:
                     if review_date < three_month_window:
                         old_review_count += 1  # Consecutive old review
-                        print(f"⚠️ Old Review Found: {review_date.strftime('%Y-%m-%d')} (Count: {old_review_count}/5)")
+                        print(f"Old Review Found: {review_date.strftime('%Y-%m-%d')} (Count: {old_review_count}/5)")
                     else:
                         old_review_count = 0  # Reset count when new review is found
-                        print(f"✅ Recent Review Found: {review_date.strftime('%Y-%m-%d')}, Resetting Counter.")
+                        print(f"Recent Review Found: {review_date.strftime('%Y-%m-%d')}, Resetting Counter.")
 
                 if old_review_count >= 5:
-                    print("❌ Stopping scrolling: 5 consecutive old reviews found.")
+                    print("Stopping scrolling: 5 consecutive old reviews found.")
                     return  # Stop scrolling
 
             new_height = driver.execute_script("return arguments[0].scrollHeight;", reviews_container)
@@ -88,7 +88,7 @@ def scroll_reviews(driver, three_month_window):
     except Exception as e:
         print(f"Error while scrolling reviews: {e}")
 
-# ✅ Scrape Reviews with 5 Consecutive Old Review Stop Condition
+# Scrape Reviews with 5 Consecutive Old Review Stop Condition
 def scrape_reviews(place_id):
     """
     Scrapes Google reviews for a given place ID.
@@ -114,7 +114,7 @@ def scrape_reviews(place_id):
         driver.quit()
         return []
 
-    # ✅ First, find the latest review date
+    # find the latest review date
     soup = BeautifulSoup(driver.page_source, "html.parser")
     review_divs = soup.find_all("div", class_="jftiEf")
     
@@ -124,15 +124,15 @@ def scrape_reviews(place_id):
         review_date = parse_review_date(date_text)
         if review_date:
             latest_review_date = review_date
-            break  # Stop after first (latest) review found
+            break  
 
     if latest_review_date is None:
-        print("❌ No valid reviews found.")
+        print("No valid reviews found.")
         driver.quit()
         return []
 
     # ✅ Define the **EXACT** 3-month review window
-    three_month_window = latest_review_date - datetime.timedelta(days=90)  # ✅ Fix: Use latest_review_date
+    three_month_window = latest_review_date - datetime.timedelta(days=90) 
     print(f"✅ Latest review: {latest_review_date.strftime('%Y-%m-%d')} | Collecting reviews from {three_month_window.strftime('%Y-%m-%d')} onwards")
 
     # Scroll while checking review dates
@@ -165,7 +165,7 @@ def scrape_reviews(place_id):
 
                 # Stop Scraping if 5 Old Reviews Are Collected Consecutively
                 if old_review_count >= 5:
-                    print("❌ Stopping scraping: 5 consecutive older reviews found.")
+                    print("Stopping scraping: 5 consecutive older reviews found.")
                     break
         except Exception:
             continue

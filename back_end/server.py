@@ -181,21 +181,21 @@ def generate_summary(reviews):
             "most_common_rating": 0
         }
 
-    # ✅ Classify reviews into positive & negative
+    # Classify reviews into positive & negative
     positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)  # <-- FIXED (Use reviews directly)
 
-    # ✅ Log count of positive & negative reviews in the console
-    print(f"🔵 Positive Reviews Count (Last 3 Months): {len(positive_reviews)}")
-    print(f"🔴 Negative Reviews Count (Last 3 Months): {len(negative_reviews)}")
+    # Log count of positive & negative reviews in the console
+    print(f"Positive Reviews Count (Last 3 Months): {len(positive_reviews)}")
+    print(f"Negative Reviews Count (Last 3 Months): {len(negative_reviews)}")
 
-    # ✅ Construct summary text
+    # Construct summary text
     positive_text = "Positives (Based on last 3 months' reviews): " + ". ".join(positive_reviews[:5]) + "." if positive_reviews else "Positives (Last 3 months): No major positive feedback."
     negative_text = "Negatives (Based on last 3 months' reviews): " + ". ".join(negative_reviews[:5]) + "." if negative_reviews else "Negatives (Last 3 months): No major complaints."
 
     combined_text = positive_text + " " + negative_text
 
     try:
-        # ✅ Generate summary using GPT-2
+        # Generate summary using GPT-2
         raw_summary = summarizer(
             "Summarize the key points of these reviews: " + combined_text,
             max_length=100,
@@ -203,7 +203,7 @@ def generate_summary(reviews):
             max_new_tokens=80
         )[0]["generated_text"]
 
-        # ✅ Post-processing to remove personal pronouns
+        # Post-processing to remove personal pronouns
         raw_summary = (
             raw_summary.replace("I ", "Some visitors ")
                        .replace("We ", "Many visitors ")
@@ -211,11 +211,11 @@ def generate_summary(reviews):
                        .replace("Our ", "The place's ")
         )
 
-        # ✅ Format into structured bullet points
+        # Format into structured bullet points
         summary_lines = raw_summary.split(". ")
         refined_summary = "\n- " + "\n- ".join(summary_lines[:5])
 
-        # ✅ Ensure "Negatives: No major complaints." is always included
+        # Ensure "Negatives: No major complaints." is always included
         if "Negatives:" not in refined_summary:
             refined_summary += "\n- Negatives (Last 3 months): No major complaints."
 
@@ -227,7 +227,7 @@ def generate_summary(reviews):
         }
 
     except IndexError as e:
-        print(f"⚠️ GPT-2 IndexError: {e}")
+        print(f"GPT-2 IndexError: {e}")
         return {
             "detailed_summary": "Error generating summary.",
             "average_rating": round(avg_rating, 2),

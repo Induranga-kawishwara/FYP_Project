@@ -181,10 +181,10 @@ def summarize_text(text, max_length=100):
 
 
 def generate_summary(reviews):
-    """Generates a combined detailed summary of both positive and negative reviews with key points."""
+    """Generates a meaningful and structured summary with key positive and negative points."""
     if not reviews:
         return {
-            "detailed_summary": "No reviews available for summary.",
+            "detailed_summary": "No reviews available.",
             "average_rating": 0.00,
             "weighted_average_rating": 0.00,
             "most_common_rating": 0
@@ -193,35 +193,42 @@ def generate_summary(reviews):
     # Classify Reviews using XGBoost Ratings
     positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
 
-    # Prepare Combined Text for Summarization
+    # Extract key insights
     combined_text = ""
 
-    # Adding Positive Reviews (concise & on-point)
     if positive_reviews:
-        combined_text += "Pros: " + ". ".join(positive_reviews[:3]) + ". "
+        combined_text += "Positives: " + ". ".join(positive_reviews[:5]) + ". "
     else:
-        combined_text += "No positive reviews available. "
+        combined_text += "No major positive feedback. "
 
-    # Adding Negative Reviews (concise & on-point)
     if negative_reviews:
-        combined_text += "Cons: " + ". ".join(negative_reviews[:3]) + ". "
+        combined_text += "Negatives: " + ". ".join(negative_reviews[:5]) + ". "
     else:
-        combined_text += "No negative reviews available. "
+        combined_text += "No major complaints. "
 
     try:
-        # Generate Combined Detailed Summary (more structured & concise)
-        detailed_summary = summarizer(
-            "Summarize the reviews: " + combined_text,
-            max_length=100,   # Keeping it short
+        # Generate Combined Summary
+        raw_summary = summarizer(
+            "Summarize the key points of these reviews: " + combined_text,
+            max_length=100,
             num_return_sequences=1,
-            max_new_tokens=50
+            max_new_tokens=80
         )[0]["generated_text"]
 
-        # Trim to ensure it stays concise
-        concise_summary = summarize_text(detailed_summary, max_length=150)
+        # Post-processing for neutrality
+        raw_summary = (
+            raw_summary.replace("I ", "Some customers ")
+                       .replace("We ", "Many visitors ")
+                       .replace("My ", "Their ")
+                       .replace("Our ", "The place's ")
+        )
+
+        # Refine and format summary into key points
+        summary_lines = raw_summary.split(". ")
+        refined_summary = "\n- " + "\n- ".join(summary_lines[:5])  # Pick top 5 meaningful sentences
 
         return {
-            "detailed_summary": concise_summary,
+            "detailed_summary": refined_summary.strip(),
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
@@ -230,7 +237,7 @@ def generate_summary(reviews):
     except IndexError as e:
         print(f"⚠️ GPT-2 IndexError: {e}")
         return {
-            "detailed_summary": "Error generating detailed summary.",
+            "detailed_summary": "Error generating summary.",
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating

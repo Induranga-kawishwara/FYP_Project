@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 
-# ✅ Setup Selenium WebDriver
+# Setup Selenium WebDriver
 options = Options()
 options.add_argument("--headless")
 options.add_argument("window-size=1920,1080")
@@ -13,7 +13,7 @@ options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
-# ✅ Convert Google Review Date Format to Datetime
+# Convert Google Review Date Format to Datetime
 def parse_review_date(date_text):
     """
     Converts Google review date text (e.g., 'a week ago', '2 months ago') into a proper datetime object.
@@ -46,7 +46,7 @@ def parse_review_date(date_text):
 
     return None
 
-# ✅ Scroll to Load All Reviews
+# Scroll to Load All Reviews
 def scroll_reviews(driver):
     """Scrolls through all available reviews."""
     try:
@@ -65,7 +65,7 @@ def scroll_reviews(driver):
     except Exception as e:
         print(f"Error while scrolling reviews: {e}")
 
-# ✅ Scrape Reviews for a Specific Shop
+# Scrape Reviews for a Specific Shop
 def scrape_reviews(place_id):
     driver = webdriver.Chrome(options=options)
     reviews = []

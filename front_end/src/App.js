@@ -9,7 +9,6 @@ import Login from "./components/pages/LoginPage/Login";
 import Signup from "./components/pages/Signup/Signup";
 import Profile from "./components/pages/Profile/Profile";
 import ShopFinder from "./components/pages/ShopFinder/ShopFinder";
-import ExplainReview from "./components/pages/ExplainReview/ExplainReview";
 
 function App() {
   return (
@@ -21,7 +20,6 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/shopfinder" element={<ShopFinder />} />
-        <Route path="/explain-review" element={<ExplainReview />} />
         <Route path="/login" element={<Login />} />
       </Routes>
     </Router>

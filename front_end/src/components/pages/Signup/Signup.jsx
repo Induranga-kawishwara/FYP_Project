@@ -281,7 +281,11 @@ function Signup() {
           <Box sx={{ mt: 2, textAlign: "center" }}>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Already have an account?{" "}
-              <Link href="/" fontWeight="bold">
+              <Link
+                onClick={() => navigate("/login")} // Wrap navigate in an arrow function
+                fontWeight="bold"
+                style={{ cursor: "pointer" }} // Optional: Add pointer cursor for UX
+              >
                 Login
               </Link>
             </Typography>

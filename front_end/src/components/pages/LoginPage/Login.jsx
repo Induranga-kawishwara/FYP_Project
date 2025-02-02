@@ -165,7 +165,7 @@ function Login() {
             </Link>
             <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
               Don't have an account?{" "}
-              <Link href="#" fontWeight="bold">
+              <Link onClick={() => navigate("/signup")} fontWeight="bold">
                 Sign up
               </Link>
             </Typography>

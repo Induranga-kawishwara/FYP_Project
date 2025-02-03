@@ -296,7 +296,7 @@ def search_product():
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
 
-    url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={product_name}+store&key={GOOGLE_API_KEY}"
+    url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={product_name} store near me&radius=10000&type=store&key={GOOGLE_API_KEY}"
     response = get_google_response(url)
 
     if "results" not in response or not response["results"]:

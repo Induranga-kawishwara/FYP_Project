@@ -1,5 +1,20 @@
 {
   "version": 2,
-  "builds": [{ "src": "back_end/server.py", "use": "@vercel/python" }],
-  "routes": [{ "src": "/(.*)", "dest": "back_end/server.py" }]
+  "builds": [
+    {
+      "src": "back_end/server.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "back_end/server.py"
+    }
+  ],
+  "functions": {
+    "back_end/server.py": {
+      "runtime": "python"
+    }
+  }
 }

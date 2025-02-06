@@ -391,10 +391,12 @@ def login():
         return jsonify({"token": access_token}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
-# Run Flask App
-# if __name__ == "__main__":
-#     app.run(debug=True, host="0.0.0.0", port=5000)
 
 @app.route("/")
 def home():
-    return "Hello from Flask on Vercel!"
+    return "Hello from Flask!"
+
+# Run Flask App
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
+

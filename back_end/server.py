@@ -54,9 +54,14 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 gmaps = googlemaps.Client(key=GOOGLE_API_KEY)
 
 # Load Pretrained Models
-review_model = joblib.load("reviewPrediction_models/best_xgboost_model.pkl")
+review_model = joblib.load("reviewPrediction_models/hybrid/xgboost_model.pkl")
+review_model = joblib.load("reviewPrediction_models/xgboost/best_xgboost_model.pkl")
+
 fake_review_model = joblib.load("fakeReview_model/xgboost_fakereview_model.pkl")
-vectorizer = joblib.load("reviewPrediction_models/tfidf_vectorizer.pkl")
+
+vectorizer = joblib.load("reviewPrediction_models/hybrid/tfidf_vectorizer.pkl")
+vectorizer = joblib.load("reviewPrediction_models/xgboost/tfidf_vectorizer.pkl")
+
 scaler = joblib.load("fakeReview_model/scaler.pkl") 
 
 # Load GPT-2 for Review Summarization

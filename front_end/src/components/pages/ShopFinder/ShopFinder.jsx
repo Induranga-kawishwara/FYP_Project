@@ -56,7 +56,7 @@ function ShopFinder() {
     try {
       setIsLoading(true);
       const response = await axios.get(
-        `http://192.168.1.136:5000/search_product?product=${query}`
+        `http://127.0.0.1:5000/search_product?product=${query}`
       );
       setShops(response.data.shops);
     } catch (error) {

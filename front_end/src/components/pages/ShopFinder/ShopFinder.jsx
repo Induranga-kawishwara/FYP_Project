@@ -90,7 +90,7 @@ function ShopFinder() {
 
     try {
       const response = await axios.post(
-        "http://192.168.1.136:5000/explain_review",
+        "http://127.0.0.1:5000/explain_review",
         { review: reviewText }
       );
 

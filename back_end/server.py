@@ -271,6 +271,7 @@ def predict_proba(texts):
 @app.route("/explain_review", methods=["POST"])
 def explain_review():
     review_text = request.json.get("review")
+    print("aawaa")
 
     # Ensure review_text is a string
     if not review_text or not isinstance(review_text, str):

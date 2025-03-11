@@ -103,13 +103,14 @@ function ShopFinder() {
     showReviewModal: false,
     limeExplanation: "",
     tempDontAskAgain: false,
-    selectedOption: "10",
+    selectedOption: "10", // for review count
     customReviewCount: "",
     modalTriggeredBySearch: false,
     dontAskAgain: false,
-    // New settings for coverage:
-    coverage: "10", // Default coverage in km
+    // Coverage settings
+    coverage: "10", // default coverage (preset value)
     allShops: false, // if true, search for all shops (ignores coverage)
+    customCoverage: "", // new state for custom coverage value
   });
 
   useEffect(() => {
@@ -214,9 +215,16 @@ function ShopFinder() {
       state.selectedOption === "custom"
         ? parseInt(state.customReviewCount)
         : parseInt(state.selectedOption);
+    // Determine final coverage:
+    const finalCoverage =
+      state.coverage === "customcoverage"
+        ? state.customCoverage
+        : state.coverage;
+
     setState((prev) => ({
       ...prev,
       reviewCount: finalReviewCount,
+      coverage: finalCoverage,
       dontAskAgain: prev.tempDontAskAgain,
       showReviewModal: false,
     }));
@@ -806,11 +814,12 @@ function ShopFinder() {
         setTempDontAskAgain={(val) =>
           setState({ ...state, tempDontAskAgain: val })
         }
-        // Pass new coverage settings to the popup:
         coverage={state.coverage}
         setCoverage={(val) => setState({ ...state, coverage: val })}
         allShops={state.allShops}
         setAllShops={(val) => setState({ ...state, allShops: val })}
+        customCoverage={state.customCoverage}
+        setCustomCoverage={(val) => setState({ ...state, customCoverage: val })}
         handleConfirm={handleReviewModalConfirm}
       />
     </Container>

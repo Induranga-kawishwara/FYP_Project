@@ -27,7 +27,7 @@ const ReviewSettingPopup = ({
   tempDontAskAgain,
   setTempDontAskAgain,
   handleConfirm,
-  // Props for coverage settings:
+  // New props for coverage settings:
   coverage,
   setCoverage,
   allShops,
@@ -114,6 +114,9 @@ const ReviewSettingPopup = ({
               onChange={(e) => {
                 if (e.target.value === "all") {
                   setAllShops(true);
+                } else if (e.target.value === "customcoverage") {
+                  setAllShops(false);
+                  setCoverage("customcoverage");
                 } else {
                   setAllShops(false);
                   setCoverage(e.target.value);

@@ -1,4 +1,3 @@
-// ShopFinder.jsx
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
@@ -23,6 +22,7 @@ import {
   Tooltip,
   Zoom,
 } from "@mui/material";
+
 import {
   LoadScript,
   GoogleMap,
@@ -58,7 +58,7 @@ const GradientButton = styled(Button)(({ theme }) => ({
   },
 }));
 
-// Enhanced Card Component
+// Enhanced Card Component for shop cards
 const ShopCard = styled(Card)(({ theme, selected }) => ({
   transition: "transform 0.3s, box-shadow 0.3s",
   cursor: "pointer",
@@ -71,7 +71,7 @@ const ShopCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
-// Convert degrees to radians
+// Utility: Convert degrees to radians
 const deg2rad = (deg) => deg * (Math.PI / 180);
 
 // Haversine formula for distance calculation
@@ -80,11 +80,8 @@ const computeDistance = (lat1, lng1, lat2, lng2) => {
   const dLat = deg2rad(lat2 - lat1);
   const dLng = deg2rad(lng2 - lng1);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -110,6 +107,9 @@ function ShopFinder() {
     customReviewCount: "",
     modalTriggeredBySearch: false,
     dontAskAgain: false,
+    // New settings for coverage:
+    coverage: "10", // Default coverage in km
+    allShops: false, // if true, search for all shops (ignores coverage)
   });
 
   useEffect(() => {
@@ -129,8 +129,13 @@ function ShopFinder() {
     );
   }, []);
 
+  // If "Don't ask again" is enabled and both reviewCount and coverage are set, search directly.
   const handleSearch = () => {
-    if (state.dontAskAgain && state.reviewCount) {
+    if (
+      state.dontAskAgain &&
+      state.reviewCount &&
+      (state.allShops || state.coverage)
+    ) {
       performSearch(state.reviewCount);
     } else {
       setState((prev) => ({
@@ -145,7 +150,11 @@ function ShopFinder() {
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
       const response = await axios.get(
-        `http://127.0.0.1:5000/search_product?product=${state.query}&reviewCount=${finalReviewCount}`
+        `http://127.0.0.1:5000/search_product?product=${
+          state.query
+        }&reviewCount=${finalReviewCount}&coverage=${
+          state.allShops ? "all" : state.coverage
+        }`
       );
       setState((prev) => ({
         ...prev,
@@ -182,9 +191,7 @@ function ShopFinder() {
     try {
       const response = await axios.post(
         "http://127.0.0.1:5000/explain_review",
-        {
-          review: state.selectedShop.reviews[0].text,
-        }
+        { review: state.selectedShop.reviews[0].text }
       );
       setState((prev) => ({
         ...prev,
@@ -201,6 +208,7 @@ function ShopFinder() {
     }
   };
 
+  // Confirm the popup settings (review count and coverage)
   const handleReviewModalConfirm = () => {
     const finalReviewCount =
       state.selectedOption === "custom"
@@ -390,9 +398,16 @@ function ShopFinder() {
                 onClick={() => selectShop(shop)}
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
-                  scale: state.selectedShop === shop ? 12 : 8,
+                  scale:
+                    state.selectedShop?.lat === shop.lat &&
+                    state.selectedShop?.lng === shop.lng
+                      ? 12
+                      : 8,
                   fillColor:
-                    state.selectedShop === shop ? "#FF6B6B" : "#45B7D1",
+                    state.selectedShop?.lat === shop.lat &&
+                    state.selectedShop?.lng === shop.lng
+                      ? "#FF6B6B"
+                      : "#45B7D1",
                   fillOpacity: 0.9,
                   strokeColor: "white",
                   strokeWeight: 2,
@@ -406,7 +421,7 @@ function ShopFinder() {
               />
             ))}
 
-            {/* InfoWindow */}
+            {/* InfoWindow for Selected Shop */}
             {state.selectedShop && state.currentLocation && (
               <InfoWindow
                 position={{
@@ -417,7 +432,7 @@ function ShopFinder() {
                 options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
               >
                 <Box>
-                  {/* Shop Name */}
+                  {/* Shop Name with Gradient Underline */}
                   <Typography
                     variant="h5"
                     sx={{
@@ -516,7 +531,6 @@ function ShopFinder() {
 
                   {/* Action Buttons */}
                   <Box sx={{ display: "flex", gap: 1.5 }}>
-                    {/* Explain Rating Button */}
                     <Button
                       variant="outlined"
                       color="primary"
@@ -552,8 +566,6 @@ function ShopFinder() {
                     >
                       Explain Rating
                     </Button>
-
-                    {/* Get Directions Button */}
                     <Button
                       variant="contained"
                       color="secondary"
@@ -636,9 +648,17 @@ function ShopFinder() {
               <Grid item xs={12} md={6} lg={4} key={index}>
                 <Zoom in timeout={(index + 1) * 200}>
                   <ShopCard
-                    selected={state.selectedShop === shop}
+                    selected={
+                      state.selectedShop?.lat === shop.lat &&
+                      state.selectedShop?.lng === shop.lng
+                    }
                     onClick={() => selectShop(shop)}
-                    elevation={state.selectedShop === shop ? 10 : 3}
+                    elevation={
+                      state.selectedShop?.lat === shop.lat &&
+                      state.selectedShop?.lng === shop.lng
+                        ? 10
+                        : 3
+                    }
                     sx={{
                       height: "100%",
                       display: "flex",
@@ -659,7 +679,10 @@ function ShopFinder() {
                           sx={{
                             bgcolor: alpha(
                               theme.palette.primary.main,
-                              state.selectedShop === shop ? 0.2 : 0.1
+                              state.selectedShop?.lat === shop.lat &&
+                                state.selectedShop?.lng === shop.lng
+                                ? 0.2
+                                : 0.1
                             ),
                             color: theme.palette.primary.main,
                             width: 56,
@@ -692,27 +715,27 @@ function ShopFinder() {
                       </Box>
                       <Box
                         sx={{
-                          height: { xs: 120, sm: 150 }, // Responsive height
-                          maxHeight: 200, // Maximum height constraint
+                          height: { xs: 120, sm: 150 },
+                          maxHeight: 200,
                           width: "auto",
                           p: 2,
                           mt: 2,
-                          borderRadius: 4, // Increased border radius
+                          borderRadius: 4,
                           bgcolor: (theme) =>
-                            alpha(theme.palette.primary.light, 0.15), // Softer background
+                            alpha(theme.palette.primary.light, 0.15),
                           border: (theme) =>
                             `1px solid ${alpha(
                               theme.palette.primary.main,
                               0.2
-                            )}`, // Subtle border
+                            )}`,
                           overflowY: "auto",
                           position: "relative",
                           boxShadow: (theme) =>
                             `inset 0 0 12px ${alpha(
                               theme.palette.grey[500],
                               0.1
-                            )}`, // Inner shadow
-                          transition: "box-shadow 0.3s", // Smooth transition
+                            )}`,
+                          transition: "box-shadow 0.3s",
                           "&:hover": {
                             boxShadow: (theme) =>
                               `inset 0 0 16px ${alpha(
@@ -746,30 +769,9 @@ function ShopFinder() {
                           variant="body2"
                           sx={{
                             fontStyle: "italic",
-                            lineHeight: 1.6, // Improved readability
+                            lineHeight: 1.6,
                             color: (theme) => theme.palette.text.secondary,
-                            whiteSpace: "pre-line", // Preserve line breaks
-                            "&:hover": {
-                              color: (theme) => theme.palette.text.primary,
-                            },
-                            "&::before, &::after": {
-                              content: '"“"', // Fancy quotes
-                              fontSize: "24px",
-                              verticalAlign: "text-top",
-                              color: (theme) => theme.palette.primary.main,
-                              mr: 0.5,
-                              ml: -1,
-                            },
-                            "&::after": {
-                              display: "none", // Hide closing quote if text overflows
-                              [`.${shop.summary?.detailed_summary && "block"}`]:
-                                {
-                                  display: "block",
-                                  position: "absolute",
-                                  bottom: 8,
-                                  right: 8,
-                                },
-                            },
+                            whiteSpace: "pre-line",
                           }}
                         >
                           {shop.summary?.detailed_summary ||
@@ -804,6 +806,11 @@ function ShopFinder() {
         setTempDontAskAgain={(val) =>
           setState({ ...state, tempDontAskAgain: val })
         }
+        // Pass new coverage settings to the popup:
+        coverage={state.coverage}
+        setCoverage={(val) => setState({ ...state, coverage: val })}
+        allShops={state.allShops}
+        setAllShops={(val) => setState({ ...state, allShops: val })}
         handleConfirm={handleReviewModalConfirm}
       />
     </Container>

@@ -27,6 +27,13 @@ const ReviewSettingPopup = ({
   tempDontAskAgain,
   setTempDontAskAgain,
   handleConfirm,
+  // Props for coverage settings:
+  coverage,
+  setCoverage,
+  allShops,
+  setAllShops,
+  customCoverage,
+  setCustomCoverage,
 }) => {
   const theme = useTheme();
 
@@ -58,10 +65,11 @@ const ReviewSettingPopup = ({
           <Close />
         </IconButton>
         <Typography variant="h6" sx={{ mb: 3, textAlign: "center" }}>
-          Review Analysis Settings
+          Search Settings
         </Typography>
 
         <FormControl component="fieldset" fullWidth>
+          {/* Review Count Section */}
           <FormLabel component="legend">Select Reviews to Analyze</FormLabel>
           <RadioGroup
             value={selectedOption}
@@ -86,7 +94,7 @@ const ReviewSettingPopup = ({
           {selectedOption === "custom" && (
             <TextField
               fullWidth
-              label="Enter custom number"
+              label="Enter custom review count"
               type="number"
               value={customReviewCount}
               onChange={(e) => setCustomReviewCount(e.target.value)}
@@ -97,6 +105,56 @@ const ReviewSettingPopup = ({
             />
           )}
 
+          {/* Coverage Section */}
+          <Box sx={{ mt: 4 }}>
+            <FormLabel component="legend">Select Coverage</FormLabel>
+            <RadioGroup
+              row
+              value={allShops ? "all" : coverage}
+              onChange={(e) => {
+                if (e.target.value === "all") {
+                  setAllShops(true);
+                } else {
+                  setAllShops(false);
+                  setCoverage(e.target.value);
+                }
+              }}
+              sx={{ mt: 1 }}
+            >
+              <FormControlLabel value="10" control={<Radio />} label="10 km" />
+              <FormControlLabel value="20" control={<Radio />} label="20 km" />
+              <FormControlLabel value="50" control={<Radio />} label="50 km" />
+              <FormControlLabel
+                value="100"
+                control={<Radio />}
+                label="100 km"
+              />
+              <FormControlLabel
+                value="all"
+                control={<Radio />}
+                label="All Shops"
+              />
+              <FormControlLabel
+                value="customcoverage"
+                control={<Radio />}
+                label="Custom Coverage (Km)"
+              />
+            </RadioGroup>
+            {coverage === "customcoverage" && (
+              <TextField
+                fullWidth
+                label="Enter custom coverage (km)"
+                type="number"
+                value={customCoverage}
+                onChange={(e) => setCustomCoverage(e.target.value)}
+                sx={{ mt: 2 }}
+                InputProps={{
+                  inputProps: { min: 1, max: 10000 },
+                }}
+              />
+            )}
+          </Box>
+
           <FormControlLabel
             control={
               <Checkbox
@@ -105,7 +163,7 @@ const ReviewSettingPopup = ({
               />
             }
             label="Don't show this again"
-            sx={{ mt: 3 }}
+            sx={{ mt: 2 }}
           />
 
           <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>

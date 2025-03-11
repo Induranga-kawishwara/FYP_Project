@@ -416,56 +416,176 @@ function ShopFinder() {
                 onCloseClick={() => setState({ ...state, selectedShop: null })}
                 options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
               >
-                <Card sx={{ p: 2, minWidth: 250 }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                      {state.selectedShop.shop_name}
+                <Box>
+                  {/* Shop Name */}
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      background: (theme) =>
+                        `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      mb: 2,
+                      textAlign: "center",
+                      position: "relative",
+                      "&::after": {
+                        content: '""',
+                        position: "absolute",
+                        width: "60px",
+                        height: "3px",
+                        background: (theme) => theme.palette.primary.main,
+                        bottom: "-5px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                      },
+                    }}
+                  >
+                    {state.selectedShop.shop_name}
+                  </Typography>
+
+                  {/* Rating Section */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 1,
+                      mb: 2,
+                      p: 1.5,
+                      borderRadius: 2,
+                      background: (theme) =>
+                        alpha(theme.palette.success.light, 0.15),
+                    }}
+                  >
+                    <Rating
+                      value={state.selectedShop.predicted_rating || 0}
+                      readOnly
+                      precision={0.5}
+                      size="medium"
+                      sx={{
+                        color: (theme) => theme.palette.warning.main,
+                        "& .MuiRating-iconFilled": {
+                          color: (theme) => theme.palette.warning.dark,
+                        },
+                      }}
+                    />
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        color: (theme) => theme.palette.text.primary,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {state.selectedShop.predicted_rating}/5
                     </Typography>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                      <Rating
-                        value={state.selectedShop.predicted_rating || 0}
-                        readOnly
-                        precision={0.5}
-                        size="medium"
-                        sx={{ color: "#FFD700" }}
-                      />
-                      <Typography
-                        variant="body2"
-                        sx={{ ml: 1, color: "text.secondary" }}
-                      >
-                        ({state.selectedShop.predicted_rating}/5)
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ mb: 2 }}>
-                      {`Distance: ${computeDistance(
+                  </Box>
+
+                  {/* Distance Section */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      mb: 3,
+                      p: 1.5,
+                      borderRadius: 2,
+                      background: (theme) =>
+                        alpha(theme.palette.info.light, 0.15),
+                    }}
+                  >
+                    <LocationIcon
+                      sx={{ color: (theme) => theme.palette.info.main }}
+                    />
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        color: (theme) => theme.palette.text.secondary,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {computeDistance(
                         state.currentLocation.lat,
                         state.currentLocation.lng,
                         state.selectedShop.lat,
                         state.selectedShop.lng
-                      ).toFixed(2)} km`}
+                      ).toFixed(2)}{" "}
+                      km away
                     </Typography>
-                    <Box sx={{ display: "flex", gap: 2 }}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        fullWidth
-                        startIcon={<ReviewsIcon />}
-                        onClick={getLimeExplanation}
-                      >
-                        Explain Rating
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="secondary"
-                        fullWidth
-                        startIcon={<LocationIcon />}
-                        onClick={getDirections}
-                      >
-                        Directions
-                      </Button>
-                    </Box>
-                  </CardContent>
-                </Card>
+                  </Box>
+
+                  {/* Action Buttons */}
+                  <Box sx={{ display: "flex", gap: 1.5 }}>
+                    {/* Explain Rating Button */}
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<ReviewsIcon />}
+                      onClick={getLimeExplanation}
+                      sx={{
+                        flex: 1,
+                        borderRadius: 25,
+                        padding: "8px 16px",
+                        textTransform: "none",
+                        fontWeight: 600,
+                        border: (theme) =>
+                          `1px solid ${alpha(theme.palette.primary.main, 0.8)}`,
+                        background: (theme) =>
+                          alpha(theme.palette.primary.light, 0.1),
+                        boxShadow: (theme) =>
+                          `0 2px 8px ${alpha(
+                            theme.palette.primary.main,
+                            0.15
+                          )}`,
+                        transition: "all 0.3s ease",
+                        "&:hover": {
+                          background: (theme) =>
+                            alpha(theme.palette.primary.main, 0.2),
+                          transform: "translateY(-2px)",
+                          boxShadow: (theme) =>
+                            `0 4px 12px ${alpha(
+                              theme.palette.primary.main,
+                              0.25
+                            )}`,
+                        },
+                      }}
+                    >
+                      Explain Rating
+                    </Button>
+
+                    {/* Get Directions Button */}
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      startIcon={<LocationIcon />}
+                      onClick={getDirections}
+                      sx={{
+                        flex: 1,
+                        borderRadius: 25,
+                        padding: "8px 16px",
+                        textTransform: "none",
+                        fontWeight: 600,
+                        boxShadow: (theme) =>
+                          `0 2px 8px ${alpha(
+                            theme.palette.secondary.main,
+                            0.3
+                          )}`,
+                        transition: "all 0.3s ease",
+                        "&:hover": {
+                          transform: "translateY(-2px)",
+                          boxShadow: (theme) =>
+                            `0 4px 12px ${alpha(
+                              theme.palette.secondary.main,
+                              0.4
+                            )}`,
+                          background: (theme) => theme.palette.secondary.dark,
+                        },
+                      }}
+                    >
+                      Get Directions
+                    </Button>
+                  </Box>
+                </Box>
               </InfoWindow>
             )}
           </GoogleMap>
@@ -572,11 +692,13 @@ function ShopFinder() {
                       </Box>
                       <Box
                         sx={{
-                          flex: 1,
+                          height: 150, // Fixed height
+                          width: "100%", // Full width
                           p: 2,
+                          mt: 2,
                           borderRadius: 2,
                           bgcolor: alpha(theme.palette.primary.main, 0.05),
-                          overflowY: "auto",
+                          overflowY: "auto", // Enable vertical scrolling if content overflows
                           scrollbarWidth: "thin",
                           "&::-webkit-scrollbar": {
                             width: 8,

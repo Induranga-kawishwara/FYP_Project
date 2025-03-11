@@ -1,3 +1,4 @@
+// ShopFinder.jsx
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
@@ -18,6 +19,9 @@ import {
   Chip,
   Avatar,
   Skeleton,
+  IconButton,
+  Tooltip,
+  Zoom,
 } from "@mui/material";
 import {
   LoadScript,
@@ -30,323 +34,295 @@ import {
   Store as StoreIcon,
   Reviews as ReviewsIcon,
   LocationOn as LocationIcon,
+  Info as InfoIcon,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { alpha, styled, useTheme } from "@mui/material/styles";
-import ExplanationPopup from "../../reUse/ExplanationPopup";
+import ExplanationPopup from "../../reUse/ExplanationPopup.jsx";
 import ReviewSettingPopup from "../../reUse/ReviewSettingPopup";
 
 const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
-// Custom Gradient Button
+// Enhanced Gradient Button
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-  color: theme.palette.common.white,
-  fontWeight: "bold",
-  letterSpacing: "0.5px",
-  transition: "transform 0.2s, box-shadow 0.2s",
+  color: "white",
+  fontWeight: 600,
+  padding: "12px 24px",
+  borderRadius: 30,
+  boxShadow: theme.shadows[3],
+  transition: "all 0.3s ease",
   "&:hover": {
-    transform: "translateY(-2px)",
-    boxShadow: theme.shadows[4],
+    transform: "scale(1.05)",
+    boxShadow: theme.shadows[6],
   },
 }));
 
-// Animated Card Component for shop cards
-const AnimatedCard = styled(Card)(({ theme, selected }) => ({
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+// Enhanced Card Component
+const ShopCard = styled(Card)(({ theme, selected }) => ({
+  transition: "transform 0.3s, box-shadow 0.3s",
   cursor: "pointer",
   position: "relative",
-  overflow: "hidden",
   border: selected ? `2px solid ${theme.palette.success.main}` : "none",
+  boxShadow: selected ? theme.shadows[10] : theme.shadows[2],
   "&:hover": {
     transform: "translateY(-5px)",
-    boxShadow: theme.shadows[6],
-    "&::before": {
-      content: '""',
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: alpha(theme.palette.primary.main, 0.05),
-    },
+    boxShadow: theme.shadows[8],
   },
 }));
 
 // Convert degrees to radians
 const deg2rad = (deg) => deg * (Math.PI / 180);
 
-// Haversine formula to compute distance (in km) between two lat/lng points
+// Haversine formula for distance calculation
 const computeDistance = (lat1, lng1, lat2, lng2) => {
-  const R = 6371; // Earth's radius in km
+  const R = 6371; // Earth radius in km
   const dLat = deg2rad(lat2 - lat1);
   const dLng = deg2rad(lng2 - lng1);
   const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLng / 2) ** 2;
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
 function ShopFinder() {
-  // State variables
-  const [query, setQuery] = useState("");
-  const [shops, setShops] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [selectedShop, setSelectedShop] = useState(null);
-  const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
-  const [reviewCount, setReviewCount] = useState(null);
-  const [openExplanationModal, setOpenExplanationModal] = useState(false);
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [limeExplanation, setLimeExplanation] = useState("");
-
-  // State for review settings modal
-  const [tempDontAskAgain, setTempDontAskAgain] = useState(false);
-  const [selectedOption, setSelectedOption] = useState("10");
-  const [customReviewCount, setCustomReviewCount] = useState("");
-  const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
-  const [dontAskAgain, setDontAskAgain] = useState(false);
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
-  // Create a ref for the map container so we can scroll to it
   const mapRef = useRef(null);
 
-  // Get user's current location on mount
+  const [state, setState] = useState({
+    query: "",
+    shops: [],
+    isLoading: false,
+    currentLocation: null,
+    selectedShop: null,
+    mapCenter: { lat: 40.7128, lng: -74.006 },
+    reviewCount: null,
+    openExplanationModal: false,
+    showReviewModal: false,
+    limeExplanation: "",
+    tempDontAskAgain: false,
+    selectedOption: "10",
+    customReviewCount: "",
+    modalTriggeredBySearch: false,
+    dontAskAgain: false,
+  });
+
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setCurrentLocation(userLocation);
-          setMapCenter(userLocation);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-        }
-      );
-    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setState((prev) => ({
+          ...prev,
+          currentLocation: userLocation,
+          mapCenter: userLocation,
+        }));
+      },
+      (error) => console.error("Location Error:", error)
+    );
   }, []);
 
-  // Function to perform shop search (includes reviewCount parameter)
+  const handleSearch = () => {
+    if (state.dontAskAgain && state.reviewCount) {
+      performSearch(state.reviewCount);
+    } else {
+      setState((prev) => ({
+        ...prev,
+        showReviewModal: true,
+        modalTriggeredBySearch: true,
+      }));
+    }
+  };
+
   const performSearch = async (finalReviewCount) => {
     try {
-      setIsLoading(true);
+      setState((prev) => ({ ...prev, isLoading: true }));
       const response = await axios.get(
-        `http://127.0.0.1:5000/search_product?product=${query}&reviewCount=${finalReviewCount}`
+        `http://127.0.0.1:5000/search_product?product=${state.query}&reviewCount=${finalReviewCount}`
       );
-      setShops(response.data.shops);
+      setState((prev) => ({
+        ...prev,
+        shops: response.data.shops,
+        isLoading: false,
+      }));
     } catch (error) {
-      console.error("Error searching shops:", error);
-    } finally {
-      setIsLoading(false);
+      console.error("Search Error:", error);
+      setState((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
-  // Search button handler
-  const handleSearch = () => {
-    if (dontAskAgain && reviewCount) {
-      performSearch(reviewCount);
-    } else {
-      setModalTriggeredBySearch(true);
-      setShowReviewModal(true);
-    }
-  };
-
-  // When a shop card is clicked, select that shop, center map, and scroll up to map
   const selectShop = (shop) => {
-    setSelectedShop(shop);
-    setMapCenter({ lat: shop.lat, lng: shop.lng });
-    // Scroll to map container if available
-    if (mapRef.current) {
-      mapRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    setState((prev) => ({
+      ...prev,
+      selectedShop: shop,
+      mapCenter: { lat: shop.lat, lng: shop.lng },
+    }));
+    mapRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Get Directions: open Google Maps with directions from current location to selected shop
   const getDirections = () => {
-    if (currentLocation && selectedShop) {
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.lat},${currentLocation.lng}&destination=${selectedShop.lat},${selectedShop.lng}&travelmode=driving`;
+    if (state.currentLocation && state.selectedShop) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${state.currentLocation.lat},${state.currentLocation.lng}&destination=${state.selectedShop.lat},${state.selectedShop.lng}`;
       window.open(url, "_blank");
-    } else {
-      alert("Please allow location access to get directions.");
     }
   };
 
-  // Get LIME Explanation for the first review of the selected shop
   const getLimeExplanation = async () => {
-    if (
-      !selectedShop ||
-      !selectedShop.reviews ||
-      selectedShop.reviews.length === 0
-    ) {
-      alert("No reviews available for explanation.");
+    if (!state.selectedShop?.reviews?.length) {
+      alert("No reviews available");
       return;
     }
-    const reviewText = selectedShop.reviews[0].text;
     try {
       const response = await axios.post(
         "http://127.0.0.1:5000/explain_review",
         {
-          review: reviewText,
+          review: state.selectedShop.reviews[0].text,
         }
       );
-      if (Array.isArray(response.data.explanation)) {
-        setLimeExplanation(
-          response.data.explanation
-            .map((exp) => `🔹 ${exp.word}: ${exp.weight.toFixed(3)}`)
-            .join("\n")
-        );
-      } else {
-        setLimeExplanation("No valid explanation available.");
-      }
-      setOpenExplanationModal(true);
+      setState((prev) => ({
+        ...prev,
+        limeExplanation: response.data.explanation.join("\n"),
+        openExplanationModal: true,
+      }));
     } catch (error) {
-      console.error("Error fetching explanation:", error);
-      setLimeExplanation("Error fetching explanation.");
-      setOpenExplanationModal(true);
+      console.error("Explanation Error:", error);
+      setState((prev) => ({
+        ...prev,
+        limeExplanation: "Error fetching explanation",
+        openExplanationModal: true,
+      }));
     }
   };
 
-  // Confirm review count settings from the ReviewSettingsModal
   const handleReviewModalConfirm = () => {
     const finalReviewCount =
-      selectedOption === "custom"
-        ? parseInt(customReviewCount, 10)
-        : parseInt(selectedOption, 10);
-    if (!finalReviewCount || isNaN(finalReviewCount)) {
-      alert("Please enter a valid number for custom review count.");
-      return;
-    }
-    setReviewCount(finalReviewCount);
-    setDontAskAgain(tempDontAskAgain);
-    setShowReviewModal(false);
-    if (modalTriggeredBySearch) {
-      performSearch(finalReviewCount);
-      setModalTriggeredBySearch(false);
-    }
-  };
-
-  // Allow user to change review count settings manually
-  const handleChangeReviewCount = () => {
-    if ([10, 100, 500, 1000].includes(reviewCount)) {
-      setSelectedOption(reviewCount.toString());
-      setCustomReviewCount("");
-    } else if (reviewCount) {
-      setSelectedOption("custom");
-      setCustomReviewCount(reviewCount.toString());
-    } else {
-      setSelectedOption("10");
-      setCustomReviewCount("");
-    }
-    setTempDontAskAgain(dontAskAgain);
-    setModalTriggeredBySearch(false);
-    setShowReviewModal(true);
+      state.selectedOption === "custom"
+        ? parseInt(state.customReviewCount)
+        : parseInt(state.selectedOption);
+    setState((prev) => ({
+      ...prev,
+      reviewCount: finalReviewCount,
+      dontAskAgain: prev.tempDontAskAgain,
+      showReviewModal: false,
+    }));
+    if (state.modalTriggeredBySearch) performSearch(finalReviewCount);
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Title Section */}
-      <Box sx={{ textAlign: "center", mb: 6 }}>
-        <Slide in direction="down" timeout={500}>
+      <Box sx={{ textAlign: "center", mb: 8 }}>
+        <Slide in direction="down" timeout={800}>
           <Typography
-            variant="h3"
+            variant="h2"
             component="h1"
             sx={{
-              fontWeight: 800,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
+              fontWeight: 900,
+              background: `linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              mb: 2,
+              position: "relative",
+              display: "inline-block",
+              pb: 1,
+              "&::after": {
+                content: '""',
+                position: "absolute",
+                width: "80%",
+                height: 3,
+                bgcolor: "primary.main",
+                bottom: 0,
+                left: "10%",
+                borderRadius: 2,
+              },
             }}
           >
             Discover Local Shops
           </Typography>
         </Slide>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
           Find the best shops near you with AI-powered insights
         </Typography>
       </Box>
 
       {/* Search Section */}
-      <Box sx={{ mb: 4, position: "relative" }}>
-        <Grid container spacing={2} alignItems="center">
+      <Box sx={{ mb: 6, position: "relative" }}>
+        <Grid container spacing={3} alignItems="center">
           <Grid item xs={12} sm={9}>
             <TextField
               fullWidth
               variant="outlined"
               label="What product are you looking for?"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={state.query}
+              onChange={(e) => setState({ ...state, query: e.target.value })}
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               InputProps={{
                 startAdornment: (
-                  <SearchIcon sx={{ color: "action.active", mr: 1.5 }} />
+                  <SearchIcon sx={{ color: "primary.main", mr: 1.5 }} />
+                ),
+                endAdornment: (
+                  <Tooltip title="Search Tips" placement="right">
+                    <IconButton
+                      sx={{
+                        color: "primary.main",
+                        "&:hover": { color: "secondary.main" },
+                      }}
+                    >
+                      <InfoIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 ),
                 sx: {
                   borderRadius: 50,
-                  "& .MuiOutlinedInput-notchedOutline": { borderWidth: 2 },
+                  bgcolor: "background.default",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "primary.main",
+                  },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: theme.palette.primary.main,
+                    borderColor: "secondary.main",
                   },
                 },
               }}
+              sx={{ bgcolor: "background.paper", borderRadius: 50 }}
             />
           </Grid>
           <Grid item xs={12} sm={3}>
             <GradientButton
               fullWidth
               onClick={handleSearch}
-              disabled={isLoading}
-              size="large"
+              disabled={state.isLoading}
               startIcon={
-                isLoading ? (
+                state.isLoading ? (
                   <CircularProgress size={24} sx={{ color: "white" }} />
                 ) : (
                   <SearchIcon />
                 )
               }
-              sx={{ height: 56, borderRadius: 50 }}
+              endIcon={
+                !state.isLoading && (
+                  <SettingsIcon
+                    fontSize="small"
+                    sx={{ ml: 1, cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setState({ ...state, showReviewModal: true });
+                    }}
+                  />
+                )
+              }
+              sx={{ height: 60, borderRadius: 50 }}
             >
-              {isLoading ? "Searching..." : "Find Shops"}
+              {state.isLoading ? "Searching..." : "Find Shops"}
             </GradientButton>
           </Grid>
         </Grid>
       </Box>
-
-      {/* Review Count Settings */}
-      {reviewCount && (
-        <Fade in={!!reviewCount}>
-          <Box sx={{ textAlign: "center", mb: 4 }}>
-            <Chip
-              icon={<ReviewsIcon />}
-              label={`Analyzing ${reviewCount} reviews per shop`}
-              onClick={handleChangeReviewCount}
-              sx={{
-                px: 2,
-                py: 1,
-                borderRadius: 50,
-                bgcolor: alpha(theme.palette.info.main, 0.1),
-                "& .MuiChip-label": { pl: 1 },
-              }}
-            />
-            <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
-              <Button
-                variant="text"
-                size="small"
-                onClick={handleChangeReviewCount}
-                sx={{ fontWeight: 500 }}
-              >
-                Change Settings
-              </Button>
-            </Typography>
-          </Box>
-        </Fade>
-      )}
 
       {/* Map Section */}
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
@@ -355,16 +331,16 @@ function ShopFinder() {
           sx={{
             borderRadius: 4,
             overflow: "hidden",
-            boxShadow: theme.shadows[6],
-            mb: 4,
-            border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            boxShadow: theme.shadows[10],
+            mb: 6,
+            position: "relative",
           }}
         >
           <GoogleMap
-            center={mapCenter}
-            zoom={selectedShop ? 16 : currentLocation ? 14 : 12}
+            center={state.mapCenter}
+            zoom={state.selectedShop ? 16 : state.currentLocation ? 14 : 12}
             mapContainerStyle={{
-              height: isMobile ? "300px" : "500px",
+              height: isMobile ? "400px" : "600px",
               width: "100%",
             }}
             options={{
@@ -377,86 +353,119 @@ function ShopFinder() {
                   elementType: "labels",
                   stylers: [{ visibility: "off" }],
                 },
+                {
+                  featureType: "road",
+                  elementType: "labels",
+                  stylers: [{ visibility: "off" }],
+                },
               ],
             }}
           >
             {/* Current Location Marker */}
-            {currentLocation && (
+            {state.currentLocation && (
               <Marker
-                position={currentLocation}
+                position={state.currentLocation}
                 icon={{
-                  path:
-                    window.google && window.google.maps
-                      ? window.google.maps.SymbolPath.CIRCLE
-                      : undefined,
-                  scale: 8,
-                  fillColor: theme.palette.primary.main,
+                  path: window.google.maps.SymbolPath.CIRCLE,
+                  scale: 10,
+                  fillColor: "#4CAF50",
                   fillOpacity: 1,
                   strokeColor: "white",
-                  strokeWeight: 2,
+                  strokeWeight: 3,
+                }}
+                label={{
+                  text: "You",
+                  color: "white",
+                  fontSize: "14px",
+                  fontWeight: "bold",
                 }}
               />
             )}
-            {shops.map((shop, index) => (
+
+            {/* Shop Markers */}
+            {state.shops.map((shop, index) => (
               <Marker
                 key={index}
                 position={{ lat: shop.lat, lng: shop.lng }}
                 onClick={() => selectShop(shop)}
                 icon={{
-                  path:
-                    window.google && window.google.maps
-                      ? window.google.maps.SymbolPath.CIRCLE
-                      : undefined,
-                  scale: selectedShop === shop ? 9 : 6,
-                  fillColor: selectedShop === shop ? "green" : "red",
-                  fillOpacity: 1,
+                  path: window.google.maps.SymbolPath.CIRCLE,
+                  scale: state.selectedShop === shop ? 12 : 8,
+                  fillColor:
+                    state.selectedShop === shop ? "#FF6B6B" : "#45B7D1",
+                  fillOpacity: 0.9,
                   strokeColor: "white",
                   strokeWeight: 2,
                 }}
                 label={{
                   text: shop.shop_name[0].toUpperCase(),
                   color: "white",
-                  fontSize: "12px",
+                  fontSize: "14px",
+                  fontWeight: "bold",
                 }}
               />
             ))}
 
-            {/* InfoWindow on selected shop marker showing km, explanation, and destination buttons */}
-            {selectedShop && currentLocation && (
+            {/* InfoWindow */}
+            {state.selectedShop && state.currentLocation && (
               <InfoWindow
-                position={{ lat: selectedShop.lat, lng: selectedShop.lng }}
-                onCloseClick={() => setSelectedShop(null)}
+                position={{
+                  lat: state.selectedShop.lat,
+                  lng: state.selectedShop.lng,
+                }}
+                onCloseClick={() => setState({ ...state, selectedShop: null })}
+                options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
               >
-                <Box>
-                  <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                    {selectedShop.shop_name}{" "}
-                  </Typography>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    <Rating
-                      value={selectedShop.predicted_rating || 0}
-                      readOnly
-                      precision={0.5}
-                      size="small"
-                      sx={{ verticalAlign: "middle" }}
-                    />
-                  </Typography>
-                  <Typography variant="body2">
-                    {`Distance: ${computeDistance(
-                      currentLocation.lat,
-                      currentLocation.lng,
-                      selectedShop.lat,
-                      selectedShop.lng
-                    ).toFixed(2)} km`}
-                  </Typography>
-                  <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
-                    <Button variant="outlined" onClick={getLimeExplanation}>
-                      XAI Explanation
-                    </Button>
-                    <Button variant="contained" onClick={getDirections}>
-                      Get Directions
-                    </Button>
-                  </Box>
-                </Box>
+                <Card sx={{ p: 2, minWidth: 250 }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 1 }}>
+                      {state.selectedShop.shop_name}
+                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <Rating
+                        value={state.selectedShop.predicted_rating || 0}
+                        readOnly
+                        precision={0.5}
+                        size="medium"
+                        sx={{ color: "#FFD700" }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ ml: 1, color: "text.secondary" }}
+                      >
+                        ({state.selectedShop.predicted_rating}/5)
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                      {`Distance: ${computeDistance(
+                        state.currentLocation.lat,
+                        state.currentLocation.lng,
+                        state.selectedShop.lat,
+                        state.selectedShop.lng
+                      ).toFixed(2)} km`}
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        fullWidth
+                        startIcon={<ReviewsIcon />}
+                        onClick={getLimeExplanation}
+                      >
+                        Explain Rating
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        fullWidth
+                        startIcon={<LocationIcon />}
+                        onClick={getDirections}
+                      >
+                        Directions
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
               </InfoWindow>
             )}
           </GoogleMap>
@@ -464,117 +473,137 @@ function ShopFinder() {
       </LoadScript>
 
       {/* Shop Cards Grid */}
-      <Grid container spacing={3} sx={{ mt: 2 }}>
-        {shops.length === 0 && !isLoading && (
+      <Grid container spacing={4} sx={{ mt: 4 }}>
+        {state.shops.length === 0 && !state.isLoading && (
           <Grid item xs={12}>
-            <Box sx={{ textAlign: "center", p: 4 }}>
+            <Box
+              sx={{
+                textAlign: "center",
+                p: 6,
+                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                borderRadius: 4,
+              }}
+            >
               <img
                 src="/empty-state.svg"
                 alt="No shops found"
-                style={{ height: 200, marginBottom: 16 }}
+                style={{ height: 250, marginBottom: 24 }}
               />
-              <Typography variant="h6" color="textSecondary">
-                No shops found. Try adjusting your search!
+              <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
+                No shops found
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                Try adjusting your search terms or location
               </Typography>
             </Box>
           </Grid>
         )}
 
-        {isLoading
+        {state.isLoading
           ? Array.from(new Array(4)).map((_, index) => (
               <Grid item xs={12} md={6} key={index}>
                 <Skeleton
-                  variant="rectangular"
-                  height={180}
-                  sx={{ borderRadius: 3 }}
+                  variant="rounded"
+                  height={200}
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    borderRadius: 4,
+                  }}
                 />
               </Grid>
             ))
-          : shops.map((shop, index) => (
-              <Grid item xs={12} md={6} key={index}>
-                <Grow in timeout={(index + 1) * 200}>
-                  <div onClick={() => selectShop(shop)}>
-                    <AnimatedCard selected={selectedShop === shop}>
-                      <CardContent>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mb: 2 }}
-                        >
-                          <Avatar
-                            sx={{
-                              bgcolor: alpha(theme.palette.primary.main, 0.1),
-                              color: theme.palette.primary.main,
-                              mr: 2,
-                            }}
-                          >
-                            <StoreIcon />
-                          </Avatar>
-                          <Box>
-                            <Typography variant="h6" component="div">
-                              {shop.shop_name}
-                            </Typography>
-                            <Rating
-                              value={shop.predicted_rating || 0}
-                              precision={0.5}
-                              readOnly
-                              sx={{ "& .MuiRating-icon": { fontSize: 28 } }}
-                            />
-                          </Box>
-                        </Box>
-
-                        <Box
+          : state.shops.map((shop, index) => (
+              <Grid item xs={12} md={6} lg={4} key={index}>
+                <Zoom in timeout={(index + 1) * 200}>
+                  <ShopCard
+                    selected={state.selectedShop === shop}
+                    onClick={() => selectShop(shop)}
+                    elevation={state.selectedShop === shop ? 10 : 3}
+                  >
+                    <CardContent>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 2 }}
+                      >
+                        <Avatar
                           sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            mb: 1.5,
+                            bgcolor: alpha(
+                              theme.palette.primary.main,
+                              state.selectedShop === shop ? 0.2 : 0.1
+                            ),
+                            color: theme.palette.primary.main,
+                            width: 50,
+                            height: 50,
+                            mr: 3,
                           }}
                         >
-                          <LocationIcon color="action" sx={{ mr: 1 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            {shop.address}
+                          <StoreIcon fontSize="large" />
+                        </Avatar>
+                        <Box>
+                          <Typography variant="h6" component="div">
+                            {shop.shop_name}
                           </Typography>
+                          <Rating
+                            value={shop.predicted_rating || 0}
+                            precision={0.5}
+                            readOnly
+                            size="large"
+                            sx={{ color: "#FFD700" }}
+                          />
                         </Box>
-
-                        <Box
-                          sx={{
-                            p: 2,
-                            borderRadius: 2,
-                            bgcolor: alpha(theme.palette.primary.main, 0.05),
-                            mt: 2,
-                          }}
+                      </Box>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 2 }}
+                      >
+                        <LocationIcon color="action" sx={{ mr: 1 }} />
+                        <Typography variant="body2" color="text.secondary">
+                          {shop.address}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{ fontStyle: "italic" }}
                         >
-                          <Typography
-                            variant="body2"
-                            sx={{ fontStyle: "italic" }}
-                          >
-                            "
-                            {shop.summary?.detailed_summary ||
-                              "No summary available"}
-                            "
-                          </Typography>
-                        </Box>
-                      </CardContent>
-                    </AnimatedCard>
-                  </div>
-                </Grow>
+                          "
+                          {shop.summary?.detailed_summary ||
+                            "No summary available"}
+                          "
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </ShopCard>
+                </Zoom>
               </Grid>
             ))}
       </Grid>
 
+      {/* Modals */}
       <ExplanationPopup
-        open={openExplanationModal}
-        onClose={() => setOpenExplanationModal(false)}
-        explanation={limeExplanation}
+        open={state.openExplanationModal}
+        onClose={() => setState({ ...state, openExplanationModal: false })}
+        explanation={state.limeExplanation}
       />
-
       <ReviewSettingPopup
-        open={showReviewModal}
-        onClose={() => setShowReviewModal(false)}
-        selectedOption={selectedOption}
-        setSelectedOption={setSelectedOption}
-        customReviewCount={customReviewCount}
-        setCustomReviewCount={setCustomReviewCount}
-        tempDontAskAgain={tempDontAskAgain}
-        setTempDontAskAgain={setTempDontAskAgain}
+        open={state.showReviewModal}
+        onClose={() => setState({ ...state, showReviewModal: false })}
+        selectedOption={state.selectedOption}
+        setSelectedOption={(option) =>
+          setState({ ...state, selectedOption: option })
+        }
+        customReviewCount={state.customReviewCount}
+        setCustomReviewCount={(count) =>
+          setState({ ...state, customReviewCount: count })
+        }
+        tempDontAskAgain={state.tempDontAskAgain}
+        setTempDontAskAgain={(val) =>
+          setState({ ...state, tempDontAskAgain: val })
+        }
         handleConfirm={handleReviewModalConfirm}
       />
     </Container>

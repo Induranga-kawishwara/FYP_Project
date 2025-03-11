@@ -1,14 +1,20 @@
+// ExplanationPopup.jsx
 import React from "react";
-import { Button, Typography, Box, Modal, Chip, Alert } from "@mui/material";
 import {
-  CheckCircle,
-  Cancel,
-  Insights as InsightsIcon,
-} from "@mui/icons-material";
+  Button,
+  Typography,
+  Box,
+  Modal,
+  Chip,
+  Alert,
+  IconButton,
+} from "@mui/material";
+import { CheckCircle, Cancel, Insights, Close } from "@mui/icons-material";
 import { alpha, useTheme } from "@mui/material/styles";
 
 const ExplanationPopup = ({ open, onClose, explanation }) => {
   const theme = useTheme();
+
   return (
     <Modal open={open} onClose={onClose}>
       <Box
@@ -20,20 +26,44 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
           width: "90%",
           maxWidth: 600,
           bgcolor: "background.paper",
-          boxShadow: theme.shadows[10],
-          borderRadius: 2,
+          boxShadow: theme.shadows[20],
+          borderRadius: 4,
           p: 4,
           maxHeight: "80vh",
           overflowY: "auto",
+          outline: "none",
+          position: "relative",
         }}
       >
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 700 }}>
-          <InsightsIcon
-            sx={{ mr: 1, verticalAlign: "middle" }}
-            color="primary"
+        <IconButton
+          onClick={onClose}
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            color: "text.secondary",
+          }}
+        >
+          <Close />
+        </IconButton>
+        <Box sx={{ mb: 4 }}>
+          <Insights
+            sx={{
+              fontSize: 60,
+              color: "primary.main",
+              mb: 2,
+              display: "block",
+              textAlign: "center",
+            }}
           />
-          Rating Explanation
-        </Typography>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, textAlign: "center" }}
+          >
+            AI Rating Explanation
+          </Typography>
+        </Box>
+
         {explanation ? (
           explanation.split("\n").map((line, idx) => {
             const [wordPart, weightPart] = line.split(": ");
@@ -44,8 +74,8 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  mb: 1.5,
-                  p: 1.5,
+                  mb: 2,
+                  p: 2,
                   borderRadius: 2,
                   bgcolor:
                     weight > 0
@@ -59,7 +89,7 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
                   <Cancel sx={{ mr: 2 }} color="error" />
                 )}
                 <Typography variant="body1" sx={{ flex: 1 }}>
-                  <strong>{wordPart.replace("🔹 ", "")}</strong>
+                  <strong>{wordPart.replace("ðŸ”¹ ", "")}</strong>
                 </Typography>
                 <Chip
                   label={
@@ -74,7 +104,7 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
                       weight > 0
                         ? theme.palette.success.dark
                         : theme.palette.error.dark,
-                    fontWeight: 500,
+                    fontWeight: 600,
                   }}
                 />
               </Box>
@@ -85,16 +115,23 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
             No explanation available for this rating.
           </Alert>
         )}
+
         <Button
           fullWidth
           variant="contained"
           onClick={onClose}
-          sx={{ mt: 3, borderRadius: 50 }}
+          sx={{
+            mt: 4,
+            borderRadius: 50,
+            bgcolor: "secondary.main",
+            "&:hover": { bgcolor: "secondary.dark" },
+          }}
         >
-          Close Explanation
+          Got It
         </Button>
       </Box>
     </Modal>
   );
 };
+
 export default ExplanationPopup;

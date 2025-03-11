@@ -1,3 +1,4 @@
+// ReviewSettingPopup.jsx
 import React from "react";
 import {
   TextField,
@@ -11,8 +12,9 @@ import {
   FormControlLabel,
   FormLabel,
   Checkbox,
+  IconButton,
 } from "@mui/material";
-
+import { Close } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 
 const ReviewSettingPopup = ({
@@ -27,6 +29,7 @@ const ReviewSettingPopup = ({
   handleConfirm,
 }) => {
   const theme = useTheme();
+
   return (
     <Modal open={open} onClose={onClose}>
       <Box
@@ -35,32 +38,52 @@ const ReviewSettingPopup = ({
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 400,
+          width: 450,
           bgcolor: "background.paper",
-          boxShadow: theme.shadows[10],
+          boxShadow: theme.shadows[20],
           borderRadius: 4,
           p: 4,
+          outline: "none",
+          position: "relative",
         }}
       >
-        <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
-          How many reviews should be analyzed?
+        <IconButton
+          onClick={onClose}
+          sx={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            color: "text.secondary",
+          }}
+        >
+          <Close />
+        </IconButton>
+        <Typography variant="h6" sx={{ mb: 3, textAlign: "center" }}>
+          Review Analysis Settings
         </Typography>
+
         <FormControl component="fieldset" fullWidth>
-          <FormLabel component="legend">Select an option</FormLabel>
+          <FormLabel component="legend">Select Reviews to Analyze</FormLabel>
           <RadioGroup
             value={selectedOption}
             onChange={(e) => setSelectedOption(e.target.value)}
+            sx={{ ml: 2 }}
           >
-            <FormControlLabel value="10" control={<Radio />} label="10" />
-            <FormControlLabel value="100" control={<Radio />} label="100" />
-            <FormControlLabel value="500" control={<Radio />} label="500" />
-            <FormControlLabel value="1000" control={<Radio />} label="1000" />
+            {[10, 100, 500, 1000].map((num) => (
+              <FormControlLabel
+                key={num}
+                value={num.toString()}
+                control={<Radio />}
+                label={`${num.toLocaleString()} reviews`}
+              />
+            ))}
             <FormControlLabel
               value="custom"
               control={<Radio />}
-              label="Custom"
+              label="Custom amount"
             />
           </RadioGroup>
+
           {selectedOption === "custom" && (
             <TextField
               fullWidth
@@ -69,8 +92,12 @@ const ReviewSettingPopup = ({
               value={customReviewCount}
               onChange={(e) => setCustomReviewCount(e.target.value)}
               sx={{ mt: 2 }}
+              InputProps={{
+                inputProps: { min: 1, max: 10000 },
+              }}
             />
           )}
+
           <FormControlLabel
             control={
               <Checkbox
@@ -78,18 +105,28 @@ const ReviewSettingPopup = ({
                 onChange={(e) => setTempDontAskAgain(e.target.checked)}
               />
             }
-            label="Don't ask again"
-            sx={{ mt: 2 }}
+            label="Don't show this again"
+            sx={{ mt: 3 }}
           />
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ mt: 2 }}
-            onClick={handleConfirm}
-          >
-            Confirm
-          </Button>
+
+          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={onClose}
+              sx={{ flex: 1, mr: 2 }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleConfirm}
+              sx={{ flex: 1, ml: 2 }}
+            >
+              Confirm
+            </Button>
+          </Box>
         </FormControl>
       </Box>
     </Modal>

@@ -368,7 +368,7 @@ function ShopFinder() {
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
                   scale: 10,
-                  fillColor: "#4CAF50",
+                  fillColor: "blue",
                   fillOpacity: 1,
                   strokeColor: "white",
                   strokeWeight: 3,

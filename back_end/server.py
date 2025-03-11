@@ -146,24 +146,29 @@ def classify_reviews_by_rating(reviews):
     return positive_reviews, negative_reviews, avg_rating, weighted_average_rating, majority_rating
 
 def generate_summary(reviews):
-    """Generates a structured summary based on the last 3 months' reviews."""
+    """Generates a structured summary based on all provided reviews."""
     if not reviews:
         return {
-            "detailed_summary": "No reviews available for the last 3 months.",
+            "detailed_summary": "No reviews available.",
             "average_rating": 0.00,
             "weighted_average_rating": 0.00,
             "most_common_rating": 0
         }
 
+    # Classify all reviews into positive and negative based on the model predictions.
     positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
-    print(f"Positive Reviews Count (Last 3 Months): {len(positive_reviews)}")
-    print(f"Negative Reviews Count (Last 3 Months): {len(negative_reviews)}")
+    
+    # Log the counts for debugging
+    print(f"Positive Reviews Count: {len(positive_reviews)}")
+    print(f"Negative Reviews Count: {len(negative_reviews)}")
 
-    positive_text = "Positives (Based on last 3 months' reviews): " + ". ".join(positive_reviews[:5]) + "." if positive_reviews else "Positives (Last 3 months): No major positive feedback."
-    negative_text = "Negatives (Based on last 3 months' reviews): " + ". ".join(negative_reviews[:5]) + "." if negative_reviews else "Negatives (Last 3 months): No major complaints."
+    # Prepare text snippets for summarization using a few examples from each category.
+    positive_text = "Positives: " + ". ".join(positive_reviews[:5]) + "." if positive_reviews else "Positives: None."
+    negative_text = "Negatives: " + ". ".join(negative_reviews[:5]) + "." if negative_reviews else "Negatives: None."
     combined_text = positive_text + " " + negative_text
 
     try:
+        # Generate a summary using GPT-2
         raw_summary = summarizer(
             "Summarize the key points of these reviews: " + combined_text,
             max_length=100,
@@ -171,18 +176,22 @@ def generate_summary(reviews):
             max_new_tokens=80
         )[0]["generated_text"]
 
+        # Post-processing: Replace personal pronouns to make the summary more generic
         raw_summary = (
             raw_summary.replace("I ", "Some visitors ")
                        .replace("We ", "Many visitors ")
                        .replace("My ", "Their ")
                        .replace("Our ", "The place's ")
         )
+        
+        # Split and format the summary into bullet points
         summary_lines = raw_summary.split(". ")
         refined_summary = "\n- " + "\n- ".join(summary_lines[:5])
         if "Negatives:" not in refined_summary:
-            refined_summary += "\n- Negatives (Last 3 months): No major complaints."
+            refined_summary += "\n- Negatives: None."
+            
         return {
-            "detailed_summary": f"📅 Summary based on last 3 months' reviews:\n{refined_summary.strip()}",
+            "detailed_summary": f"Summary of Reviews:\n{refined_summary.strip()}",
             "average_rating": round(avg_rating, 2),
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
@@ -195,6 +204,7 @@ def generate_summary(reviews):
             "weighted_average_rating": round(weighted_avg, 2),
             "most_common_rating": majority_rating
         }
+
 
 def convert_numpy_types(data):
     """Recursively convert numpy types to native Python types."""

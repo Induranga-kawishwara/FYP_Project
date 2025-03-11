@@ -291,13 +291,39 @@ def explain_review():
 
 
 # Search Shops for a Product
-@app.route("/search_product", methods=["GET"])
+@app.route("/search_product", methods=["POST"])
 def search_product():
-    product_name = request.args.get("product")
+    data = request.get_json()
+    product_name = data.get("product")
+    review_count = data.get("reviewCount")
+    coverage = data.get("coverage")
+    location = data.get("location")  # Expects a dict with 'lat' and 'lng'
+
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
+    if not location or not location.get("lat") or not location.get("lng"):
+        return jsonify({"error": "User location is required"}), 400
 
-    url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={product_name} store near me&radius=10000&type=store&key={GOOGLE_API_KEY}"
+    # Determine the search radius based on coverage
+    if coverage == "all":
+        radius = 50000  # Use a large radius (50 km) for "all shops"
+    else:
+        try:
+            # Convert coverage (km) to meters
+            radius = int(coverage) * 1000
+        except Exception as e:
+            return jsonify({"error": "Invalid coverage value"}), 400
+
+    # Include user's location in the search parameters
+    lat = location.get("lat")
+    lng = location.get("lng")
+    url = (
+        f"https://maps.googleapis.com/maps/api/place/textsearch/json?"
+        f"query={product_name} store near me&"
+        f"location={lat},{lng}&"
+        f"radius={radius}&"
+        f"type=store&key={GOOGLE_API_KEY}"
+    )
     response = get_google_response(url)
 
     if "results" not in response or not response["results"]:
@@ -319,11 +345,17 @@ def search_product():
 
         if all_reviews:
             real_reviews, fake_reviews = detect_fake_reviews(all_reviews)
-            real_review_texts = [review["text"] for review in real_reviews]  # Extract only text
-
-            overall_predicted_rating = predict_review_rating([" ".join(real_review_texts)]) if real_review_texts else 0
-            summary = generate_summary(real_review_texts) if real_review_texts else "No valid reviews available."
-
+            real_review_texts = [review["text"] for review in real_reviews]  # Extract text
+            overall_predicted_rating = (
+                predict_review_rating([" ".join(real_review_texts)])
+                if real_review_texts
+                else 0
+            )
+            summary = (
+                generate_summary(real_review_texts)
+                if real_review_texts
+                else "No valid reviews available."
+            )
             shop["reviews"] = real_reviews
             shop["summary"] = summary
             shop["fake_reviews"] = fake_reviews
@@ -335,10 +367,10 @@ def search_product():
             shop["predicted_rating"] = 0
 
         shop = convert_numpy_types(shop)  # Convert numpy types to native types
-
         shops.append(shop)
 
     return jsonify({"shops": shops})
+
 
 # Fetch Shop Reviews and Process Them
 @app.route("/search_shop", methods=["GET"])

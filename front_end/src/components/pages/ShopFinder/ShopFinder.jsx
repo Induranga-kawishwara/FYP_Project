@@ -627,7 +627,19 @@ function ShopFinder() {
                 onCloseClick={() => setSelectedShop(null)}
               >
                 <Box>
-                  <Typography variant="subtitle1">
+                  <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                    {selectedShop.shop_name}{" "}
+                  </Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    <Rating
+                      value={selectedShop.predicted_rating || 0}
+                      readOnly
+                      precision={0.5}
+                      size="small"
+                      sx={{ verticalAlign: "middle" }}
+                    />
+                  </Typography>
+                  <Typography variant="body2">
                     {`Distance: ${computeDistance(
                       currentLocation.lat,
                       currentLocation.lng,

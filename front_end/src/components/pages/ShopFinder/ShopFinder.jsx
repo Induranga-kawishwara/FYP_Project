@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {
   Container,
@@ -32,7 +32,6 @@ import {
   GoogleMap,
   Marker,
   InfoWindow,
-  DirectionsRenderer,
 } from "@react-google-maps/api";
 import {
   Search as SearchIcon,
@@ -49,14 +48,14 @@ import { keyframes } from "@emotion/react";
 
 const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
-// A keyframes animation (if you wish to use it in the future)
+// Optional keyframes animation
 const pulse = keyframes`
   0% { transform: scale(0.95); opacity: 0.8; }
   50% { transform: scale(1); opacity: 1; }
   100% { transform: scale(0.95); opacity: 0.8; }
 `;
 
-// A custom gradient button using MUI's styled API
+// Custom Gradient Button
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
   color: theme.palette.common.white,
@@ -69,7 +68,7 @@ const GradientButton = styled(Button)(({ theme }) => ({
   },
 }));
 
-// A custom card that animates on hover
+// Animated Card Component for shop cards
 const AnimatedCard = styled(Card)(({ theme, selected }) => ({
   transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   cursor: "pointer",
@@ -269,7 +268,7 @@ const ReviewSettingsModal = ({
 
 // ----------------- Helper Functions -----------------
 
-// Converts degrees to radians
+// Convert degrees to radians
 const deg2rad = (deg) => deg * (Math.PI / 180);
 
 // Haversine formula to compute distance (in km) between two lat/lng points
@@ -287,7 +286,7 @@ const computeDistance = (lat1, lng1, lat2, lng2) => {
 // ----------------- Main Component -----------------
 
 function ShopFinder() {
-  // Basic state variables
+  // State variables
   const [query, setQuery] = useState("");
   const [shops, setShops] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -298,20 +297,21 @@ function ShopFinder() {
   const [openExplanationModal, setOpenExplanationModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [limeExplanation, setLimeExplanation] = useState("");
-  const [directions, setDirections] = useState(null);
 
-  // State variables for review count modal settings
+  // State for review settings modal
   const [tempDontAskAgain, setTempDontAskAgain] = useState(false);
   const [selectedOption, setSelectedOption] = useState("10");
   const [customReviewCount, setCustomReviewCount] = useState("");
   const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
 
-  // MUI theme and media query
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Get user location on mount
+  // Create a ref for the map container so we can scroll to it
+  const mapRef = useRef(null);
+
+  // Get user's current location on mount
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -330,7 +330,7 @@ function ShopFinder() {
     }
   }, []);
 
-  // Function to perform search (includes reviewCount in the API call)
+  // Function to perform shop search (includes reviewCount parameter)
   const performSearch = async (finalReviewCount) => {
     try {
       setIsLoading(true);
@@ -345,7 +345,7 @@ function ShopFinder() {
     }
   };
 
-  // Handler for search button click
+  // Search button handler
   const handleSearch = () => {
     if (dontAskAgain && reviewCount) {
       performSearch(reviewCount);
@@ -355,34 +355,27 @@ function ShopFinder() {
     }
   };
 
-  // When a shop is clicked, select it and update the map center
+  // When a shop card is clicked, select that shop, center map, and scroll up to map
   const selectShop = (shop) => {
     setSelectedShop(shop);
     setMapCenter({ lat: shop.lat, lng: shop.lng });
-    // Clear previous directions if any
-    setDirections(null);
-  };
-
-  // Request Google Maps directions and show the route on the map
-  const handleShowRoute = () => {
-    if (currentLocation && selectedShop && window.google) {
-      const service = new window.google.maps.DirectionsService();
-      const request = {
-        origin: currentLocation,
-        destination: { lat: selectedShop.lat, lng: selectedShop.lng },
-        travelMode: window.google.maps.TravelMode.DRIVING,
-      };
-      service.route(request, (result, status) => {
-        if (status === window.google.maps.DirectionsStatus.OK) {
-          setDirections(result);
-        } else {
-          console.error("Error fetching directions", result);
-        }
-      });
+    // Scroll to map container if available
+    if (mapRef.current) {
+      mapRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
-  // Request LIME explanation for the rating using the first review text
+  // Get Directions: open Google Maps with directions from current location to selected shop
+  const getDirections = () => {
+    if (currentLocation && selectedShop) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.lat},${currentLocation.lng}&destination=${selectedShop.lat},${selectedShop.lng}&travelmode=driving`;
+      window.open(url, "_blank");
+    } else {
+      alert("Please allow location access to get directions.");
+    }
+  };
+
+  // Get LIME Explanation for the first review of the selected shop
   const getLimeExplanation = async () => {
     if (
       !selectedShop ||
@@ -417,7 +410,7 @@ function ShopFinder() {
     }
   };
 
-  // Confirm the review count settings from the modal
+  // Confirm review count settings from the ReviewSettingsModal
   const handleReviewModalConfirm = () => {
     const finalReviewCount =
       selectedOption === "custom"
@@ -556,6 +549,7 @@ function ShopFinder() {
       {/* Map Section */}
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
         <Box
+          ref={mapRef}
           sx={{
             borderRadius: 4,
             overflow: "hidden",
@@ -584,6 +578,7 @@ function ShopFinder() {
               ],
             }}
           >
+            {/* Current Location Marker */}
             {currentLocation && (
               <Marker
                 position={currentLocation}
@@ -600,6 +595,7 @@ function ShopFinder() {
                 }}
               />
             )}
+            {/* Shop Markers: default icon red; if selected, use green */}
             {shops.map((shop, index) => (
               <Marker
                 key={index}
@@ -610,11 +606,8 @@ function ShopFinder() {
                     window.google && window.google.maps
                       ? window.google.maps.SymbolPath.CIRCLE
                       : undefined,
-                  scale: 6,
-                  fillColor:
-                    selectedShop === shop
-                      ? theme.palette.success.main
-                      : theme.palette.secondary.main,
+                  scale: selectedShop === shop ? 9 : 6,
+                  fillColor: selectedShop === shop ? "green" : "red",
                   fillOpacity: 1,
                   strokeColor: "white",
                   strokeWeight: 2,
@@ -627,14 +620,11 @@ function ShopFinder() {
               />
             ))}
 
-            {/* InfoWindow on selected shop marker showing distance and action buttons */}
+            {/* InfoWindow on selected shop marker showing km, explanation, and destination buttons */}
             {selectedShop && currentLocation && (
               <InfoWindow
                 position={{ lat: selectedShop.lat, lng: selectedShop.lng }}
-                onCloseClick={() => {
-                  setSelectedShop(null);
-                  setDirections(null);
-                }}
+                onCloseClick={() => setSelectedShop(null)}
               >
                 <Box>
                   <Typography variant="subtitle1">
@@ -649,16 +639,13 @@ function ShopFinder() {
                     <Button variant="outlined" onClick={getLimeExplanation}>
                       XAI Explanation
                     </Button>
-                    <Button variant="contained" onClick={handleShowRoute}>
-                      Show Route
+                    <Button variant="contained" onClick={getDirections}>
+                      Get Directions
                     </Button>
                   </Box>
                 </Box>
               </InfoWindow>
             )}
-
-            {/* Render directions if available */}
-            {directions && <DirectionsRenderer directions={directions} />}
           </GoogleMap>
         </Box>
       </LoadScript>
@@ -693,7 +680,7 @@ function ShopFinder() {
           : shops.map((shop, index) => (
               <Grid item xs={12} md={6} key={index}>
                 <Grow in timeout={(index + 1) * 200}>
-                  <div>
+                  <div onClick={() => selectShop(shop)}>
                     <AnimatedCard selected={selectedShop === shop}>
                       <CardContent>
                         <Box

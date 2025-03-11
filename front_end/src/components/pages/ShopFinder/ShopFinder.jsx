@@ -692,35 +692,88 @@ function ShopFinder() {
                       </Box>
                       <Box
                         sx={{
-                          height: 150, // Fixed height
-                          width: "100%", // Full width
+                          height: { xs: 120, sm: 150 }, // Responsive height
+                          maxHeight: 200, // Maximum height constraint
+                          width: "auto",
                           p: 2,
                           mt: 2,
-                          borderRadius: 2,
-                          bgcolor: alpha(theme.palette.primary.main, 0.05),
-                          overflowY: "auto", // Enable vertical scrolling if content overflows
-                          scrollbarWidth: "thin",
+                          borderRadius: 4, // Increased border radius
+                          bgcolor: (theme) =>
+                            alpha(theme.palette.primary.light, 0.15), // Softer background
+                          border: (theme) =>
+                            `1px solid ${alpha(
+                              theme.palette.primary.main,
+                              0.2
+                            )}`, // Subtle border
+                          overflowY: "auto",
+                          position: "relative",
+                          boxShadow: (theme) =>
+                            `inset 0 0 12px ${alpha(
+                              theme.palette.grey[500],
+                              0.1
+                            )}`, // Inner shadow
+                          transition: "box-shadow 0.3s", // Smooth transition
+                          "&:hover": {
+                            boxShadow: (theme) =>
+                              `inset 0 0 16px ${alpha(
+                                theme.palette.grey[500],
+                                0.2
+                              )}`,
+                          },
                           "&::-webkit-scrollbar": {
-                            width: 8,
+                            width: 6,
+                            height: 6,
                           },
                           "&::-webkit-scrollbar-track": {
-                            bgcolor: alpha(theme.palette.grey[300], 0.5),
-                            borderRadius: 2,
+                            bgcolor: "transparent",
+                            borderRadius: 4,
                           },
                           "&::-webkit-scrollbar-thumb": {
-                            bgcolor: theme.palette.grey[500],
-                            borderRadius: 2,
+                            bgcolor: (theme) =>
+                              alpha(theme.palette.primary.main, 0.5),
+                            borderRadius: 4,
+                            border: (theme) =>
+                              `2px solid ${theme.palette.background.paper}`,
+                            transition: "background-color 0.3s",
+                          },
+                          "&::-webkit-scrollbar-thumb:hover": {
+                            bgcolor: (theme) =>
+                              alpha(theme.palette.primary.main, 0.8),
                           },
                         }}
                       >
                         <Typography
                           variant="body2"
-                          sx={{ fontStyle: "italic" }}
+                          sx={{
+                            fontStyle: "italic",
+                            lineHeight: 1.6, // Improved readability
+                            color: (theme) => theme.palette.text.secondary,
+                            whiteSpace: "pre-line", // Preserve line breaks
+                            "&:hover": {
+                              color: (theme) => theme.palette.text.primary,
+                            },
+                            "&::before, &::after": {
+                              content: '"“"', // Fancy quotes
+                              fontSize: "24px",
+                              verticalAlign: "text-top",
+                              color: (theme) => theme.palette.primary.main,
+                              mr: 0.5,
+                              ml: -1,
+                            },
+                            "&::after": {
+                              display: "none", // Hide closing quote if text overflows
+                              [`.${shop.summary?.detailed_summary && "block"}`]:
+                                {
+                                  display: "block",
+                                  position: "absolute",
+                                  bottom: 8,
+                                  right: 8,
+                                },
+                            },
+                          }}
                         >
-                          "
                           {shop.summary?.detailed_summary ||
                             "No summary available"}
-                          "
                         </Typography>
                       </Box>
                     </CardContent>

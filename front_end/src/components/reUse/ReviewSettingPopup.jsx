@@ -44,7 +44,6 @@ const ReviewSettingPopup = ({
           borderRadius: 4,
           p: 4,
           outline: "none",
-          position: "relative",
         }}
       >
         <IconButton

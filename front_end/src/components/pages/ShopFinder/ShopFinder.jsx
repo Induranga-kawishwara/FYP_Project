@@ -39,7 +39,7 @@ import {
 } from "@mui/icons-material";
 import { alpha, styled, useTheme } from "@mui/material/styles";
 import ExplanationPopup from "../../reUse/ExplanationPopup.jsx";
-import ReviewSettingPopup from "../../reUse/ReviewSettingPopup";
+import ReviewSettingPopup from "../../reUse/ReviewSettingPopup.jsx";
 
 const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
@@ -519,8 +519,19 @@ function ShopFinder() {
                     selected={state.selectedShop === shop}
                     onClick={() => selectShop(shop)}
                     elevation={state.selectedShop === shop ? 10 : 3}
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
                   >
-                    <CardContent>
+                    <CardContent
+                      sx={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
                       <Box
                         sx={{ display: "flex", alignItems: "center", mb: 2 }}
                       >
@@ -531,8 +542,8 @@ function ShopFinder() {
                               state.selectedShop === shop ? 0.2 : 0.1
                             ),
                             color: theme.palette.primary.main,
-                            width: 50,
-                            height: 50,
+                            width: 56,
+                            height: 56,
                             mr: 3,
                           }}
                         >
@@ -561,9 +572,23 @@ function ShopFinder() {
                       </Box>
                       <Box
                         sx={{
+                          flex: 1,
                           p: 2,
                           borderRadius: 2,
                           bgcolor: alpha(theme.palette.primary.main, 0.05),
+                          overflowY: "auto",
+                          scrollbarWidth: "thin",
+                          "&::-webkit-scrollbar": {
+                            width: 8,
+                          },
+                          "&::-webkit-scrollbar-track": {
+                            bgcolor: alpha(theme.palette.grey[300], 0.5),
+                            borderRadius: 2,
+                          },
+                          "&::-webkit-scrollbar-thumb": {
+                            bgcolor: theme.palette.grey[500],
+                            borderRadius: 2,
+                          },
                         }}
                       >
                         <Typography

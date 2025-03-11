@@ -9,7 +9,7 @@ import {
   Alert,
   IconButton,
 } from "@mui/material";
-import { CheckCircle, Cancel, Insights, Close } from "@mui/icons-material";
+import { CheckCircle, Cancel, Insights } from "@mui/icons-material";
 import { alpha, useTheme } from "@mui/material/styles";
 
 const ExplanationPopup = ({ open, onClose, explanation }) => {
@@ -32,7 +32,6 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
           maxHeight: "80vh",
           overflowY: "auto",
           outline: "none",
-          position: "relative",
         }}
       >
         <IconButton
@@ -44,7 +43,7 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
             color: "text.secondary",
           }}
         >
-          <Close />
+          <Cancel />
         </IconButton>
         <Box sx={{ mb: 4 }}>
           <Insights

@@ -15,7 +15,7 @@ from transformers import pipeline
 import lime.lime_text
 import xgboost as xgb
 import requests
-import google_map_scraper  # Import scraper script
+import google_map_scraper  
 from dotenv import load_dotenv
 import os
 from tenacity import retry, wait_fixed, stop_after_attempt

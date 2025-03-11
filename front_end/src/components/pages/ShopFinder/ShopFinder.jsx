@@ -27,7 +27,13 @@ import {
   Skeleton,
   Alert,
 } from "@mui/material";
-import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
+import {
+  LoadScript,
+  GoogleMap,
+  Marker,
+  InfoWindow,
+  DirectionsRenderer,
+} from "@react-google-maps/api";
 import {
   Search as SearchIcon,
   Directions as DirectionsIcon,
@@ -85,6 +91,201 @@ const AnimatedCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
+// ----------------- Separate Popup Components -----------------
+
+// Explanation Modal Component for XAI explanation
+const ExplanationModal = ({ open, onClose, explanation }) => {
+  const theme = useTheme();
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "90%",
+          maxWidth: 600,
+          bgcolor: "background.paper",
+          boxShadow: theme.shadows[10],
+          borderRadius: 2,
+          p: 4,
+          maxHeight: "80vh",
+          overflowY: "auto",
+        }}
+      >
+        <Typography variant="h5" sx={{ mb: 3, fontWeight: 700 }}>
+          <InsightsIcon
+            sx={{ mr: 1, verticalAlign: "middle" }}
+            color="primary"
+          />
+          Rating Explanation
+        </Typography>
+        {explanation ? (
+          explanation.split("\n").map((line, idx) => {
+            const [wordPart, weightPart] = line.split(": ");
+            const weight = parseFloat(weightPart);
+            return (
+              <Box
+                key={idx}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  mb: 1.5,
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor:
+                    weight > 0
+                      ? alpha(theme.palette.success.main, 0.1)
+                      : alpha(theme.palette.error.main, 0.1),
+                }}
+              >
+                {weight > 0 ? (
+                  <CheckCircle sx={{ mr: 2 }} color="success" />
+                ) : (
+                  <Cancel sx={{ mr: 2 }} color="error" />
+                )}
+                <Typography variant="body1" sx={{ flex: 1 }}>
+                  <strong>{wordPart.replace("🔹 ", "")}</strong>
+                </Typography>
+                <Chip
+                  label={
+                    weight > 0 ? `+${weight.toFixed(2)}` : weight.toFixed(2)
+                  }
+                  sx={{
+                    bgcolor:
+                      weight > 0
+                        ? alpha(theme.palette.success.main, 0.2)
+                        : alpha(theme.palette.error.main, 0.2),
+                    color:
+                      weight > 0
+                        ? theme.palette.success.dark
+                        : theme.palette.error.dark,
+                    fontWeight: 500,
+                  }}
+                />
+              </Box>
+            );
+          })
+        ) : (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            No explanation available for this rating.
+          </Alert>
+        )}
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={onClose}
+          sx={{ mt: 3, borderRadius: 50 }}
+        >
+          Close Explanation
+        </Button>
+      </Box>
+    </Modal>
+  );
+};
+
+// Review Settings Modal Component for choosing review count
+const ReviewSettingsModal = ({
+  open,
+  onClose,
+  selectedOption,
+  setSelectedOption,
+  customReviewCount,
+  setCustomReviewCount,
+  tempDontAskAgain,
+  setTempDontAskAgain,
+  handleConfirm,
+}) => {
+  const theme = useTheme();
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 400,
+          bgcolor: "background.paper",
+          boxShadow: theme.shadows[10],
+          borderRadius: 4,
+          p: 4,
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
+          How many reviews should be analyzed?
+        </Typography>
+        <FormControl component="fieldset" fullWidth>
+          <FormLabel component="legend">Select an option</FormLabel>
+          <RadioGroup
+            value={selectedOption}
+            onChange={(e) => setSelectedOption(e.target.value)}
+          >
+            <FormControlLabel value="10" control={<Radio />} label="10" />
+            <FormControlLabel value="100" control={<Radio />} label="100" />
+            <FormControlLabel value="500" control={<Radio />} label="500" />
+            <FormControlLabel value="1000" control={<Radio />} label="1000" />
+            <FormControlLabel
+              value="custom"
+              control={<Radio />}
+              label="Custom"
+            />
+          </RadioGroup>
+          {selectedOption === "custom" && (
+            <TextField
+              fullWidth
+              label="Enter custom number"
+              type="number"
+              value={customReviewCount}
+              onChange={(e) => setCustomReviewCount(e.target.value)}
+              sx={{ mt: 2 }}
+            />
+          )}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={tempDontAskAgain}
+                onChange={(e) => setTempDontAskAgain(e.target.checked)}
+              />
+            }
+            label="Don't ask again"
+            sx={{ mt: 2 }}
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            sx={{ mt: 2 }}
+            onClick={handleConfirm}
+          >
+            Confirm
+          </Button>
+        </FormControl>
+      </Box>
+    </Modal>
+  );
+};
+
+// ----------------- Helper Functions -----------------
+
+// Converts degrees to radians
+const deg2rad = (deg) => deg * (Math.PI / 180);
+
+// Haversine formula to compute distance (in km) between two lat/lng points
+const computeDistance = (lat1, lng1, lat2, lng2) => {
+  const R = 6371; // Earth's radius in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLng = deg2rad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// ----------------- Main Component -----------------
+
 function ShopFinder() {
   // Basic state variables
   const [query, setQuery] = useState("");
@@ -94,9 +295,10 @@ function ShopFinder() {
   const [selectedShop, setSelectedShop] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
   const [reviewCount, setReviewCount] = useState(null);
-  const [openModal, setOpenModal] = useState(false);
+  const [openExplanationModal, setOpenExplanationModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [limeExplanation, setLimeExplanation] = useState("");
+  const [directions, setDirections] = useState(null);
 
   // State variables for review count modal settings
   const [tempDontAskAgain, setTempDontAskAgain] = useState(false);
@@ -157,15 +359,26 @@ function ShopFinder() {
   const selectShop = (shop) => {
     setSelectedShop(shop);
     setMapCenter({ lat: shop.lat, lng: shop.lng });
+    // Clear previous directions if any
+    setDirections(null);
   };
 
-  // Open Google Maps directions
-  const getDirections = () => {
-    if (currentLocation && selectedShop) {
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.lat},${currentLocation.lng}&destination=${selectedShop.lat},${selectedShop.lng}&travelmode=driving`;
-      window.open(url, "_blank");
-    } else {
-      alert("Please allow location access to get directions.");
+  // Request Google Maps directions and show the route on the map
+  const handleShowRoute = () => {
+    if (currentLocation && selectedShop && window.google) {
+      const service = new window.google.maps.DirectionsService();
+      const request = {
+        origin: currentLocation,
+        destination: { lat: selectedShop.lat, lng: selectedShop.lng },
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      };
+      service.route(request, (result, status) => {
+        if (status === window.google.maps.DirectionsStatus.OK) {
+          setDirections(result);
+        } else {
+          console.error("Error fetching directions", result);
+        }
+      });
     }
   };
 
@@ -196,11 +409,11 @@ function ShopFinder() {
       } else {
         setLimeExplanation("No valid explanation available.");
       }
-      setOpenModal(true);
+      setOpenExplanationModal(true);
     } catch (error) {
       console.error("Error fetching explanation:", error);
       setLimeExplanation("Error fetching explanation.");
-      setOpenModal(true);
+      setOpenExplanationModal(true);
     }
   };
 
@@ -281,9 +494,7 @@ function ShopFinder() {
                 ),
                 sx: {
                   borderRadius: 50,
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    borderWidth: 2,
-                  },
+                  "& .MuiOutlinedInput-notchedOutline": { borderWidth: 2 },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
                     borderColor: theme.palette.primary.main,
                   },
@@ -377,7 +588,6 @@ function ShopFinder() {
               <Marker
                 position={currentLocation}
                 icon={{
-                  // If the Google Maps API is available, use the built-in symbol
                   path:
                     window.google && window.google.maps
                       ? window.google.maps.SymbolPath.CIRCLE
@@ -416,35 +626,42 @@ function ShopFinder() {
                 }}
               />
             ))}
+
+            {/* InfoWindow on selected shop marker showing distance and action buttons */}
+            {selectedShop && currentLocation && (
+              <InfoWindow
+                position={{ lat: selectedShop.lat, lng: selectedShop.lng }}
+                onCloseClick={() => {
+                  setSelectedShop(null);
+                  setDirections(null);
+                }}
+              >
+                <Box>
+                  <Typography variant="subtitle1">
+                    {`Distance: ${computeDistance(
+                      currentLocation.lat,
+                      currentLocation.lng,
+                      selectedShop.lat,
+                      selectedShop.lng
+                    ).toFixed(2)} km`}
+                  </Typography>
+                  <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
+                    <Button variant="outlined" onClick={getLimeExplanation}>
+                      XAI Explanation
+                    </Button>
+                    <Button variant="contained" onClick={handleShowRoute}>
+                      Show Route
+                    </Button>
+                  </Box>
+                </Box>
+              </InfoWindow>
+            )}
+
+            {/* Render directions if available */}
+            {directions && <DirectionsRenderer directions={directions} />}
           </GoogleMap>
         </Box>
       </LoadScript>
-
-      {/* Action Buttons */}
-      {selectedShop && (
-        <Box sx={{ textAlign: "center", mt: 3, mb: 6 }}>
-          <GradientButton
-            variant="contained"
-            onClick={getDirections}
-            startIcon={<DirectionsIcon sx={{ color: "white" }} />}
-            sx={{ mr: 2 }}
-          >
-            Navigate to {selectedShop.shop_name}
-          </GradientButton>
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={getLimeExplanation}
-            startIcon={<InsightsIcon />}
-            sx={{
-              borderWidth: 2,
-              "&:hover": { borderWidth: 2 },
-            }}
-          >
-            Explain Rating
-          </Button>
-        </Box>
-      )}
 
       {/* Shop Cards Grid */}
       <Grid container spacing={3} sx={{ mt: 2 }}>
@@ -543,175 +760,25 @@ function ShopFinder() {
             ))}
       </Grid>
 
-      {/* Enhanced Explanation Modal */}
-      <Modal open={openModal} onClose={() => setOpenModal(false)}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: isMobile ? "90%" : 600,
-            bgcolor: "background.paper",
-            boxShadow: theme.shadows[10],
-            borderRadius: 4,
-            p: 4,
-            maxHeight: "80vh",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Typography variant="h5" sx={{ mb: 3, fontWeight: 700 }}>
-            <InsightsIcon
-              color="primary"
-              sx={{ mr: 1, verticalAlign: "middle" }}
-            />
-            Rating Explanation
-          </Typography>
+      {/* Separate Explanation Modal */}
+      <ExplanationModal
+        open={openExplanationModal}
+        onClose={() => setOpenExplanationModal(false)}
+        explanation={limeExplanation}
+      />
 
-          <Box
-            sx={{
-              flex: 1,
-              overflowY: "auto",
-              pr: 2,
-              "&::-webkit-scrollbar": { width: 8 },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: alpha(theme.palette.primary.main, 0.3),
-                borderRadius: 4,
-              },
-            }}
-          >
-            {limeExplanation ? (
-              limeExplanation.split("\n").map((line, index) => {
-                const [wordPart, weightPart] = line.split(": ");
-                const weight = parseFloat(weightPart);
-                return (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      mb: 1.5,
-                      p: 1.5,
-                      borderRadius: 2,
-                      bgcolor:
-                        weight > 0
-                          ? alpha(theme.palette.success.main, 0.1)
-                          : alpha(theme.palette.error.main, 0.1),
-                    }}
-                  >
-                    {weight > 0 ? (
-                      <CheckCircle color="success" sx={{ mr: 2 }} />
-                    ) : (
-                      <Cancel color="error" sx={{ mr: 2 }} />
-                    )}
-                    <Typography variant="body1" sx={{ flex: 1 }}>
-                      <strong>{wordPart.replace("🔹 ", "")}</strong>
-                    </Typography>
-                    <Chip
-                      label={
-                        weight > 0 ? `+${weight.toFixed(2)}` : weight.toFixed(2)
-                      }
-                      sx={{
-                        bgcolor:
-                          weight > 0
-                            ? alpha(theme.palette.success.main, 0.2)
-                            : alpha(theme.palette.error.main, 0.2),
-                        color:
-                          weight > 0
-                            ? theme.palette.success.dark
-                            : theme.palette.error.dark,
-                        fontWeight: 500,
-                      }}
-                    />
-                  </Box>
-                );
-              })
-            ) : (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                No explanation available for this rating.
-              </Alert>
-            )}
-          </Box>
-
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={() => setOpenModal(false)}
-            sx={{ mt: 3, borderRadius: 50 }}
-          >
-            Close Explanation
-          </Button>
-        </Box>
-      </Modal>
-
-      {/* Review Settings Modal */}
-      <Modal open={showReviewModal} onClose={() => setShowReviewModal(false)}>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 400,
-            bgcolor: "background.paper",
-            boxShadow: theme.shadows[10],
-            borderRadius: 4,
-            p: 4,
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
-            How many reviews should be analyzed?
-          </Typography>
-          <FormControl component="fieldset" fullWidth>
-            <FormLabel component="legend">Select an option</FormLabel>
-            <RadioGroup
-              value={selectedOption}
-              onChange={(e) => setSelectedOption(e.target.value)}
-            >
-              <FormControlLabel value="10" control={<Radio />} label="10" />
-              <FormControlLabel value="100" control={<Radio />} label="100" />
-              <FormControlLabel value="500" control={<Radio />} label="500" />
-              <FormControlLabel value="1000" control={<Radio />} label="1000" />
-              <FormControlLabel
-                value="custom"
-                control={<Radio />}
-                label="Custom"
-              />
-            </RadioGroup>
-            {selectedOption === "custom" && (
-              <TextField
-                fullWidth
-                label="Enter custom number"
-                type="number"
-                value={customReviewCount}
-                onChange={(e) => setCustomReviewCount(e.target.value)}
-                sx={{ mt: 2 }}
-              />
-            )}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={tempDontAskAgain}
-                  onChange={(e) => setTempDontAskAgain(e.target.checked)}
-                />
-              }
-              label="Don't ask again"
-              sx={{ mt: 2 }}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              sx={{ mt: 2 }}
-              onClick={handleReviewModalConfirm}
-            >
-              Confirm
-            </Button>
-          </FormControl>
-        </Box>
-      </Modal>
+      {/* Separate Review Settings Modal */}
+      <ReviewSettingsModal
+        open={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        selectedOption={selectedOption}
+        setSelectedOption={setSelectedOption}
+        customReviewCount={customReviewCount}
+        setCustomReviewCount={setCustomReviewCount}
+        tempDontAskAgain={tempDontAskAgain}
+        setTempDontAskAgain={setTempDontAskAgain}
+        handleConfirm={handleReviewModalConfirm}
+      />
     </Container>
   );
 }

@@ -35,8 +35,8 @@ import {
   Settings as SettingsIcon,
 } from "@mui/icons-material";
 import { alpha, styled, useTheme } from "@mui/material/styles";
-import ExplanationPopup from "../../reUse/ExplanationPopup.jsx";
-import ReviewSettingPopup from "../../reUse/ReviewSettingPopup.jsx";
+import ExplanationPopup from "../../reUse/ExplanationPopup/ExplanationPopup.jsx";
+import ReviewSettingPopup from "../../reUse/ReviewSettingPopup/ReviewSettingPopup.jsx";
 
 const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 

@@ -33,4 +33,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_FYP_PROJECT_F577A }}
           channelId: live
           projectId: fyp-project-f577a
-          entryPoint: frontend  # Specify the directory containing firebase.json
+          entryPoint: front_end  # Specify the directory containing firebase.json

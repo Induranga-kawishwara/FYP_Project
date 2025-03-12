@@ -100,7 +100,7 @@ const ReviewSettingPopup = ({
               onChange={(e) => setCustomReviewCount(e.target.value)}
               sx={{ mt: 2 }}
               InputProps={{
-                inputProps: { min: 1, max: 10000 },
+                inputProps: { min: 1, max: 1000 },
               }}
             />
           )}
@@ -152,7 +152,7 @@ const ReviewSettingPopup = ({
                 onChange={(e) => setCustomCoverage(e.target.value)}
                 sx={{ mt: 2 }}
                 InputProps={{
-                  inputProps: { min: 1, max: 10000 },
+                  inputProps: { min: 1, max: 100 },
                 }}
               />
             )}

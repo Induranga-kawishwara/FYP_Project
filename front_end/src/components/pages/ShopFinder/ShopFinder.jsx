@@ -152,7 +152,11 @@ function ShopFinder() {
         {
           product: state.query,
           reviewCount: finalReviewCount,
-          coverage: state.allShops ? "all" : state.coverage,
+          coverage: state.allShops
+            ? "all"
+            : state.coverage === "customcoverage"
+            ? state.customCoverage
+            : state.coverage,
           location: state.currentLocation,
         }
       );
@@ -815,7 +819,7 @@ function ShopFinder() {
           setState({ ...state, tempDontAskAgain: val })
         }
         coverage={state.coverage}
-        setCoverage={(val) => setState({ ...state, coverage: val })}
+        setCoverage={(count) => setState({ ...state, coverage: count })}
         allShops={state.allShops}
         setAllShops={(val) => setState({ ...state, allShops: val })}
         customCoverage={state.customCoverage}

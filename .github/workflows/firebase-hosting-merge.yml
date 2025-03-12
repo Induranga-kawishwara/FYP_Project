@@ -18,13 +18,13 @@ jobs:
           node-version: '18'  # Ensure to use Node.js version 18
       - name: Install dependencies
         run: |
-          cd frontend
+          cd front_end
           npm ci
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
       - name: Build project
         run: |
-          cd frontend
+          cd front_end
           CI=false npm run build
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

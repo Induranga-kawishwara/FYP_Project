@@ -20,6 +20,8 @@ import google_map_scraper
 from dotenv import load_dotenv
 import os
 from tenacity import retry, wait_fixed, stop_after_attempt
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -59,6 +61,12 @@ review_model = joblib.load("reviewPrediction_models/best_xgboost_model.pkl")
 fake_review_model = joblib.load("fakeReview_model/xgboost_fakereview_model.pkl")
 vectorizer = joblib.load("reviewPrediction_models/tfidf_vectorizer.pkl")
 scaler = joblib.load("fakeReview_model/scaler.pkl") 
+
+# Load BART for Review Summarization
+model_name = "facebook/bart-large-cnn"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
 
 # Load GPT-2 for Review Summarization
 summarizer = pipeline("text-generation", model="gpt2")
@@ -129,25 +137,31 @@ def predict_review_rating(reviews):
     return round(avg_rating, 2)
 
 def classify_reviews_by_rating(reviews):
-    """Classifies reviews into Positive & Negative using XGBoost predictions."""
+    """Classifies reviews into Positive, Neutral, and Negative using XGBoost predictions."""
     if not reviews:
-        return [], [], 0, 0, 0
+        return [], [], [], 0, 0, 0
 
     processed_reviews = [review.lower() for review in reviews]
     tfidf_reviews = vectorizer.transform(processed_reviews)
     dtest = xgb.DMatrix(tfidf_reviews)
     pred_probs = review_model.predict(dtest)
     predicted_ratings = np.argmax(pred_probs, axis=1) + 1
+
     positive_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] >= 4]
     negative_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] <= 2]
+    neutral_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] == 3]
+
     weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)
     weighted_average_rating = np.mean(weighted_ratings)
     majority_rating = pd.Series(predicted_ratings).mode()[0]
     avg_rating = np.mean(predicted_ratings)
-    return positive_reviews, negative_reviews, avg_rating, weighted_average_rating, majority_rating
+
+    return positive_reviews, neutral_reviews, negative_reviews, avg_rating, weighted_average_rating, majority_rating
+
 
 def generate_summary(reviews):
-    """Generates a structured summary based on all provided reviews."""
+    """Generates a complete, detailed summary of all provided reviews without cutting the content."""
+
     if not reviews:
         return {
             "detailed_summary": "No reviews available.",
@@ -156,55 +170,44 @@ def generate_summary(reviews):
             "most_common_rating": 0
         }
 
-    # Classify all reviews into positive and negative based on the model predictions.
-    positive_reviews, negative_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
-    
-    # Log the counts for debugging
-    print(f"Positive Reviews Count: {len(positive_reviews)}")
-    print(f"Negative Reviews Count: {len(negative_reviews)}")
+    # Classify reviews into Positive, Neutral, Negative (if needed)
+    pos_reviews, neutral_reviews, neg_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
 
-    # Prepare text snippets for summarization using a few examples from each category.
-    positive_text = "Positives: " + ". ".join(positive_reviews[:5]) + "." if positive_reviews else "Positives: None."
-    negative_text = "Negatives: " + ". ".join(negative_reviews[:5]) + "." if negative_reviews else "Negatives: None."
-    combined_text = positive_text + " " + negative_text
+    # Combine all reviews (positive, neutral, negative)
+    combined_text = ""
+    if pos_reviews:
+        combined_text += "Positive reviews include: " + " ".join(pos_reviews) + " "
+    if neutral_reviews:
+        combined_text += "Neutral reviews mention: " + " ".join(neutral_reviews) + " "
+    if neg_reviews:
+        combined_text += "Negative reviews state: " + " ".join(neg_reviews)
 
-    try:
-        # Generate a summary using GPT-2
-        raw_summary = summarizer(
-            "Summarize the key points of these reviews: " + combined_text,
-            max_length=100,
-            num_return_sequences=1,
-            max_new_tokens=80
-        )[0]["generated_text"]
+    # Prepare model input
+    inputs = tokenizer.encode("summarize: " + combined_text, return_tensors="pt", max_length=1024, truncation=True)
 
-        # Post-processing: Replace personal pronouns to make the summary more generic
-        raw_summary = (
-            raw_summary.replace("I ", "Some visitors ")
-                       .replace("We ", "Many visitors ")
-                       .replace("My ", "Their ")
-                       .replace("Our ", "The place's ")
-        )
-        
-        # Split and format the summary into bullet points
-        summary_lines = raw_summary.split(". ")
-        refined_summary = "\n- " + "\n- ".join(summary_lines[:5])
-        if "Negatives:" not in refined_summary:
-            refined_summary += "\n- Negatives: None."
-            
-        return {
-            "detailed_summary": f"Summary of Reviews:\n{refined_summary.strip()}",
-            "average_rating": round(avg_rating, 2),
-            "weighted_average_rating": round(weighted_avg, 2),
-            "most_common_rating": majority_rating
-        }
-    except IndexError as e:
-        print(f"GPT-2 IndexError: {e}")
-        return {
-            "detailed_summary": "Error generating summary.",
-            "average_rating": round(avg_rating, 2),
-            "weighted_average_rating": round(weighted_avg, 2),
-            "most_common_rating": majority_rating
-        }
+    # Generate a detailed summary without restricting length
+    summary_ids = model.generate(
+        inputs,
+        max_length=1024,    # Max possible tokens for a full summary
+        min_length=100,     # Start with a decent length, no limit
+        length_penalty=1.0,
+        num_beams=4,
+        early_stopping=False # Ensure the model doesn't stop early
+    )
+
+    # Decode and clean
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+    # Optional clean-up (to avoid pronouns like "I", "We", etc.)
+    summary = summary.replace("I ", "Some users ").replace("We ", "Many users ").replace("My ", "Their ").replace("Our ", "The product's ")
+
+    return {
+        "detailed_summary": summary.strip(),
+        "average_rating": round(avg_rating, 2),
+        "weighted_average_rating": round(weighted_avg, 2),
+        "most_common_rating": majority_rating
+    }
+
 
 def fetch_all_shops(product_name, lat, lng, radius):
     base_url = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
@@ -267,8 +270,12 @@ def explain_review():
     return jsonify({"explanation": explanation_list})
 
 
-@app.route("/search_product", methods=["POST"])
+@app.route("/search_product", methods=["POST", "OPTIONS"])
 def search_product():
+    if request.method == "OPTIONS":
+        # Return a simple response to satisfy the preflight request.
+        return jsonify({}), 200
+    
     data = request.get_json()
     product_name = data.get("product")
     review_count = data.get("reviewCount")

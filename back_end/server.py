@@ -1,4 +1,5 @@
 # Import Required Libraries
+import time
 from flask import Flask, logging, request, jsonify
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
@@ -205,6 +206,29 @@ def generate_summary(reviews):
             "most_common_rating": majority_rating
         }
 
+def fetch_all_shops(product_name, lat, lng, radius):
+    base_url = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
+    shops = []
+    next_page_token = None
+
+    while True:
+        url = f"{base_url}query={product_name} store near me&location={lat},{lng}&radius={radius}&type=store&key={GOOGLE_API_KEY}"
+        if next_page_token:
+            url += f"&pagetoken={next_page_token}"
+            time.sleep(2)  # Wait for the next_page_token to become active
+
+        response = get_google_response(url)
+        if "results" in response:
+            shops.extend(response["results"])
+        else:
+            break
+
+        next_page_token = response.get("next_page_token")
+        if not next_page_token:
+            break
+
+    return shops
+
 
 def convert_numpy_types(data):
     """Recursively convert numpy types to native Python types."""
@@ -242,43 +266,37 @@ def explain_review():
     explanation_list = [{"word": word, "weight": weight} for word, weight in explanation.as_list()]
     return jsonify({"explanation": explanation_list})
 
+
 @app.route("/search_product", methods=["POST"])
 def search_product():
     data = request.get_json()
     product_name = data.get("product")
     review_count = data.get("reviewCount")
     coverage = data.get("coverage")
-    location = data.get("location")  # Expects a dict with 'lat' and 'lng'
+    location = data.get("location")  # expects a dict with 'lat' and 'lng'
 
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
     if not location or not location.get("lat") or not location.get("lng"):
         return jsonify({"error": "User location is required"}), 400
 
-    # Determine the search radius based on coverage
     if coverage == "all":
         radius = 50000  # Use a large radius (50 km) for "all shops"
     else:
         try:
-            radius = int(coverage) * 1000  # Convert coverage (km) to meters
+            radius = int(coverage) * 1000  # Convert km to meters
         except Exception:
             return jsonify({"error": "Invalid coverage value"}), 400
 
     lat = location.get("lat")
     lng = location.get("lng")
-    url = (
-        f"https://maps.googleapis.com/maps/api/place/textsearch/json?"
-        f"query={product_name} store near me&"
-        f"location={lat},{lng}&"
-        f"radius={radius}&"
-        f"type=store&key={GOOGLE_API_KEY}"
-    )
-    response = get_google_response(url)
-    if "results" not in response or not response["results"]:
+    # Use the pagination-enabled function to fetch all shops
+    shops_results = fetch_all_shops(product_name, lat, lng, radius)
+    if not shops_results:
         return jsonify({"error": "No shops found"}), 404
 
     shops = []
-    for place in response["results"]:
+    for place in shops_results:
         shop = {
             "shop_name": place["name"],
             "address": place.get("formatted_address", "N/A"),
@@ -288,11 +306,12 @@ def search_product():
             "lng": float(place["geometry"]["location"]["lng"])
         }
 
-        # Scrape reviews until we have the required valid reviews
+        # Scrape reviews, predict rating, and generate summary
         valid_reviews = google_map_scraper.scrape_reviews(shop["place_id"], review_count)
         if valid_reviews:
-            overall_predicted_rating = predict_review_rating([" ".join([r["text"] for r in valid_reviews])])
-            summary = generate_summary([" ".join([r["text"] for r in valid_reviews])])
+            combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
+            overall_predicted_rating = predict_review_rating(combined_reviews)
+            summary = generate_summary(combined_reviews)
             shop["reviews"] = valid_reviews
             shop["summary"] = summary
             shop["predicted_rating"] = overall_predicted_rating
@@ -305,6 +324,7 @@ def search_product():
         shops.append(shop)
 
     return jsonify({"shops": shops})
+
 
 @app.route("/search_shop", methods=["GET"])
 def search_shop():

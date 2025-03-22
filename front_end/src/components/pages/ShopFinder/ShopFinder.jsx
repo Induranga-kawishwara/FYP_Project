@@ -73,7 +73,7 @@ const deg2rad = (deg) => deg * (Math.PI / 180);
 
 // Haversine formula for distance calculation
 const computeDistance = (lat1, lng1, lat2, lng2) => {
-  const R = 6371; // Earth radius in km
+  const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
   const dLng = deg2rad(lng2 - lng1);
   const a =
@@ -100,14 +100,13 @@ function ShopFinder() {
     showReviewModal: false,
     limeExplanation: "",
     tempDontAskAgain: false,
-    selectedOption: "10", // for review count
+    selectedOption: "10",
     customReviewCount: "",
     modalTriggeredBySearch: false,
     dontAskAgain: false,
-    // Coverage settings
-    coverage: "10", // default coverage (preset value)
-    allShops: false, // if true, search for all shops (ignores coverage)
-    customCoverage: "", // new state for custom coverage value
+    coverage: "10",
+    allShops: false,
+    customCoverage: "",
   });
 
   useEffect(() => {

@@ -17,3 +17,4 @@ tenacity
 selenium
 bs4
 chromedriver-autoinstaller
+torch

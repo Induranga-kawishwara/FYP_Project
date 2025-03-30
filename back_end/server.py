@@ -51,7 +51,9 @@ fake_review_model.eval()
 
 # Review Rating Prediction (Hybrid Model)
 vectorizer = joblib.load("models/reviewPredictionModel/tfidf_vectorizer.pkl")
-xgb_model = joblib.load("models/reviewPredictionModel/xgb_hybrid.pkl")
+xgb_model = xgb.Booster()  
+xgb_model.load_model("models/reviewPredictionModel/xgb_hybrid.pkl") 
+
 distilbert_model = AutoModelForSequenceClassification.from_pretrained("models/reviewPredictionModel/distilbert_model")
 distilbert_tokenizer = AutoTokenizer.from_pretrained("models/reviewPredictionModel/distilbert_model")
 

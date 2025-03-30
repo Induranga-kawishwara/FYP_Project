@@ -10,7 +10,6 @@ import numpy as np
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from textblob import TextBlob
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, BertTokenizer, BertForSequenceClassification
 import lime.lime_text
 import xgboost as xgb
@@ -114,7 +113,7 @@ def predict_review_rating(reviews):
     inputs = distilbert_tokenizer(reviews, padding=True, truncation=True, return_tensors="pt", max_length=256)
     with torch.no_grad():
         outputs = distilbert_model(**inputs)
-        embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+        embeddings = outputs.logits.cpu().detach().numpy()  # Corrected line
     tfidf_features = vectorizer.transform(reviews).toarray()
     combined_features = np.hstack([embeddings, tfidf_features])
     dtest = xgb.DMatrix(combined_features)
@@ -122,6 +121,7 @@ def predict_review_rating(reviews):
     weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)
     avg_rating = np.mean(weighted_ratings)
     return round(avg_rating, 2)
+
 
 def classify_reviews_by_rating(reviews):
     """Classifies reviews into Positive, Neutral, and Negative using XGBoost predictions."""
@@ -245,12 +245,16 @@ def search_product():
         valid_reviews = google_map_scraper.scrape_reviews(shop["place_id"], review_count)
         if valid_reviews:
             combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
+            overall_predicted_rating = predict_review_rating(combined_reviews)
             summary = generate_summary(combined_reviews)
             shop["reviews"] = valid_reviews
             shop["summary"] = summary
+            shop["predicted_rating"] = overall_predicted_rating
+
         else:
             shop["reviews"] = []
             shop["summary"] = "No reviews available."
+            shop["predicted_rating"] = 0
         shop = convert_numpy_types(shop)
         shops.append(shop)
     return jsonify({"shops": shops})

@@ -159,7 +159,7 @@ function ShopFinder() {
           location: state.currentLocation,
         }
       );
-
+      console.log("Search Response:", response.data);
       setState((prev) => ({
         ...prev,
         shops: response.data.shops,

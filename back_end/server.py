@@ -132,7 +132,8 @@ def classify_reviews_by_rating(reviews):
     inputs = distilbert_tokenizer(processed_reviews, padding=True, truncation=True, return_tensors="pt", max_length=256)
     with torch.no_grad():
         outputs = distilbert_model(**inputs)
-        embeddings = outputs.last_hidden_state[:, 0, :].cpu().numpy()
+        # Get logits from the sequence classification output
+        embeddings = outputs.logits.cpu().detach().numpy()  # Change here
     combined_features = np.hstack([embeddings, tfidf_reviews.toarray()])
     dtest = xgb.DMatrix(combined_features)
     pred_probs = xgb_model.predict(dtest)

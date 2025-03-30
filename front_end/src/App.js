@@ -14,7 +14,6 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* ✅ Redirect "/" to "/shopfinder" (Home Page) */}
         <Route path="/" element={<Navigate replace to="/shopfinder" />} />
 
         <Route path="/signup" element={<Signup />} />

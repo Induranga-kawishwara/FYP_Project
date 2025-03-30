@@ -8,13 +8,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
-import xgboost as xgb
 from textblob import TextBlob
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
 
-fake_review_model = joblib.load("fakeReview_model/xgboost_fakereview_model.pkl")
-scaler = joblib.load("fakeReview_model/scaler.pkl") 
-
-
+# Load the BERT tokenizer and model from your fake review model directory
+fake_review_tokenizer = BertTokenizer.from_pretrained("models/fakeReviewModel")
+fake_review_model = BertForSequenceClassification.from_pretrained("models/fakeReviewModel")
+fake_review_model.eval()  # set to evaluation mode
 
 # Setup Selenium WebDriver
 options = Options()
@@ -26,56 +27,31 @@ options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) Apple
 
 
 def detect_fake_reviews(reviews):
+    """
+    Given a list of review texts, returns two lists:
+      - real_reviews: reviews predicted as real (label 0)
+      - fake_reviews: reviews predicted as fake (label 1)
+    """
     if not reviews:
-        return [], []  # Return empty lists if no reviews
-
-    feature_rows = []
-    flat_reviews = [str(review) for review in reviews]
-
-    for review in flat_reviews:
-        # Compute features
-        sentiment_score = TextBlob(review).sentiment.polarity
-        contains_promo_words = int(any(word in review.lower() for word in ["best", "amazing", "awesome", "perfect", "incredible", "must-buy"]))
-        contains_sarcasm_words = int(any(word in review.lower() for word in ["lmao", "lol", "smh", "yeah right"]))
-        days_since_review = 0  # Assuming new reviews have 0 days
-        
-        # Create a temporary DataFrame for scaling only the two features that were scaled during training.
-        unscaled_features = pd.DataFrame({
-            "sentiment_score": [sentiment_score],
-            "days_since_review": [days_since_review]
-        })
-        # Scale the two features
-        scaled_features = scaler.transform(unscaled_features)
-        
-        # Build the complete feature row: combine scaled and unscaled values
-        row = {
-            "sentiment_score": scaled_features[0, 0],        # Scaled value
-            "contains_promo_words": contains_promo_words,      # Unscaled
-            "contains_sarcasm_words": contains_sarcasm_words,    # Unscaled
-            "days_since_review": scaled_features[0, 1]         # Scaled value
-        }
-        feature_rows.append(row)
-
-    # Create a DataFrame that exactly matches the training order
-    feature_df = pd.DataFrame(feature_rows, columns=["sentiment_score", "contains_promo_words", "contains_sarcasm_words", "days_since_review"])
-
-    # Convert feature DataFrame to a DMatrix for XGBoost
-    dtest = xgb.DMatrix(feature_df)
-
-    # Predict using your XGBoost model (0 indicates real and 1 indicates fake)
-    predictions = fake_review_model.predict(dtest)
-    predictions = (predictions > 0.5).astype(int)
-
-    # Separate real and fake reviews
-    real_reviews = [reviews[i] for i in range(len(reviews)) if predictions[i] == 0]
-    fake_reviews = [reviews[i] for i in range(len(reviews)) if predictions[i] == 1]
-
+        return [], []
+    
+    # Tokenize reviews
+    inputs = fake_review_tokenizer(reviews, padding=True, truncation=True, return_tensors="pt", max_length=256)
+    
+    with torch.no_grad():
+        outputs = fake_review_model(**inputs)
+    
+    # Get the predicted label for each review (assuming 0: real, 1: fake)
+    predictions = torch.argmax(outputs.logits, dim=-1).tolist()
+    
+    real_reviews = [reviews[i] for i, label in enumerate(predictions) if label == 0]
+    fake_reviews = [reviews[i] for i, label in enumerate(predictions) if label == 1]
+    
     return real_reviews, fake_reviews
-
 
 # Convert Google Review Date Format to Datetime
 def parse_review_date(date_text):
-    """ Converts Google review date text into a proper datetime object. """
+    """Converts Google review date text into a proper datetime object."""
     current_date = datetime.datetime.now()
 
     if "a day ago" in date_text:
@@ -90,7 +66,6 @@ def parse_review_date(date_text):
         try:
             num = int(parts[0])
             unit = parts[1]
-
             if "day" in unit:
                 return current_date - datetime.timedelta(days=num)
             elif "week" in unit:
@@ -106,7 +81,7 @@ def parse_review_date(date_text):
 
 # Scroll to Load All Reviews (Stops when 5 consecutive old reviews are found)
 def scroll_reviews(driver, three_month_window):
-    """ Scrolls dynamically to load more reviews but stops if 5 consecutive old reviews are found. """
+    """Scrolls dynamically to load more reviews but stops if 5 consecutive old reviews are found."""
     try:
         reviews_container = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf"))
@@ -118,7 +93,6 @@ def scroll_reviews(driver, three_month_window):
             driver.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", reviews_container)
             time.sleep(2)
 
-            # Check for stop condition
             soup = BeautifulSoup(driver.page_source, "html.parser")
             review_divs = soup.find_all("div", class_="jftiEf")
 
@@ -128,25 +102,25 @@ def scroll_reviews(driver, three_month_window):
 
                 if review_date:
                     if review_date < three_month_window:
-                        old_review_count += 1  # Consecutive old review
+                        old_review_count += 1
                         print(f"Old Review Found: {review_date.strftime('%Y-%m-%d')} (Count: {old_review_count}/5)")
                     else:
-                        old_review_count = 0  # Reset count when new review is found
+                        old_review_count = 0
                         print(f"Recent Review Found: {review_date.strftime('%Y-%m-%d')}, Resetting Counter.")
 
                 if old_review_count >= 5:
                     print("Stopping scrolling: 5 consecutive old reviews found.")
-                    return  # Stop scrolling
+                    return
 
             new_height = driver.execute_script("return arguments[0].scrollHeight;", reviews_container)
             if new_height == last_height:
-                break  # No more new reviews to load
+                break
 
             last_height = new_height
     except Exception as e:
         print(f"Error while scrolling reviews: {e}")
 
-# Scrape Reviews with 5 Consecutive Old Review Stop Condition
+# Scrape Reviews with Stop Condition Based on Old Reviews
 def scrape_reviews(place_id, max_reviews):
     """
     Scrapes reviews for a given place ID until at least max_reviews valid reviews are collected.
@@ -170,7 +144,7 @@ def scrape_reviews(place_id, max_reviews):
         driver.quit()
         return []
 
-    # Continuously scroll until we have enough valid reviews
+    # Continuously scroll until enough valid reviews are collected
     while len(valid_reviews) < max_reviews:
         try:
             reviews_container = WebDriverWait(driver, 10).until(
@@ -198,17 +172,15 @@ def scrape_reviews(place_id, max_reviews):
                 continue
 
         if new_reviews:
-            # Run fake review detection on the new batch of reviews.
+            # Run fake review detection on the new batch of reviews
             review_texts = [r["text"] for r in new_reviews]
             real_reviews, _ = detect_fake_reviews(review_texts)
-            # Append valid reviews from this batch.
             for review_obj in new_reviews:
                 if review_obj["text"] in real_reviews:
                     valid_reviews.append(review_obj)
                     if len(valid_reviews) >= max_reviews:
                         break
 
-        # If no new reviews are loaded, break the loop.
         if not new_reviews:
             break
 

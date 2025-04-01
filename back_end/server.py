@@ -204,14 +204,6 @@ def fetch_all_shops(product_name, lat, lng, radius):
 # -------------------------------
 # API ROUTES
 # -------------------------------
-@app.route("/predict_review", methods=["POST"])
-def predict_review():
-    data = request.get_json()
-    reviews = data.get("reviews", [])
-    if not reviews:
-        return jsonify({"error": "No reviews provided"}), 400
-    avg_rating = predict_review_rating(reviews)
-    return jsonify({"average_rating": avg_rating})
 
 @app.route("/search_product", methods=["POST", "OPTIONS"])
 def search_product():

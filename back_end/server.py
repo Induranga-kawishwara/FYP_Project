@@ -4,7 +4,7 @@ import pandas as pd
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import create_access_token, JWTManager
+from flask_jwt_extended import  JWTManager
 import googlemaps
 import numpy as np
 import nltk
@@ -251,28 +251,13 @@ def search_product():
         shops.append(shop)
     return jsonify({"shops": shops})
 
-# -------------------------------
-# USER MANAGEMENT & DATABASE
-# -------------------------------
-import sqlite3
-conn = sqlite3.connect("users.db", check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
-)
-""")
-conn.commit()
+
 
 @app.route("/signup", methods=["POST"])
 def signup():
     data = request.json
     username = data["username"]
     password = bcrypt.generate_password_hash(data["password"]).decode("utf-8")
-    cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
-    conn.commit()
     return jsonify({"message": "User registered successfully"}), 201
 
 @app.route("/login", methods=["POST"])
@@ -280,11 +265,6 @@ def login():
     data = request.json
     username = data["username"]
     password = data["password"]
-    cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    if user and bcrypt.check_password_hash(user[0], password):
-        access_token = create_access_token(identity=username)
-        return jsonify({"token": access_token}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
 @app.route("/")

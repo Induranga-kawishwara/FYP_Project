@@ -147,7 +147,7 @@ function ShopFinder() {
     try {
       setState((prev) => ({ ...prev, isLoading: true }));
       const response = await axios.post(
-        "http://127.0.0.1:5000/search_product",
+        "http://127.0.0.1:5000/product/search_product",
         {
           product: state.query,
           reviewCount: finalReviewCount,

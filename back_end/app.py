@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_bcrypt import Bcrypt
+from flask_caching import Cache
 from config import Config
 
 # Import blueprints
@@ -15,7 +16,11 @@ jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 CORS(app)
 
-# Register blueprints
+# Initialize cache on the main app
+cache = Cache(config={'CACHE_TYPE': 'simple'})
+cache.init_app(app)
+
+# Register blueprints (the blueprints can now use the cache instance if needed)
 app.register_blueprint(auth_bp)
 app.register_blueprint(product_bp)
 

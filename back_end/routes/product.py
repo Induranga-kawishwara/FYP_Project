@@ -1,16 +1,9 @@
-from flask import Blueprint, request, jsonify
-from flask_caching import Cache
-from services import fetch_all_shops
-from services import predict_review_rating, generate_summary
+from flask import Blueprint, request, jsonify, current_app
+from services import fetch_all_shops, predict_review_rating, generate_summary, scrape_reviews
 from utils import convert_numpy_types
-from services import scrape_reviews  
 import logging
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
-# Setup a simple in-memory cache (suitable for development)
-cache = Cache(config={'CACHE_TYPE': 'simple'})
-cache.init_app(product_bp)
-
 logger = logging.getLogger(__name__)
 
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
@@ -33,7 +26,8 @@ def search_product():
     lat = location.get("lat")
     lng = location.get("lng")
 
-    # Caching based on query parameters to speed up repeated calls
+    # Access the cache via current_app
+    cache = current_app.extensions['cache']
     cache_key = f"shops_{product_name}_{lat}_{lng}_{radius}"
     shops_results = cache.get(cache_key)
     if not shops_results:

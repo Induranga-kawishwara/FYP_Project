@@ -58,34 +58,30 @@ def parse_review_date(date_text):
             return None
     return None
 
-def scroll_reviews(driver, three_month_window):
+def scroll_reviews(driver):
     try:
-        reviews_container = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf"))
-        )
+        # Locate the reviews container
+        reviews_container = driver.find_element(By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf")
+        
+        # Get the initial scroll height
         last_height = driver.execute_script("return arguments[0].scrollHeight;", reviews_container)
-        old_review_count = 0
+        
         while True:
+            # Scroll down
             driver.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", reviews_container)
-            time.sleep(2)
-            soup = BeautifulSoup(driver.page_source, "html.parser")
-            review_divs = soup.find_all("div", class_="jftiEf")
-            for review_div in review_divs:
-                date_text = review_div.find('span', class_='rsqaWe').text.strip()
-                review_date = parse_review_date(date_text)
-                if review_date:
-                    if review_date < three_month_window:
-                        old_review_count += 1
-                    else:
-                        old_review_count = 0
-                if old_review_count >= 5:
-                    return
+            time.sleep(2)  # Allow time for new reviews to load
+            
+            # Get the new scroll height after scrolling
             new_height = driver.execute_script("return arguments[0].scrollHeight;", reviews_container)
+            
+            # If new_height is the same as last_height, stop scrolling
             if new_height == last_height:
+                print("No more reviews to load.")
                 break
-            last_height = new_height
+            
+            last_height = new_height  # Update last height for next comparison
     except Exception as e:
-        print("Error while scrolling reviews:", e)
+        print(f"Error while scrolling reviews: {e}")
 
 def scrape_reviews(place_id, max_reviews):
     driver = webdriver.Chrome(options=options)

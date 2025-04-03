@@ -29,13 +29,16 @@ stop_words = set(stopwords.words("english"))
 
 # Setup Selenium WebDriver options
 options = Options()
-options.add_argument("--headless")
+# Uncomment headless if you do not need a browser window
+# options.add_argument("--headless")
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                      "AppleWebKit/537.36 (KHTML, like Gecko) "
                      "Chrome/91.0.4472.124 Safari/537.36")
+# Suppress unnecessary logging
+options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
 # --- Helper: Parse relative date strings into a datetime object ---
 def parse_relative_date(date_str):
@@ -59,12 +62,8 @@ def parse_relative_date(date_str):
         try:
             parts = date_str.split()
             if len(parts) >= 2:
-                num = 1
-                # For strings like "a week ago"
-                if parts[0] in ["a", "an"]:
-                    num = 1
-                else:
-                    num = int(parts[0])
+                # For strings like "a week ago" or "an hour ago"
+                num = 1 if parts[0] in ["a", "an"] else int(parts[0])
                     
                 if "year" in date_str:
                     return now - datetime.timedelta(days=num * 365)
@@ -133,8 +132,8 @@ def scroll_reviews(driver):
 
 # --- Main function to scrape reviews ---
 def scrape_reviews(place_id, max_reviews):
-    # We'll store valid reviews in a dictionary keyed by author.
-    # For each author, we only keep the newest review.
+    # Store valid reviews in a dictionary keyed by author.
+    # For each author, keep only the newest review.
     valid_reviews = {}  # key: author, value: review dict {"author":..., "text":..., "date":...}
     scraped_texts = set()    # To keep track of texts we have already seen
 
@@ -205,7 +204,7 @@ def scrape_reviews(place_id, max_reviews):
             real_texts, _ = detect_fake_reviews(processed_reviews)
             
             # For each new review, if it is predicted as real, update the valid_reviews dict.
-            for idx, review_obj in enumerate(new_reviews):
+            for review_obj in new_reviews:
                 processed_version = preprocess_reviews([review_obj["text"]])[0]
                 if processed_version in real_texts:
                     author = review_obj["author"]

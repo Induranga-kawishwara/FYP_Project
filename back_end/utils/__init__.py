@@ -5,5 +5,6 @@ __version__ = "1.0.0"
 
 
 from .helpers import convert_numpy_types
+from .extensions import cache
 
-__all__ = ["convert_numpy_types"]
+__all__ = ["convert_numpy_types" , "cache"]

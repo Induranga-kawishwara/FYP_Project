@@ -4,20 +4,7 @@ import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM, pipeline
 import xgboost as xgb
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from transformers import BertTokenizer, BertForSequenceClassification
 import lime.lime_text
-
-# Download NLTK resources
-nltk.download("stopwords")
-nltk.download("wordnet")
-
-# --- Fake Review Detection using BERT ---
-fake_review_tokenizer = BertTokenizer.from_pretrained("models/fakeReviewModel")
-fake_review_model = BertForSequenceClassification.from_pretrained("models/fakeReviewModel")
-fake_review_model.eval()
 
 # --- Review Rating Prediction (Hybrid Model) ---
 vectorizer = joblib.load("models/reviewPredictionModel/tfidf_vectorizer.pkl")
@@ -37,21 +24,6 @@ summarizer = pipeline("text-generation", model="gpt2")
 
 # --- LIME Explainer (optional) ---
 lime_explainer = lime.lime_text.LimeTextExplainer(class_names=["1-star", "2-star", "3-star", "4-star", "5-star"])
-
-# --- Text Preprocessing Tools ---
-lemmatizer = WordNetLemmatizer()
-stop_words = set(stopwords.words("english"))
-
-def detect_fake_reviews(reviews):
-    if not reviews:
-        return [], []
-    inputs = fake_review_tokenizer(reviews, padding=True, truncation=True, return_tensors="pt", max_length=256)
-    with torch.no_grad():
-        outputs = fake_review_model(**inputs)
-    predictions = torch.argmax(outputs.logits, dim=-1).tolist()
-    real_reviews = [reviews[i] for i, label in enumerate(predictions) if label == 0]
-    fake_reviews = [reviews[i] for i, label in enumerate(predictions) if label == 1]
-    return real_reviews, fake_reviews
 
 def predict_review_rating(reviews):
     if not reviews:

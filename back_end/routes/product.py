@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
+from utils import cache  
 from services import fetch_all_shops, predict_review_rating, generate_summary, scrape_reviews
 from utils import convert_numpy_types
 import logging
@@ -26,8 +27,7 @@ def search_product():
     lat = location.get("lat")
     lng = location.get("lng")
 
-    # Access the cache via current_app
-    cache = current_app.extensions['cache']
+    # Use the shared cache instance
     cache_key = f"shops_{product_name}_{lat}_{lng}_{radius}"
     shops_results = cache.get(cache_key)
     if not shops_results:

@@ -30,7 +30,7 @@ stop_words = set(stopwords.words("english"))
 # Setup Selenium WebDriver options
 options = Options()
 # Uncomment headless if you do not need a browser window
-# options.add_argument("--headless")
+options.add_argument("--headless")
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")

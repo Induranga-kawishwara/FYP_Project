@@ -127,26 +127,106 @@ def forgot_password():
         return jsonify({"error": "Email is required"}), 400
 
     try:
-        # Generate a password reset link using Firebase Admin SDK
+        # Generate password reset link
         reset_link = firebase_auth.generate_password_reset_link(email)
         
-        # Prepare email details
-        subject = "Password Reset Request"
-        text_content = f"Hello,\n\nYou requested a password reset. Please use the following link to reset your password:\n{reset_link}\n\nIf you did not request this, please ignore this email."
-        html_content = f"""
-        <p>Hello,</p>
-        <p>You requested a password reset. Please click the link below to reset your password:</p>
-        <p><a href="{reset_link}">Reset Password</a></p>
-        <p>If you did not request this, please ignore this email.</p>
+        # ===== EMAIL CONTENT =====
+        # Customize these values according to your business
+        LOGO_URL = "https://your-cdn.com/shopfinder-logo.png"  # Host your logo image
+        BRAND_COLOR = "#007bff"  # Your brand's primary color
+        SUPPORT_EMAIL = "support@shopfinder.com"
+        SOCIAL_MEDIA_LINKS = """
+            <a href="https://twitter.com/shopfinder">Twitter</a> |
+            <a href="https://facebook.com/shopfinder">Facebook</a> |
+            <a href="https://instagram.com/shopfinder">Instagram</a>
         """
         
-        # Send the email using Brevo
-        send_email_via_brevo(email, subject, html_content, text_content)
+        # HTML Template
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; }}
+                .container {{ max-width: 600px; margin: 20px auto; padding: 20px; }}
+                .header {{ text-align: center; padding: 20px; background-color: #f8f9fa; }}
+                .logo {{ max-width: 200px; height: auto; }}
+                .content {{ padding: 30px 20px; background-color: #ffffff; }}
+                .button {{
+                    display: inline-block;
+                    padding: 12px 30px;
+                    background-color: {BRAND_COLOR};
+                    color: #ffffff !important;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    margin: 20px 0;
+                }}
+                .footer {{ text-align: center; padding: 20px; font-size: 12px; color: #666666; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <img src="{LOGO_URL}" class="logo" alt="ShopFinder Logo">
+                </div>
+                
+                <div class="content">
+                    <h2 style="color: #2d3436; text-align: center;">Password Reset Request</h2>
+                    <p>Hello ShopFinder user,</p>
+                    <p>We received a request to reset your password. Click the button below to set up a new password:</p>
+                    
+                    <p style="text-align: center;">
+                        <a href="{reset_link}" class="button">Reset Password</a>
+                    </p>
+
+                    <p>If you didn't request this password reset, you can safely ignore this email. The password reset link will expire in 1 hour.</p>
+                </div>
+
+                <div class="footer">
+                    <p>© 2024 ShopFinder. All rights reserved.</p>
+                    <p>Need help? Contact us at <a href="mailto:{SUPPORT_EMAIL}">{SUPPORT_EMAIL}</a></p>
+                    <p>Follow us on {SOCIAL_MEDIA_LINKS}</p>
+                    <p style="color: #999999; font-size: 11px;">
+                        This is an automated message. Please do not reply directly to this email.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Plain text version
+        text_content = f"""
+        Hello ShopFinder user,
+
+        We received a request to reset your password. Please use the following link to reset your password:
+
+        {reset_link}
+
+        This link will expire in 1 hour.
+
+        If you didn't make this request, you can ignore this email.
+
+        ---
+        © 2024 ShopFinder
+        Need help? Contact {SUPPORT_EMAIL}
+        """
+        # ===== END EMAIL CONTENT =====
+
+        # Send email through Brevo
+        send_email_via_brevo(
+            email,
+            subject="Password Reset Request - ShopFinder",
+            html_content=html_content,
+            text_content=text_content
+        )
 
         return jsonify({
             "message": "Password reset link sent successfully to your email."
         }), 200
 
     except Exception as e:
-        logger.error(f"Error generating or sending password reset link: {str(e)}")
-        return jsonify({"error": str(e)}), 400
+        logger.error(f"Error in password reset: {str(e)}")
+        return jsonify({"error": "Failed to process password reset request"}), 400

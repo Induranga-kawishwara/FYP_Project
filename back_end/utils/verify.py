@@ -1,7 +1,8 @@
 import re
+import phonenumbers
 from firebase_admin import auth as firebase_auth
 from firebase_admin.auth import UserNotFoundError
-from .DB_models import User  
+from .DB_models import User  # Ensure this path is correct for your project
 
 def validate_signup_data(data):
     """
@@ -29,6 +30,18 @@ def validate_signup_data(data):
         errors.append("Phone number is required.")
 
     return errors
+
+def format_phone_number(phone, region="GB"):
+    """
+    Converts a given phone number into the E.164 format.
+    The default region is "GB" (United Kingdom). 
+    If parsing fails, raises a ValueError.
+    """
+    try:
+        parsed = phonenumbers.parse(phone, region)
+        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+    except phonenumbers.NumberParseException:
+        raise ValueError("Invalid phone number format. Please include the country code or use a valid number.")
 
 def check_existing_user(email: str, phone: str):
     """

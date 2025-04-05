@@ -1,10 +1,15 @@
+import firebase_admin
+from firebase_admin import credentials
+from config import Config
 from flask import Flask
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from flask_bcrypt import Bcrypt
-from config import Config
 from utils import cache
 from mongoengine import connect
+
+# Initialize Firebase if it hasn't been initialized already
+if not firebase_admin._apps:
+    cred = credentials.Certificate(Config.FIREBASE_SERVICE_ACCOUNT)
+    firebase_admin.initialize_app(cred)
 
 # Connect to MongoDB using the URI in your config
 connect(host=Config.MONGO_DATABASE)
@@ -16,8 +21,7 @@ from routes.product import product_bp
 app = Flask(__name__)
 app.config.from_object(Config)
 
-jwt = JWTManager(app)
-bcrypt = Bcrypt(app)
+# Enable Cross-Origin Resource Sharing
 CORS(app)
 
 # Initialize the cache on the main app

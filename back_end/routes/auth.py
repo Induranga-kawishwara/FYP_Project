@@ -75,18 +75,8 @@ def login():
         try:
             decoded_token = firebase_auth.verify_id_token(id_token)
             uid = decoded_token.get("uid")
-            user = User.objects(firebase_uid=uid).first()
-            if not user:
-                return jsonify({"error": "User not found"}), 404
-
             return jsonify({
                 "message": "Login successful",
-                "user": {
-                    "uid": uid,
-                    "email": user.email,
-                    "username": user.username,
-                    "phone": user.phone
-                },
                 "idToken": id_token
             }), 200
         except Exception as e:

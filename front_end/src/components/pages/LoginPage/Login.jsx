@@ -25,7 +25,7 @@ import {
   GoogleAuthProvider,
   FacebookAuthProvider,
 } from "firebase/auth";
-import { auth } from "../../../firebase_config.js";
+import { auth } from "../../../Config.js";
 
 function Login() {
   const [email, setEmail] = useState("");

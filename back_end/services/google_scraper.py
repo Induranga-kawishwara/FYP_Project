@@ -29,13 +29,15 @@ stop_words = set(stopwords.words("english"))
 
 # Setup Selenium WebDriver options
 options = Options()
-options.add_argument("--headless")  # Run in headless mode; comment out if a visible browser is needed
+options.add_argument("--headless")  # Run in headless mode; remove if you need a visible browser
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
-options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                     "AppleWebKit/537.36 (KHTML, like Gecko) "
-                     "Chrome/91.0.4472.124 Safari/537.36")
+options.add_argument(
+    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/91.0.4472.124 Safari/537.36"
+)
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
 # --- Helper: Parse relative date strings into a datetime object ---
@@ -98,7 +100,7 @@ def detect_fake_reviews(reviews):
         with torch.no_grad():
             outputs = fake_review_model(**inputs)
         prediction = torch.argmax(outputs.logits, dim=-1).item()
-        # Assuming label 0 is real and label 1 is fake
+        # Assuming label 0 means real and label 1 means fake
         if prediction == 0:
             real_reviews.append(review)
         else:
@@ -129,7 +131,7 @@ def expand_review(driver, review_element):
         more_button = review_element.find_element(By.XPATH, ".//button[@aria-label='See more']")
         if more_button:
             driver.execute_script("arguments[0].click();", more_button)
-            time.sleep(1)  # Allow time for text expansion
+            time.sleep(1)  # Allow time for the review text to expand
     except Exception:
         pass
 

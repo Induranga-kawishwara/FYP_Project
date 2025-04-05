@@ -87,10 +87,10 @@ def login():
         r = requests.post(signin_url, json=payload)
         if r.status_code != 200:
             # Log the detailed error from Firebase for debugging
-            error_info = r.json()
-            logger.error(f"Firebase sign-in error: {error_info}")
+            # error_info = r.json()
+            # logger.error(f"Firebase sign-in error: {error_info}")
             # Return the specific error message from Firebase if available
-            return jsonify({"error", "Invalid email or password"}), 400
+            return jsonify({"error": "Invalid email or password"}), 400
         
         res_data = r.json()
         id_token = res_data.get("idToken")

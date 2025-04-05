@@ -68,6 +68,32 @@ def signup():
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.json
+
+    # Check if an id_token is provided (for social login)
+    id_token = data.get("id_token")
+    if id_token:
+        try:
+            decoded_token = firebase_auth.verify_id_token(id_token)
+            uid = decoded_token.get("uid")
+            user = User.objects(firebase_uid=uid).first()
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            return jsonify({
+                "message": "Login successful",
+                "user": {
+                    "uid": uid,
+                    "email": user.email,
+                    "username": user.username,
+                    "phone": user.phone
+                },
+                "idToken": id_token
+            }), 200
+        except Exception as e:
+            logger.error(f"Error verifying id_token: {str(e)}")
+            return jsonify({"error": "Invalid token"}), 400
+
+    # Otherwise, process email/password login
     email = data.get("email")
     password = data.get("password")
     
@@ -85,10 +111,6 @@ def login():
         }
         r = requests.post(signin_url, json=payload)
         if r.status_code != 200:
-            # Log the detailed error from Firebase for debugging
-            # error_info = r.json()
-            # logger.error(f"Firebase sign-in error: {error_info}")
-            # Return the specific error message from Firebase if available
             return jsonify({"error": "Invalid email or password"}), 400
         
         res_data = r.json()
@@ -98,7 +120,7 @@ def login():
         decoded_token = firebase_auth.verify_id_token(id_token)
         uid = decoded_token.get("uid")
         
-        # Retrieve the user details from your MongoEngine database.
+        # Retrieve the user details from your database.
         user = User.objects(firebase_uid=uid).first()
         if not user:
             return jsonify({"error": "User not found"}), 404
@@ -117,7 +139,6 @@ def login():
     except Exception as e:
         logger.error(f"Error during login: {str(e)}")
         return jsonify({"error": str(e)}), 400
-    
 
 @auth_bp.route("/forgot_password", methods=["POST"])
 def forgot_password():

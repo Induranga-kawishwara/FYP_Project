@@ -20,6 +20,12 @@ import {
   Visibility,
   EmailOutlined,
 } from "@mui/icons-material";
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+} from "firebase/auth";
+import { auth } from "../../../firebase_config.js"; // Adjust the path as needed
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -29,6 +35,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  // Email/Password login handler (handled by your backend)
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -38,10 +45,55 @@ function Login() {
         email,
         password,
       });
-
       navigate("/shopfinder");
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Google login handler using Firebase client SDK
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+
+      // Send the Firebase ID token to your backend for verification
+      await axios.post("http://127.0.0.1:5000/auth/login", {
+        id_token: idToken,
+      });
+      navigate("/shopfinder");
+    } catch (err) {
+      setError(
+        err.response?.data?.error || "Google login failed. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Facebook login handler using Firebase client SDK
+  const handleFacebookLogin = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const provider = new FacebookAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+
+      // Send the Firebase ID token to your backend for verification
+      await axios.post("http://127.0.0.1:5000/auth/login", {
+        id_token: idToken,
+      });
+      navigate("/shopfinder");
+    } catch (err) {
+      setError(
+        err.response?.data?.error || "Facebook login failed. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -78,17 +130,14 @@ function Login() {
               boxShadow: 3,
             }}
           />
-
           <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>
             Welcome Back
           </Typography>
-
           {error && (
             <Alert severity="error" sx={{ width: "100%" }}>
               {error}
             </Alert>
           )}
-
           <TextField
             fullWidth
             label="Email"
@@ -104,7 +153,6 @@ function Login() {
             }}
             required
           />
-
           <TextField
             fullWidth
             label="Password"
@@ -131,7 +179,6 @@ function Login() {
             }}
             required
           />
-
           <Button
             fullWidth
             variant="contained"
@@ -153,12 +200,47 @@ function Login() {
               "Sign In"
             )}
           </Button>
-
+          <Typography
+            variant="body2"
+            sx={{
+              mt: 2,
+              color: "text.secondary",
+              width: "100%",
+              textAlign: "center",
+            }}
+          >
+            Or sign in with
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              justifyContent: "center",
+              width: "100%",
+            }}
+          >
+            <Button
+              variant="outlined"
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              sx={{ textTransform: "none", flex: 1 }}
+            >
+              Google
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleFacebookLogin}
+              disabled={isLoading}
+              sx={{ textTransform: "none", flex: 1 }}
+            >
+              Facebook
+            </Button>
+          </Box>
           <Box sx={{ mt: 2, textAlign: "center" }}>
             <Link
               onClick={() => navigate("/forgot-password")}
               variant="body2"
-              sx={{ color: "text.secondary" }}
+              sx={{ color: "text.secondary", cursor: "pointer" }}
             >
               Forgot password?
             </Link>

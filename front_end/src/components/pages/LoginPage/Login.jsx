@@ -11,38 +11,37 @@ import {
   CircularProgress,
   InputAdornment,
   IconButton,
+  Alert,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
   LockOutlined,
-  PersonOutlined,
   VisibilityOff,
   Visibility,
+  EmailOutlined,
 } from "@mui/icons-material";
 
 function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-
+    setError("");
     try {
-      // Simulated API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      // Uncomment for real API call
-      // const response = await axios.post("http://127.0.0.1:5000/login", {
-      //   username,
-      //   password,
-      // });
-      // localStorage.setItem("token", response.data.token);
+      await axios.post("http://127.0.0.1:5000/auth/login", {
+        email,
+        password,
+      });
+
       navigate("/shopfinder");
-    } catch (error) {
-      alert("Invalid username or password");
+    } catch (err) {
+      setError(err.response?.data?.error || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -84,24 +83,26 @@ function Login() {
             Welcome Back
           </Typography>
 
+          {error && (
+            <Alert severity="error" sx={{ width: "100%" }}>
+              {error}
+            </Alert>
+          )}
+
           <TextField
             fullWidth
-            label="Username"
+            label="Email"
             variant="outlined"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <PersonOutlined color="action" />
+                  <EmailOutlined color="action" />
                 </InputAdornment>
               ),
             }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-              },
-            }}
+            required
           />
 
           <TextField
@@ -128,11 +129,7 @@ function Login() {
                 </InputAdornment>
               ),
             }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-              },
-            }}
+            required
           />
 
           <Button
@@ -147,9 +144,7 @@ function Login() {
               fontWeight: "bold",
               textTransform: "none",
               transition: "transform 0.2s",
-              "&:hover": {
-                transform: "translateY(-2px)",
-              },
+              "&:hover": { transform: "translateY(-2px)" },
             }}
           >
             {isLoading ? (

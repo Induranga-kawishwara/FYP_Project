@@ -4,7 +4,10 @@ import datetime
 from firebase_admin import auth as firebase_auth
 from mongoengine.errors import NotUniqueError
 from utils.verify import validate_signup_data, check_existing_user, format_phone_number
-from utils.DB_models import User  # Ensure your User model is imported correctly
+from utils.DB_models import User  
+from config import Config
+import requests
+
 
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -61,4 +64,57 @@ def signup():
         return jsonify({"error": "User with given email or phone already exists"}), 400
     except Exception as e:
         logger.error(f"Error during user registration: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+    
+@auth_bp.route("/login", methods=["POST"])
+def login():
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
+    
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    try:
+        # Call Firebase's REST API to sign in with email/password.
+        api_key = Config.GOOGLE_API_KEY
+        signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        payload = {
+            "email": email,
+            "password": password,
+            "returnSecureToken": True
+        }
+        r = requests.post(signin_url, json=payload)
+        if r.status_code != 200:
+            # Log the detailed error from Firebase for debugging
+            error_info = r.json()
+            logger.error(f"Firebase sign-in error: {error_info}")
+            # Return the specific error message from Firebase if available
+            return jsonify({"error": error_info.get("error", {}).get("message", "Invalid email or password")}), 400
+        
+        res_data = r.json()
+        id_token = res_data.get("idToken")
+        
+        # Verify the returned ID token using Firebase Admin SDK.
+        decoded_token = firebase_auth.verify_id_token(id_token)
+        uid = decoded_token.get("uid")
+        
+        # Retrieve the user details from your MongoEngine database.
+        user = User.objects(firebase_uid=uid).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify({
+            "message": "Login successful",
+            "user": {
+                "uid": uid,
+                "email": user.email,
+                "username": user.username,
+                "phone": user.phone
+            },
+            "idToken": id_token  # Optionally return the token for client use
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error during login: {str(e)}")
         return jsonify({"error": str(e)}), 400

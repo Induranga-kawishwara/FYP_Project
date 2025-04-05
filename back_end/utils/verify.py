@@ -1,11 +1,14 @@
 import re
 from firebase_admin import auth as firebase_auth
-from pymongo.collection import Collection
 from firebase_admin.auth import UserNotFoundError
+from utils import User 
 
 def validate_signup_data(data):
+    """
+    Validates the basic signup input data.
+    Returns a list of error messages if there are issues.
+    """
     errors = []
-
     email = data.get("email")
     password = data.get("password")
     username = data.get("username")
@@ -27,25 +30,32 @@ def validate_signup_data(data):
 
     return errors
 
-def check_existing_user(email: str, phone: str, users_collection: Collection):
+def check_existing_user(email: str, phone: str):
+    """
+    Checks if the provided email or phone already exists.
+    This function performs checks via Firebase and the MongoEngine model.
+    Returns a list of error messages if any duplicates are found.
+    """
     errors = []
 
-    # Check in Firebase
+    # Check in Firebase for email
     try:
         firebase_auth.get_user_by_email(email)
         errors.append("Email already exists.")
     except UserNotFoundError:
         pass
 
+    # Check in Firebase for phone number
     try:
         firebase_auth.get_user_by_phone_number(phone)
         errors.append("Phone number already exists.")
     except UserNotFoundError:
         pass
 
-    # Optionally, check in MongoDB as well
-    existing = users_collection.find_one({"$or": [{"email": email}, {"phone": phone}]})
-    if existing:
-        errors.append("User with given email or phone already exists.")
+    # Check in MongoDB using the User model
+    if User.objects(email=email).first():
+        errors.append("Email already exists in our database.")
+    if User.objects(phone=phone).first():
+        errors.append("Phone number already exists in our database.")
 
     return errors

@@ -1,17 +1,18 @@
-import logging
+# app.py
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_bcrypt import Bcrypt
 from config import Config
 from utils import cache
-import firebase_admin
-from firebase_admin import credentials
+from mongoengine import connect
+
+# Connect to MongoDB using the URI in your config
+connect(host=Config.MONGO_DATABASE)
+
+# Import blueprints
 from routes.auth import auth_bp
 from routes.product import product_bp
-
-# Configure basic logging
-logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -19,10 +20,6 @@ app.config.from_object(Config)
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 CORS(app)
-
-# Initialize Firebase Admin SDK using the service account from the config
-cred = credentials.Certificate(Config.FIREBASE_SERVICE_ACCOUNT)
-firebase_admin.initialize_app(cred)
 
 # Initialize the cache on the main app
 cache.init_app(app)

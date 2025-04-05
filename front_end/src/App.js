@@ -9,6 +9,7 @@ import Login from "./components/pages/LoginPage/Login";
 import Signup from "./components/pages/Signup/Signup";
 import Profile from "./components/pages/Profile/Profile";
 import ShopFinder from "./components/pages/ShopFinder/ShopFinder";
+import ForgotPassword from "./components/pages/ForgotPassword/ForgotPassword";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/shopfinder" element={<ShopFinder />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
       </Routes>
     </Router>
   );

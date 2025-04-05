@@ -155,7 +155,11 @@ function Login() {
           </Button>
 
           <Box sx={{ mt: 2, textAlign: "center" }}>
-            <Link href="#" variant="body2" sx={{ color: "text.secondary" }}>
+            <Link
+              onClick={() => navigate("/forgot-password")}
+              variant="body2"
+              sx={{ color: "text.secondary" }}
+            >
               Forgot password?
             </Link>
             <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>

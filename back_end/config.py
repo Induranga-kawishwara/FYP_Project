@@ -9,4 +9,4 @@ class Config:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
     MONGO_DATABASE = os.getenv("MONGO_DATABASE")
     FIREBASE_SERVICE_ACCOUNT = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT", "{}"))
-    GOOGLE_API_KEY_fIREBASE = os.getenv("GOOGLE_API_KEY_fIREBASE")
+    GOOGLE_API_KEY_FIREBASE = os.getenv("GOOGLE_API_KEY_FIREBASE")

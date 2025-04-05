@@ -77,7 +77,7 @@ def login():
 
     try:
         # Call Firebase's REST API to sign in with email/password.
-        api_key = Config.GOOGLE_API_KEY_fIREBASE
+        api_key = Config.GOOGLE_API_KEY_FIREBASE
         signin_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
         payload = {
             "email": email,

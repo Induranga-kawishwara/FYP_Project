@@ -3,8 +3,7 @@ import logging
 import datetime
 from firebase_admin import auth as firebase_auth
 from mongoengine.errors import NotUniqueError
-from utils.verify import validate_signup_data, check_existing_user, format_phone_number
-from utils.DB_models import User  
+from utils import validate_signup_data, check_existing_user, format_phone_number , User , send_email_via_brevo
 from config import Config
 import requests
 
@@ -117,4 +116,37 @@ def login():
 
     except Exception as e:
         logger.error(f"Error during login: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+    
+
+@auth_bp.route("/forgot_password", methods=["POST"])
+def forgot_password():
+    data = request.json
+    email = data.get("email")
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+
+    try:
+        # Generate a password reset link using Firebase Admin SDK
+        reset_link = firebase_auth.generate_password_reset_link(email)
+        
+        # Prepare email details
+        subject = "Password Reset Request"
+        text_content = f"Hello,\n\nYou requested a password reset. Please use the following link to reset your password:\n{reset_link}\n\nIf you did not request this, please ignore this email."
+        html_content = f"""
+        <p>Hello,</p>
+        <p>You requested a password reset. Please click the link below to reset your password:</p>
+        <p><a href="{reset_link}">Reset Password</a></p>
+        <p>If you did not request this, please ignore this email.</p>
+        """
+        
+        # Send the email using Brevo
+        send_email_via_brevo(email, subject, html_content, text_content)
+
+        return jsonify({
+            "message": "Password reset link sent successfully to your email."
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error generating or sending password reset link: {str(e)}")
         return jsonify({"error": str(e)}), 400

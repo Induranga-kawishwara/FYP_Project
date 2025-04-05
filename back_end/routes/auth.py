@@ -131,9 +131,8 @@ def forgot_password():
         reset_link = firebase_auth.generate_password_reset_link(email)
         
         # ===== EMAIL CONTENT =====
-        # Customize these values according to your business
-        LOGO_URL = "https://your-cdn.com/shopfinder-logo.png"  # Host your logo image
-        BRAND_COLOR = "#007bff"  # Your brand's primary color
+        LOGO_URL = "https://your-cdn.com/shopfinder-logo.png"  
+        BRAND_COLOR = "#007bff" 
         SUPPORT_EMAIL = "support@shopfinder.com"
         SOCIAL_MEDIA_LINKS = """
             <a href="https://twitter.com/shopfinder">Twitter</a> |

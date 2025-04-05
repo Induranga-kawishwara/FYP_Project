@@ -46,21 +46,25 @@ function Signup() {
 
     setIsLoading(true);
     try {
-      // Simulated API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Combine name and surname into username as expected by the backend
+      const username = `${name} ${surname}`.trim();
 
-      // Uncomment for real API call
-      // await axios.post("http://127.0.0.1:5000/signup", {
-      //   name,
-      //   surname,
-      //   email,
-      //   phoneNumber,
-      //   password,
-      // });
+      // Prepare the payload; note phone is sent as "phone"
+      const payload = {
+        username,
+        email,
+        phone: phoneNumber,
+        password,
+      };
 
-      navigate("/");
-    } catch (error) {
-      setError("Signup failed. Please try again.");
+      // Real API call to the backend
+      await axios.post("http://127.0.0.1:5000/auth/signup", payload);
+
+      // Redirect to login page after successful signup
+      navigate("/login");
+    } catch (err) {
+      // Use the error message from the backend, if available
+      setError(err.response?.data?.error || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -282,9 +286,9 @@ function Signup() {
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Already have an account?{" "}
               <Link
-                onClick={() => navigate("/login")} // Wrap navigate in an arrow function
+                onClick={() => navigate("/login")}
                 fontWeight="bold"
-                style={{ cursor: "pointer" }} // Optional: Add pointer cursor for UX
+                style={{ cursor: "pointer" }}
               >
                 Login
               </Link>

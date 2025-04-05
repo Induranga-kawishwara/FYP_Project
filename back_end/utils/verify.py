@@ -1,7 +1,7 @@
 import re
 from firebase_admin import auth as firebase_auth
 from firebase_admin.auth import UserNotFoundError
-from utils import User 
+from .DB_models import User  
 
 def validate_signup_data(data):
     """

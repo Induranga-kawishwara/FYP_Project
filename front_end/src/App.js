@@ -12,7 +12,6 @@ import ShopFinder from "./components/pages/ShopFinder/ShopFinder";
 import ForgotPassword from "./components/pages/ForgotPassword/ForgotPassword";
 import PrivacyPolicy from "./components/pages/PrivacyPolicy/PrivacyPolicy";
 import TermsOfService from "./components/pages/TermsOfService/TermsOfService";
-import DeleteData from "./components/pages/DeleteData/DeleteData ";
 
 function App() {
   return (
@@ -26,7 +25,6 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
-        <Route path="/delete-data" element={<DeleteData />} />
       </Routes>
     </Router>
   );

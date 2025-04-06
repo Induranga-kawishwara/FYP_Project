@@ -23,7 +23,7 @@ import {
 import {
   signInWithPopup,
   GoogleAuthProvider,
-  FacebookAuthProvider,
+  GithubAuthProvider,
 } from "firebase/auth";
 import { auth } from "../../../Config.js";
 
@@ -76,12 +76,12 @@ function Login() {
     }
   };
 
-  // Facebook login handler using Firebase client SDK
-  const handleFacebookLogin = async () => {
+  // GitHub login handler using Firebase client SDK
+  const handleGithubLogin = async () => {
     setIsLoading(true);
     setError("");
     try {
-      const provider = new FacebookAuthProvider();
+      const provider = new GithubAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
 
@@ -92,7 +92,7 @@ function Login() {
       navigate("/shopfinder");
     } catch (err) {
       setError(
-        err.response?.data?.error || "Facebook login failed. Please try again."
+        err.response?.data?.error || "GitHub login failed. Please try again."
       );
     } finally {
       setIsLoading(false);
@@ -229,11 +229,11 @@ function Login() {
             </Button>
             <Button
               variant="outlined"
-              onClick={handleFacebookLogin}
+              onClick={handleGithubLogin}
               disabled={isLoading}
               sx={{ textTransform: "none", flex: 1 }}
             >
-              Facebook
+              GitHub
             </Button>
           </Box>
           <Box sx={{ mt: 2, textAlign: "center" }}>

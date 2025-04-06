@@ -11,8 +11,8 @@ import xgboost as xgb
 from lime.lime_text import LimeTextExplainer
 import shap
 import nltk
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+from nltk.corpus import stopwords
+
 # Download NLTK resources if not already available
 nltk.download("stopwords")
 nltk.download("wordnet")
@@ -24,6 +24,13 @@ nltk.download("omw-1.4")
 vectorizer = joblib.load("models/reviewPredictionModel/tfidf_vectorizer.pkl")
 xgb_model = xgb.Booster()
 xgb_model.load_model("models/reviewPredictionModel/xgb_hybrid.pkl")
+
+# Monkey-patch the predict method to remove 'ntree_limit' if present
+old_predict = xgb_model.predict
+def new_predict(data, **kwargs):
+    kwargs.pop("ntree_limit", None)
+    return old_predict(data, **kwargs)
+xgb_model.predict = new_predict
 
 # DistilBERT model for sequence classification
 distilbert_model = AutoModelForSequenceClassification.from_pretrained("models/reviewPredictionModel/distilbert_model")
@@ -45,8 +52,8 @@ lime_explainer = LimeTextExplainer(
 shap_explainer = shap.TreeExplainer(xgb_model)
 
 # For SHAP explanations, we need to know the names of our combined features.
-# Our combined feature vector consists of distilBERT outputs plus TF-IDF features.
-# Here we assume that the distilBERT output has a dimension equal to the number of labels.
+# Our combined feature vector consists of DistilBERT outputs plus TF-IDF features.
+# Here we assume that the DistilBERT output has a dimension equal to the number of labels.
 embedding_dim = distilbert_model.config.num_labels  # typically 5 for ratings 1-5
 tfidf_feature_names = vectorizer.get_feature_names_out()
 combined_feature_names = (
@@ -102,16 +109,16 @@ def get_explanations_for_review(review):
       - LIME explanation: a list of tuples (feature, weight)
       - SHAP explanation: a list of dictionaries mapping feature names to SHAP values
     """
-    # Optionally, trim the review text if it's too long
-    max_chars = 1000  # Adjust this value based on your needs
+    # Optionally trim the review text if it's too long
+    max_chars = 1000
     review_trimmed = review if len(review) <= max_chars else review[:max_chars]
     
-    # LIME explanation with reduced num_samples
+    # LIME explanation with reduced num_samples to lower memory usage
     lime_exp = lime_explainer.explain_instance(
         review_trimmed,
         predict_for_lime,
         num_features=10,
-        num_samples=500  # Reduced number of samples to lower memory usage
+        num_samples=500
     )
     lime_explanation = lime_exp.as_list()
 
@@ -129,6 +136,7 @@ def get_explanations_for_review(review):
 
     return {"lime": lime_explanation, "shap": shap_explanation}
 
+# --- Main Functions for Review Rating Prediction and Summarization ---
 
 def predict_review_rating_with_explanations(reviews):
     """

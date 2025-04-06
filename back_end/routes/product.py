@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from utils import cache  
-from services import fetch_all_shops, predict_review_rating, generate_summary, scrape_reviews
+from services import fetch_all_shops, predict_review_rating_with_explanations, generate_summary, scrape_reviews
 from utils import convert_numpy_types
 import logging
 
@@ -55,16 +55,20 @@ def search_product():
             valid_reviews = []
 
         if valid_reviews:
+            # Combine all review texts into a single review list for our model
             combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
-            overall_predicted_rating = predict_review_rating(combined_reviews)
+            # Use the new function to predict rating and get XAI outputs (LIME & SHAP)
+            xai_results = predict_review_rating_with_explanations(combined_reviews)
             summary = generate_summary(combined_reviews)
             shop["reviews"] = valid_reviews
             shop["summary"] = summary
-            shop["predicted_rating"] = overall_predicted_rating
+            shop["predicted_rating"] = xai_results["predicted_rating"]
+            shop["xai_explanations"] = xai_results["explanations"]
         else:
             shop["reviews"] = []
             shop["summary"] = "No reviews available."
             shop["predicted_rating"] = 0
+            shop["xai_explanations"] = []
         shops.append(convert_numpy_types(shop))
 
     return jsonify({"shops": shops})

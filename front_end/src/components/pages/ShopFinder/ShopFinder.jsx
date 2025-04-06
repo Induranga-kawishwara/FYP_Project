@@ -98,7 +98,7 @@ function ShopFinder() {
     reviewCount: null,
     openExplanationModal: false,
     showReviewModal: false,
-    limeExplanation: "",
+    explanationContent: "", // stores formatted explanation details
     tempDontAskAgain: false,
     selectedOption: "10",
     customReviewCount: "",
@@ -187,29 +187,31 @@ function ShopFinder() {
     }
   };
 
-  const getLimeExplanation = async () => {
-    if (!state.selectedShop?.reviews?.length) {
-      alert("No reviews available");
+  // Updated: Use the xai_explanations data from the selected shop to display explanation details.
+  const getXaiExplanation = () => {
+    if (!state.selectedShop?.xai_explanations?.length) {
+      alert("No explanation available for this shop.");
       return;
     }
-    try {
-      const response = await axios.post(
-        "http://127.0.0.1:5000/explain_review",
-        { review: state.selectedShop.reviews[0].text }
-      );
-      setState((prev) => ({
-        ...prev,
-        limeExplanation: response.data.explanation.join("\n"),
-        openExplanationModal: true,
-      }));
-    } catch (error) {
-      console.error("Explanation Error:", error);
-      setState((prev) => ({
-        ...prev,
-        limeExplanation: "Error fetching explanation",
-        openExplanationModal: true,
-      }));
-    }
+    // Format explanation details for display.
+    let explanationText = "";
+    state.selectedShop.xai_explanations.forEach((exp, idx) => {
+      explanationText += `Review ${idx + 1}:\n`;
+      explanationText += "LIME Explanation:\n";
+      exp.lime.forEach(([feature, weight]) => {
+        explanationText += ` • ${feature}: ${weight}\n`;
+      });
+      explanationText += "SHAP Explanation (first 5 features):\n";
+      exp.shap.slice(0, 5).forEach((item) => {
+        explanationText += ` • ${item.feature}: ${item.shap_value}\n`;
+      });
+      explanationText += "\n";
+    });
+    setState((prev) => ({
+      ...prev,
+      explanationContent: explanationText,
+      openExplanationModal: true,
+    }));
   };
 
   // Confirm the popup settings (review count and coverage)
@@ -546,7 +548,7 @@ function ShopFinder() {
                       variant="outlined"
                       color="primary"
                       startIcon={<ReviewsIcon />}
-                      onClick={getLimeExplanation}
+                      onClick={getXaiExplanation}
                       sx={{
                         flex: 1,
                         borderRadius: 25,
@@ -796,11 +798,17 @@ function ShopFinder() {
             ))}
       </Grid>
 
-      {/* Modals */}
+      {/* Explanation Popup: Display the XAI explanation details */}
       <ExplanationPopup
         open={state.openExplanationModal}
-        onClose={() => setState({ ...state, openExplanationModal: false })}
-        explanation={state.limeExplanation}
+        onClose={() =>
+          setState({
+            ...state,
+            openExplanationModal: false,
+            explanationContent: "",
+          })
+        }
+        explanation={state.explanationContent}
       />
       <ReviewSettingPopup
         open={state.showReviewModal}

@@ -22,7 +22,9 @@ torch==2.0.1
 Werkzeug==2.2.2
 scikit-learn==1.2.2
 Flask-Caching==1.10.1
-firebase-admin
-mongoengine
-phonenumbers
-sib-api-v3-sdk
+firebase-admin==6.0.1
+mongoengine==0.26.0
+phonenumbers==8.12.50
+sib-api-v3-sdk==7.6.0
+shap==0.41.0
+pymongo==3.12.1

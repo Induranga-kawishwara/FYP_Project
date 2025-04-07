@@ -1,7 +1,11 @@
 from flask import Blueprint, request, jsonify
-from utils import cache  
-from services import fetch_all_shops, predict_review_rating_with_explanations, generate_summary, scrape_reviews
-from utils import convert_numpy_types
+from utils import cache, convert_numpy_types
+from services import (
+    fetch_all_shops,
+    predict_review_rating_with_explanations,
+    generate_summary,
+    scrape_reviews
+)
 import logging
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
@@ -9,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
 def search_product():
+    # Handle preflight OPTIONS request.
     if request.method == "OPTIONS":
         return jsonify({}), 200
 
@@ -16,18 +21,19 @@ def search_product():
     product_name = data.get("product")
     review_count = data.get("reviewCount")
     coverage = data.get("coverage")
-    location = data.get("location")  # expects a dict with 'lat' and 'lng'
+    location = data.get("location")  # Expects a dict with 'lat' and 'lng'
 
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
     if not location or not location.get("lat") or not location.get("lng"):
         return jsonify({"error": "User location is required"}), 400
 
-    radius = int(coverage) * 1000  # Convert km to meters
+    # Convert coverage (assumed in km) to meters and extract lat/lng.
+    radius = int(coverage) * 1000  
     lat = location.get("lat")
     lng = location.get("lng")
 
-    # Use the shared cache instance
+    # Use caching to reduce repeated API calls.
     cache_key = f"shops_{product_name}_{lat}_{lng}_{radius}"
     shops_results = cache.get(cache_key)
     if not shops_results:
@@ -55,9 +61,9 @@ def search_product():
             valid_reviews = []
 
         if valid_reviews:
-            # Combine all review texts into a single review list for our model
+            # Combine individual review texts into a single string for prediction.
             combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
-            # Use the new function to predict rating and get XAI outputs (LIME & SHAP)
+            # Predict rating and obtain XAI outputs (including user-friendly explanations).
             xai_results = predict_review_rating_with_explanations(combined_reviews)
             summary = generate_summary(combined_reviews)
             shop["reviews"] = valid_reviews
@@ -69,6 +75,7 @@ def search_product():
             shop["summary"] = "No reviews available."
             shop["predicted_rating"] = 0
             shop["xai_explanations"] = []
+        
         shops.append(convert_numpy_types(shop))
 
     return jsonify({"shops": shops})

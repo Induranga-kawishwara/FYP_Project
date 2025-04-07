@@ -18,159 +18,147 @@ nltk.download("stopwords")
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 
-# --- Load Pre-trained Models and Vectorizers ---
+# -------------------------------
+# 1) Load Pre-trained Models and Vectorizer
+# -------------------------------
 
-# TF-IDF vectorizer and XGBoost hybrid model for review prediction
-vectorizer = joblib.load("models/reviewPredictionModel/tfidf_vectorizer.pkl")
+# Load the TF-IDF vectorizer (trained previously)
+tfidf_vectorizer_path = "models/reviewPredictionModel/tfidf_vectorizer.pkl"
+vectorizer = joblib.load(tfidf_vectorizer_path)
+vocab = vectorizer.get_feature_names_out()
+print("TF-IDF vocabulary size:", len(vocab))
+
+# Load the XGBoost hybrid model (saved as JSON)
+xgb_model_path = "models/reviewPredictionModel/xgb_hybrid.json"
 xgb_model = xgb.Booster()
-xgb_model.load_model("models/reviewPredictionModel/xgb_hybrid.pkl")
+xgb_model.load_model(xgb_model_path)
 
-# Monkey-patch the predict method to remove 'ntree_limit' if present
+# Patch XGBoost predict to remove 'ntree_limit' and disable feature validation
 old_predict = xgb_model.predict
 def new_predict(data, **kwargs):
     kwargs.pop("ntree_limit", None)
+    kwargs['validate_features'] = False
     return old_predict(data, **kwargs)
 xgb_model.predict = new_predict
 
-# DistilBERT model for sequence classification
-distilbert_model = AutoModelForSequenceClassification.from_pretrained("models/reviewPredictionModel/distilbert_model")
-distilbert_tokenizer = AutoTokenizer.from_pretrained("models/reviewPredictionModel/distilbert_model")
+# Load the fine-tuned DistilBERT model and tokenizer
+distilbert_model_path = "models/reviewPredictionModel/distilbert_model"
+distilbert_model = AutoModelForSequenceClassification.from_pretrained(distilbert_model_path)
+distilbert_tokenizer = AutoTokenizer.from_pretrained(distilbert_model_path)
 
-# BART model for summarization
+# (Optional) Load the summarization model if needed.
 summarization_model_name = "facebook/bart-large-cnn"
 summarization_tokenizer = AutoTokenizer.from_pretrained(summarization_model_name)
 summarization_model = AutoModelForSeq2SeqLM.from_pretrained(summarization_model_name)
 
-# --- Set Up Explainers ---
+# -------------------------------
+# 2) Prepare Global Feature Metadata
+# -------------------------------
+# IMPORTANT: Use the same embedding extraction method as during training.
+# Here, we extract the CLS token from the last hidden state.
+embedding_dim = distilbert_model.config.hidden_size  # e.g., typically 768 for DistilBERT
+expected_combined_dim = embedding_dim + len(vocab)
+print("Expected combined feature vector dimension:", expected_combined_dim)
 
-# LIME explainer for text classification
+# Build combined feature names: first for DistilBERT embeddings, then for TF-IDF tokens.
+combined_feature_names = [f"distilbert_feature_{i+1}" for i in range(embedding_dim)] + list(vocab)
+# Optionally assign these names to the XGBoost model.
+xgb_model.feature_names = combined_feature_names
+
+# -------------------------------
+# 3) Set Up Explainers
+# -------------------------------
+# LIME explainer for text classification.
 lime_explainer = LimeTextExplainer(
     class_names=["Rating 1", "Rating 2", "Rating 3", "Rating 4", "Rating 5"]
 )
-
-# SHAP explainer for XGBoost model (tree-based explainer)
+# SHAP TreeExplainer for XGBoost.
 shap_explainer = shap.TreeExplainer(xgb_model)
 
-# For SHAP explanations, we need to know the names of our combined features.
-# Our combined feature vector consists of DistilBERT outputs plus TF-IDF features.
-# Here we assume that the DistilBERT output has a dimension equal to the number of labels.
-embedding_dim = distilbert_model.config.num_labels  # typically 5 for ratings 1-5
-tfidf_feature_names = vectorizer.get_feature_names_out()
-combined_feature_names = (
-    [f"distilbert_feature_{i+1}" for i in range(embedding_dim)]
-    + list(tfidf_feature_names)
-)
+# -------------------------------
+# 4) Define Helper Functions
+# -------------------------------
 
-# --- Helper Functions ---
+def get_distilbert_embeddings(text_list, tokenizer, model):
+    """
+    Extracts the CLS token from the last hidden state for a list of texts.
+    """
+    model.eval()
+    inputs = tokenizer(text_list, padding=True, truncation=True, max_length=256, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs, output_hidden_states=True, return_dict=True)
+        # Extract the first token (CLS) from the last hidden state.
+        cls_embeddings = outputs.hidden_states[-1][:, 0, :].cpu().numpy()
+    return cls_embeddings
 
 def get_combined_features(review_text):
     """
-    Creates the combined feature vector from the DistilBERT embeddings and TF-IDF features.
+    Creates the combined feature vector from DistilBERT embeddings and TF-IDF features.
     """
-    inputs = distilbert_tokenizer(
-        [review_text],
-        padding=True,
-        truncation=True,
-        return_tensors="pt",
-        max_length=256
-    )
-    with torch.no_grad():
-        outputs = distilbert_model(**inputs)
-        embeddings = outputs.logits.cpu().detach().numpy()  # shape (1, num_labels)
-    tfidf_features = vectorizer.transform([review_text]).toarray()  # shape (1, n_tfidf)
+    embeddings = get_distilbert_embeddings([review_text], distilbert_tokenizer, distilbert_model)
+    tfidf_features = vectorizer.transform([review_text]).toarray()
     combined = np.hstack([embeddings, tfidf_features])
+    print("Computed combined feature vector shape:", combined.shape)
+    if combined.shape[1] != expected_combined_dim:
+        raise ValueError(f"Mismatch in combined feature dimension: expected {expected_combined_dim}, got {combined.shape[1]}.")
     return combined
 
 def predict_for_lime(texts):
     """
-    Predicts probability distributions for the given list of texts.
-    This function is used by the LIME explainer.
+    Predict probability distributions for a list of texts (for use with LIME).
     """
-    inputs = distilbert_tokenizer(
-        texts,
-        padding=True,
-        truncation=True,
-        return_tensors="pt",
-        max_length=256
-    )
-    with torch.no_grad():
-        outputs = distilbert_model(**inputs)
-        embeddings = outputs.logits.cpu().detach().numpy()
+    embeddings = get_distilbert_embeddings(texts, distilbert_tokenizer, distilbert_model)
     tfidf_features = vectorizer.transform(texts).toarray()
     combined_features = np.hstack([embeddings, tfidf_features])
     dtest = xgb.DMatrix(combined_features)
-    # The model returns probabilities for each rating class (ratings 1-5)
-    pred_probs = xgb_model.predict(dtest)
+    pred_probs = xgb_model.predict(dtest, validate_features=False)
     return pred_probs
 
 def get_explanations_for_review(review):
     """
-    For a single review text, generate:
-      - LIME explanation: a list of tuples (feature, weight)
-      - SHAP explanation: a list of dictionaries mapping feature names to SHAP values
+    For a given review, generate LIME and SHAP explanations.
     """
-    # Optionally trim the review text if it's too long
-    max_chars = 1000
+    max_chars = 1000  # Optionally trim long texts.
     review_trimmed = review if len(review) <= max_chars else review[:max_chars]
     
-    # LIME explanation with reduced num_samples to lower memory usage
-    lime_exp = lime_explainer.explain_instance(
-        review_trimmed,
-        predict_for_lime,
-        num_features=10,
-        num_samples=500
-    )
-    lime_explanation = lime_exp.as_list()
-
-    # SHAP explanation: compute combined features and get SHAP values
-    features = get_combined_features(review_trimmed)  # shape (1, d)
-    shap_values = shap_explainer.shap_values(features)
-    # Extract the first (and only) row of SHAP values
-    shap_values = shap_values[0] if isinstance(shap_values, list) else shap_values[0]
-    shap_explanation = []
-    for i, val in enumerate(shap_values):
-        shap_explanation.append({
-            "feature": combined_feature_names[i],
-            "shap_value": float(val)
-        })
-
+    # Generate LIME explanation.
+    try:
+        lime_exp = lime_explainer.explain_instance(
+            review_trimmed,
+            predict_for_lime,
+            num_features=10,
+            num_samples=500
+        )
+        lime_explanation = lime_exp.as_list()
+    except ValueError as e:
+        lime_explanation = [("LIME explanation unavailable: " + str(e), 0)]
+    
+    # Generate SHAP explanation.
+    features = get_combined_features(review_trimmed)
+    shap_vals = shap_explainer.shap_values(features)
+    if isinstance(shap_vals, list):
+        shap_vals = shap_vals[0]
+    shap_vals = shap_vals[0]  # Only one row.
+    shap_explanation = [{"feature": combined_feature_names[i], "shap_value": float(val)}
+                        for i, val in enumerate(shap_vals)]
+    
     return {"lime": lime_explanation, "shap": shap_explanation}
-
-# --- Main Functions for Review Rating Prediction and Summarization ---
 
 def predict_review_rating_with_explanations(reviews):
     """
-    Given a list of review texts, this function predicts the overall rating (as in your hybrid model)
-    and returns explanations for each review using LIME and SHAP.
-    
-    Returns a dictionary with:
-      - "predicted_rating": Overall average rating (weighted) across the reviews.
-      - "explanations": A list of explanation objects for each review.
+    Given a list of review texts, predict the overall rating (weighted) and return explanations.
     """
     if not reviews:
-        return {
-            "predicted_rating": 0.0,
-            "explanations": []
-        }
-    # Create combined features for all reviews
-    inputs = distilbert_tokenizer(
-        reviews,
-        padding=True,
-        truncation=True,
-        return_tensors="pt",
-        max_length=256
-    )
-    with torch.no_grad():
-        outputs = distilbert_model(**inputs)
-        embeddings = outputs.logits.cpu().detach().numpy()
+        return {"predicted_rating": 0.0, "explanations": []}
+    
+    embeddings = get_distilbert_embeddings(reviews, distilbert_tokenizer, distilbert_model)
     tfidf_features = vectorizer.transform(reviews).toarray()
     combined_features = np.hstack([embeddings, tfidf_features])
     dtest = xgb.DMatrix(combined_features)
-    pred_probs = xgb_model.predict(dtest)
+    pred_probs = xgb_model.predict(dtest, validate_features=False)
     weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)
     avg_rating = np.mean(weighted_ratings)
     
-    # Generate explanations for each review individually
     explanations = []
     for review in reviews:
         exp = get_explanations_for_review(review)
@@ -180,15 +168,12 @@ def predict_review_rating_with_explanations(reviews):
             "shap": exp["shap"]
         })
     
-    return {
-        "predicted_rating": round(avg_rating, 2),
-        "explanations": explanations
-    }
+    return {"predicted_rating": round(avg_rating, 2), "explanations": explanations}
 
 def classify_reviews_by_rating(reviews):
     """
-    Classifies reviews into positive, neutral, and negative based on predicted ratings.
-    Returns a tuple with lists of reviews and various rating aggregates.
+    Classify reviews into positive, neutral, and negative based on predicted ratings.
+    Returns lists of reviews and aggregated rating metrics.
     """
     if not reviews:
         return [], [], [], 0, 0, 0
@@ -206,7 +191,7 @@ def classify_reviews_by_rating(reviews):
         embeddings = outputs.logits.cpu().detach().numpy()
     combined_features = np.hstack([embeddings, tfidf_reviews.toarray()])
     dtest = xgb.DMatrix(combined_features)
-    pred_probs = xgb_model.predict(dtest)
+    pred_probs = xgb_model.predict(dtest, validate_features=False)
     predicted_ratings = np.argmax(pred_probs, axis=1) + 1
     positive_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] >= 4]
     negative_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] <= 2]
@@ -219,8 +204,8 @@ def classify_reviews_by_rating(reviews):
 
 def generate_summary(reviews):
     """
-    Generates a detailed summary from the reviews using the summarization model.
-    Also aggregates average and weighted ratings.
+    Generate a detailed summary from reviews using the summarization model,
+    along with aggregated rating information.
     """
     if not reviews:
         return {
@@ -237,6 +222,7 @@ def generate_summary(reviews):
         combined_text += "Neutral reviews mention: " + " ".join(neutral_reviews) + " "
     if neg_reviews:
         combined_text += "Negative reviews state: " + " ".join(neg_reviews)
+    
     inputs = summarization_tokenizer.encode(
         "summarize: " + combined_text,
         return_tensors="pt",
@@ -252,7 +238,6 @@ def generate_summary(reviews):
         early_stopping=False
     )
     summary = summarization_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-    # Replace pronouns for a more neutral summary
     summary = summary.replace("I ", "Some users ").replace("We ", "Many users ").replace("My ", "Their ").replace("Our ", "The product's ")
     return {
         "detailed_summary": summary.strip(),

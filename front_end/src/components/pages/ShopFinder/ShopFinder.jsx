@@ -97,7 +97,7 @@ function ShopFinder() {
     mapCenter: { lat: 40.7128, lng: -74.006 },
     reviewCount: null,
     openExplanationModal: false,
-    explanationContent: "", // now includes both raw and user-friendly explanation
+    explanationContent: "", // Will store the formatted explanation
     tempDontAskAgain: false,
     selectedOption: "10",
     customReviewCount: "",
@@ -125,7 +125,6 @@ function ShopFinder() {
     );
   }, []);
 
-  // If "Don't ask again" is enabled and both reviewCount and coverage are set, search directly.
   const handleSearch = () => {
     if (
       state.dontAskAgain &&
@@ -186,19 +185,25 @@ function ShopFinder() {
     }
   };
 
-  // Updated getXaiExplanation to display both raw and user-friendly explanations.
+  // Updated function to retrieve and format XAI explanations.
   const getXaiExplanation = () => {
-    if (!state.selectedShop?.xai_explanations?.length) {
+    const explanations = state.selectedShop?.xai_explanations;
+    if (!explanations || explanations.length === 0) {
       alert("No explanation available for this shop.");
       return;
     }
-    // For simplicity, we assume a single explanation object.
-    const explanationObj = state.selectedShop.xai_explanations[0];
-    const explanationText =
-      "Raw Explanation:\n" +
-      explanationObj.raw_explanation +
-      "\n\nUser-friendly Explanation:\n" +
-      explanationObj.user_friendly_explanation;
+    // Ensure we work with an array.
+    const explanationArray = Array.isArray(explanations)
+      ? explanations
+      : [explanations];
+    let explanationText = "";
+    explanationArray.forEach((exp, idx) => {
+      explanationText += `Review ${idx + 1}:\n`;
+      explanationText += "Raw Explanation:\n";
+      explanationText += exp.raw_explanation + "\n";
+      explanationText += "User-friendly Explanation:\n";
+      explanationText += exp.user_friendly_explanation + "\n\n";
+    });
     setState((prev) => ({
       ...prev,
       explanationContent: explanationText,
@@ -206,7 +211,6 @@ function ShopFinder() {
     }));
   };
 
-  // Confirm the review settings from the modal.
   const handleReviewModalConfirm = () => {
     const finalReviewCount =
       state.selectedOption === "custom"
@@ -475,13 +479,8 @@ function ShopFinder() {
                       value={state.selectedShop.predicted_rating || 0}
                       readOnly
                       precision={0.5}
-                      size="medium"
-                      sx={{
-                        color: (theme) => theme.palette.warning.main,
-                        "& .MuiRating-iconFilled": {
-                          color: (theme) => theme.palette.warning.dark,
-                        },
-                      }}
+                      size="large"
+                      sx={{ color: "#FFD700" }}
                     />
                     <Typography
                       variant="subtitle1"
@@ -808,7 +807,7 @@ function ShopFinder() {
           setState({ ...state, tempDontAskAgain: val })
         }
         coverage={state.coverage}
-        setCoverage={(count) => setState({ ...state, coverage: count })}
+        setCoverage={(cov) => setState({ ...state, coverage: cov })}
         allShops={state.allShops}
         setAllShops={(val) => setState({ ...state, allShops: val })}
         customCoverage={state.customCoverage}

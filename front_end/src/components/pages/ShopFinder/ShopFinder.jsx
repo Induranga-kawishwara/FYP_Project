@@ -97,8 +97,7 @@ function ShopFinder() {
     mapCenter: { lat: 40.7128, lng: -74.006 },
     reviewCount: null,
     openExplanationModal: false,
-    showReviewModal: false,
-    explanationContent: "", // stores formatted explanation details
+    explanationContent: "", // now includes both raw and user-friendly explanation
     tempDontAskAgain: false,
     selectedOption: "10",
     customReviewCount: "",
@@ -187,26 +186,19 @@ function ShopFinder() {
     }
   };
 
-  // Updated: Use the xai_explanations data from the selected shop to display explanation details.
+  // Updated getXaiExplanation to display both raw and user-friendly explanations.
   const getXaiExplanation = () => {
     if (!state.selectedShop?.xai_explanations?.length) {
       alert("No explanation available for this shop.");
       return;
     }
-    // Format explanation details for display.
-    let explanationText = "";
-    state.selectedShop.xai_explanations.forEach((exp, idx) => {
-      explanationText += `Review ${idx + 1}:\n`;
-      explanationText += "LIME Explanation:\n";
-      exp.lime.forEach(([feature, weight]) => {
-        explanationText += ` • ${feature}: ${weight}\n`;
-      });
-      explanationText += "SHAP Explanation (first 5 features):\n";
-      exp.shap.slice(0, 5).forEach((item) => {
-        explanationText += ` • ${item.feature}: ${item.shap_value}\n`;
-      });
-      explanationText += "\n";
-    });
+    // For simplicity, we assume a single explanation object.
+    const explanationObj = state.selectedShop.xai_explanations[0];
+    const explanationText =
+      "Raw Explanation:\n" +
+      explanationObj.raw_explanation +
+      "\n\nUser-friendly Explanation:\n" +
+      explanationObj.user_friendly_explanation;
     setState((prev) => ({
       ...prev,
       explanationContent: explanationText,
@@ -214,18 +206,16 @@ function ShopFinder() {
     }));
   };
 
-  // Confirm the popup settings (review count and coverage)
+  // Confirm the review settings from the modal.
   const handleReviewModalConfirm = () => {
     const finalReviewCount =
       state.selectedOption === "custom"
         ? parseInt(state.customReviewCount)
         : parseInt(state.selectedOption);
-    // Determine final coverage:
     const finalCoverage =
       state.coverage === "customcoverage"
         ? state.customCoverage
         : state.coverage;
-
     setState((prev) => ({
       ...prev,
       reviewCount: finalReviewCount,
@@ -382,7 +372,6 @@ function ShopFinder() {
               ],
             }}
           >
-            {/* Current Location Marker */}
             {state.currentLocation && (
               <Marker
                 position={state.currentLocation}
@@ -403,7 +392,6 @@ function ShopFinder() {
               />
             )}
 
-            {/* Shop Markers */}
             {state.shops.map((shop, index) => (
               <Marker
                 key={index}
@@ -434,7 +422,6 @@ function ShopFinder() {
               />
             ))}
 
-            {/* InfoWindow for Selected Shop */}
             {state.selectedShop && state.currentLocation && (
               <InfoWindow
                 position={{
@@ -445,7 +432,6 @@ function ShopFinder() {
                 options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
               >
                 <Box>
-                  {/* Shop Name with Gradient Underline */}
                   <Typography
                     variant="h5"
                     sx={{
@@ -472,7 +458,6 @@ function ShopFinder() {
                     {state.selectedShop.shop_name}
                   </Typography>
 
-                  {/* Rating Section */}
                   <Box
                     sx={{
                       display: "flex",
@@ -509,7 +494,6 @@ function ShopFinder() {
                     </Typography>
                   </Box>
 
-                  {/* Distance Section */}
                   <Box
                     sx={{
                       display: "flex",
@@ -542,7 +526,6 @@ function ShopFinder() {
                     </Typography>
                   </Box>
 
-                  {/* Action Buttons */}
                   <Box sx={{ display: "flex", gap: 1.5 }}>
                     <Button
                       variant="outlined"
@@ -617,7 +600,6 @@ function ShopFinder() {
         </Box>
       </LoadScript>
 
-      {/* Shop Cards Grid */}
       <Grid container spacing={4} sx={{ mt: 4 }}>
         {state.shops.length === 0 && !state.isLoading && (
           <Grid item xs={12}>
@@ -798,7 +780,7 @@ function ShopFinder() {
             ))}
       </Grid>
 
-      {/* Explanation Popup: Display the XAI explanation details */}
+      {/* Explanation Popup */}
       <ExplanationPopup
         open={state.openExplanationModal}
         onClose={() =>

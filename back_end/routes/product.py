@@ -7,6 +7,7 @@ from services import (
     scrape_reviews
 )
 import logging
+import json
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
@@ -46,36 +47,41 @@ def search_product():
 
     shops = []
     for place in shops_results:
-        shop = {
-            "shop_name": place["name"],
-            "address": place.get("formatted_address", "N/A"),
-            "rating": float(place.get("rating", 0)),
-            "place_id": place["place_id"],
-            "lat": float(place["geometry"]["location"]["lat"]),
-            "lng": float(place["geometry"]["location"]["lng"])
-        }
         try:
-            valid_reviews = scrape_reviews(shop["place_id"], review_count)
+            # If place is a string, attempt to parse it as JSON.
+            if isinstance(place, str):
+                place = json.loads(place)
+            shop = {
+                "shop_name": place["name"],
+                "address": place.get("formatted_address", "N/A"),
+                "rating": float(place.get("rating", 0)),
+                "place_id": place["place_id"],
+                "lat": float(place["geometry"]["location"]["lat"]),
+                "lng": float(place["geometry"]["location"]["lng"])
+            }
+            try:
+                valid_reviews = scrape_reviews(shop["place_id"], review_count)
+            except Exception as e:
+                logger.error(f"Error scraping reviews for place_id {shop['place_id']}: {str(e)}")
+                valid_reviews = []
+
+            if valid_reviews:
+                # Combine all review texts into one string.
+                combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
+                # Predict rating and obtain XAI outputs (raw and user-friendly).
+                xai_results = predict_review_rating_with_explanations(combined_reviews)
+                summary = generate_summary(combined_reviews)
+                shop["reviews"] = valid_reviews
+                shop["summary"] = summary
+                shop["predicted_rating"] = xai_results["predicted_rating"]
+                shop["xai_explanations"] = xai_results["explanations"]
+            else:
+                shop["reviews"] = []
+                shop["summary"] = "No reviews available."
+                shop["predicted_rating"] = 0
+                shop["xai_explanations"] = []
+            
+            shops.append(convert_numpy_types(shop))
         except Exception as e:
-            logger.error(f"Error scraping reviews for place_id {shop['place_id']}: {str(e)}")
-            valid_reviews = []
-
-        if valid_reviews:
-            # Combine individual review texts into a single string for prediction.
-            combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
-            # Predict rating and obtain XAI outputs (including user-friendly explanations).
-            xai_results = predict_review_rating_with_explanations(combined_reviews)
-            summary = generate_summary(combined_reviews)
-            shop["reviews"] = valid_reviews
-            shop["summary"] = summary
-            shop["predicted_rating"] = xai_results["predicted_rating"]
-            shop["xai_explanations"] = xai_results["explanations"]
-        else:
-            shop["reviews"] = []
-            shop["summary"] = "No reviews available."
-            shop["predicted_rating"] = 0
-            shop["xai_explanations"] = []
-        
-        shops.append(convert_numpy_types(shop))
-
+            logger.error(f"Error processing shop: {e}")
     return jsonify({"shops": shops})

@@ -327,32 +327,34 @@ function Signup() {
             }}
             required
           />
-
-          <Fade in={!!error}>
-            <Alert
-              severity="error"
-              sx={{
-                width: "100%",
-                border: `1px solid ${theme.palette.error.main}`,
-                bgcolor: theme.palette.error.light,
-              }}
-            >
-              {error}
-            </Alert>
-          </Fade>
-
-          <Fade in={success}>
-            <Alert
-              severity="success"
-              sx={{
-                width: "100%",
-                border: `1px solid ${theme.palette.success.main}`,
-                bgcolor: theme.palette.success.light,
-              }}
-            >
-              Account created successfully! Redirecting...
-            </Alert>
-          </Fade>
+          {error ? (
+            <Fade>
+              <Alert
+                severity="error"
+                sx={{
+                  width: "100%",
+                  border: `1px solid ${theme.palette.error.main}`,
+                  bgcolor: theme.palette.error.light,
+                }}
+              >
+                {error}
+              </Alert>
+            </Fade>
+          ) : null}
+          {success ? (
+            <Fade>
+              <Alert
+                severity="success"
+                sx={{
+                  width: "100%",
+                  border: `1px solid ${theme.palette.success.main}`,
+                  bgcolor: theme.palette.success.light,
+                }}
+              >
+                Account created successfully! Redirecting...
+              </Alert>
+            </Fade>
+          ) : null}
 
           <Button
             fullWidth

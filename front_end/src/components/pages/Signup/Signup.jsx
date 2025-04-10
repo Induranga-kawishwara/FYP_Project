@@ -47,9 +47,32 @@ function Signup() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const AlertMessage = ({ severity, message }) => (
+    <Fade in={!!message}>
+      <Alert
+        severity={severity}
+        sx={{
+          width: "100%",
+          border: `1px solid ${
+            severity === "error"
+              ? theme.palette.error.main
+              : theme.palette.success.main
+          }`,
+          bgcolor:
+            severity === "error"
+              ? theme.palette.error.light
+              : theme.palette.success.light,
+        }}
+      >
+        {message}
+      </Alert>
+    </Fade>
+  );
+
   const handleSignup = async (e) => {
     e.preventDefault();
-    setValidationErrors({}); // Clear previous validation errors
+    setValidationErrors({});
+    setError("");
 
     if (formData.password !== formData.confirmPassword) {
       setValidationErrors({ confirmPassword: "Passwords do not match." });
@@ -283,36 +306,13 @@ function Signup() {
             required
           />
 
-          {error && (
-            <Fade in={!!error}>
-              <Alert
-                severity="error"
-                sx={{
-                  width: "100%",
-                  border: `1px solid ${theme.palette.error.main}`,
-                  bgcolor: theme.palette.error.light,
-                }}
-              >
-                {error}
-              </Alert>
-            </Fade>
-          )}
-
+          {error && <AlertMessage severity="error" message={error} />}
           {success && (
-            <Fade>
-              <Alert
-                severity="success"
-                sx={{
-                  width: "100%",
-                  border: `1px solid ${theme.palette.success.main}`,
-                  bgcolor: theme.palette.success.light,
-                }}
-              >
-                Account created successfully! Redirecting...
-              </Alert>
-            </Fade>
+            <AlertMessage
+              severity="success"
+              message="Account created successfully! Redirecting..."
+            />
           )}
-
           <Button
             fullWidth
             variant="contained"

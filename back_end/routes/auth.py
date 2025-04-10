@@ -18,7 +18,7 @@ def signup():
     # Validate basic input data
     validation_errors = validate_signup_data(data)
     if validation_errors:
-        return jsonify({"errors": validation_errors}), 400
+        return jsonify({"validationErrors": validation_errors}), 422
 
     email = data.get("email")
     password = data.get("password")

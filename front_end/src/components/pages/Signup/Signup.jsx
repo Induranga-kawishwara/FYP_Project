@@ -40,6 +40,7 @@ function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -48,8 +49,10 @@ function Signup() {
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    setValidationErrors({}); // Clear previous validation errors
+
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
+      setValidationErrors({ confirmPassword: "Passwords do not match." });
       return;
     }
 
@@ -62,11 +65,26 @@ function Signup() {
         password: formData.password,
       };
 
-      await axios.post("http://127.0.0.1:5000/auth/signup", payload);
+      const response = await axios.post(
+        "http://127.0.0.1:5000/auth/signup",
+        payload
+      );
+
       setSuccess(true);
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
-      setError(err.response?.data?.error || "Signup failed. Please try again.");
+      if (err.response?.status === 422) {
+        const errors = err.response.data.validationErrors.reduce((acc, err) => {
+          const [field, message] = err.split(":");
+          acc[field] = message;
+          return acc;
+        }, {});
+        setValidationErrors(errors);
+      } else {
+        setError(
+          err.response?.data?.error || "Signup failed. Please try again."
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -86,30 +104,6 @@ function Signup() {
           borderRadius: 6,
           background: theme.palette.background.paper,
           boxShadow: theme.shadows[10],
-          "&:before": {
-            content: '""',
-            position: "absolute",
-            top: -50,
-            left: -50,
-            width: 120,
-            height: 120,
-            borderRadius: "50%",
-            background: `linear-gradient(45deg, ${theme.palette.primary.light}, transparent)`,
-            filter: "blur(40px)",
-            zIndex: -1,
-          },
-          "&:after": {
-            content: '""',
-            position: "absolute",
-            bottom: -50,
-            right: -50,
-            width: 120,
-            height: 120,
-            borderRadius: "50%",
-            background: `linear-gradient(45deg, ${theme.palette.secondary.light}, transparent)`,
-            filter: "blur(40px)",
-            zIndex: -1,
-          },
         }}
       >
         <Box
@@ -171,6 +165,8 @@ function Signup() {
               label="First Name"
               value={formData.name}
               onChange={handleChange}
+              error={!!validationErrors.name}
+              helperText={validationErrors.name}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -178,38 +174,21 @@ function Signup() {
                   </InputAdornment>
                 ),
               }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
-                  transition: "all 0.3s",
-                  "&:hover": {
-                    boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
-                  },
-                },
-              }}
               required
             />
-
             <TextField
               name="surname"
               label="Last Name"
               value={formData.surname}
               onChange={handleChange}
+              error={!!validationErrors.surname}
+              helperText={validationErrors.surname}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <PersonOutline sx={{ color: "text.secondary" }} />
                   </InputAdornment>
                 ),
-              }}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
-                  transition: "all 0.3s",
-                  "&:hover": {
-                    boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
-                  },
-                },
               }}
               required
             />
@@ -222,21 +201,14 @@ function Signup() {
             type="email"
             value={formData.email}
             onChange={handleChange}
+            error={!!validationErrors.email}
+            helperText={validationErrors.email}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
                   <EmailOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                transition: "all 0.3s",
-                "&:hover": {
-                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
-                },
-              },
             }}
             required
           />
@@ -247,21 +219,14 @@ function Signup() {
             label="Phone Number"
             value={formData.phoneNumber}
             onChange={handleChange}
+            error={!!validationErrors.phoneNumber}
+            helperText={validationErrors.phoneNumber}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
                   <PhoneOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                transition: "all 0.3s",
-                "&:hover": {
-                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
-                },
-              },
             }}
             required
           />
@@ -273,6 +238,8 @@ function Signup() {
             type={showPassword ? "text" : "password"}
             value={formData.password}
             onChange={handleChange}
+            error={!!validationErrors.password}
+            helperText={validationErrors.password}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -290,15 +257,6 @@ function Signup() {
                 </InputAdornment>
               ),
             }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                transition: "all 0.3s",
-                "&:hover": {
-                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
-                },
-              },
-            }}
             required
           />
 
@@ -309,6 +267,12 @@ function Signup() {
             type={showPassword ? "text" : "password"}
             value={formData.confirmPassword}
             onChange={handleChange}
+            error={
+              !!validationErrors.confirmPassword || !!validationErrors.password
+            }
+            helperText={
+              validationErrors.confirmPassword || validationErrors.password
+            }
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -316,18 +280,10 @@ function Signup() {
                 </InputAdornment>
               ),
             }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                transition: "all 0.3s",
-                "&:hover": {
-                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
-                },
-              },
-            }}
             required
           />
-          {error ? (
+
+          {error && (
             <Fade>
               <Alert
                 severity="error"
@@ -340,8 +296,9 @@ function Signup() {
                 {error}
               </Alert>
             </Fade>
-          ) : null}
-          {success ? (
+          )}
+
+          {success && (
             <Fade>
               <Alert
                 severity="success"
@@ -354,7 +311,7 @@ function Signup() {
                 Account created successfully! Redirecting...
               </Alert>
             </Fade>
-          ) : null}
+          )}
 
           <Button
             fullWidth

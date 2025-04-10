@@ -97,7 +97,7 @@ function ShopFinder() {
     mapCenter: { lat: 40.7128, lng: -74.006 },
     reviewCount: null,
     openExplanationModal: false,
-    explanationContent: "", // Will store the formatted explanation
+    explanationContent: "",
     tempDontAskAgain: false,
     selectedOption: "10",
     customReviewCount: "",
@@ -106,6 +106,7 @@ function ShopFinder() {
     coverage: "10",
     allShops: false,
     customCoverage: "",
+    showReviewModal: false,
   });
 
   useEffect(() => {
@@ -188,22 +189,35 @@ function ShopFinder() {
   // Updated function to retrieve and format XAI explanations.
   const getXaiExplanation = () => {
     const explanations = state.selectedShop?.xai_explanations;
-    if (!explanations || explanations.length === 0) {
+    if (
+      !explanations ||
+      (Array.isArray(explanations) && explanations.length === 0) ||
+      (typeof explanations === "string" && explanations.trim() === "")
+    ) {
       alert("No explanation available for this shop.");
       return;
     }
-    // Ensure we work with an array.
-    const explanationArray = Array.isArray(explanations)
-      ? explanations
-      : [explanations];
+
     let explanationText = "";
-    explanationArray.forEach((exp, idx) => {
-      explanationText += `Review ${idx + 1}:\n`;
-      explanationText += "Raw Explanation:\n";
-      explanationText += exp.raw_explanation + "\n";
-      explanationText += "User-friendly Explanation:\n";
-      explanationText += exp.user_friendly_explanation + "\n\n";
-    });
+
+    // If explanations is an array, loop through each element
+    if (Array.isArray(explanations)) {
+      explanations.forEach((exp, idx) => {
+        explanationText += `Review ${idx + 1}:\n`;
+        if (typeof exp === "object") {
+          explanationText += "Raw Explanation:\n";
+          explanationText += (exp.raw_explanation || "N/A") + "\n";
+          explanationText += "User-friendly Explanation:\n";
+          explanationText += (exp.user_friendly_explanation || "N/A") + "\n\n";
+        } else {
+          // If not an object, treat as a plain string.
+          explanationText += `${exp}\n\n`;
+        }
+      });
+    } else if (typeof explanations === "string") {
+      explanationText = explanations;
+    }
+
     setState((prev) => ({
       ...prev,
       explanationContent: explanationText,
@@ -275,7 +289,9 @@ function ShopFinder() {
               variant="outlined"
               label="What product are you looking for?"
               value={state.query}
-              onChange={(e) => setState({ ...state, query: e.target.value })}
+              onChange={(e) =>
+                setState((prev) => ({ ...prev, query: e.target.value }))
+              }
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               InputProps={{
                 startAdornment: (
@@ -326,7 +342,7 @@ function ShopFinder() {
                     sx={{ ml: 1, cursor: "pointer" }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setState({ ...state, showReviewModal: true });
+                      setState((prev) => ({ ...prev, showReviewModal: true }));
                     }}
                   />
                 )
@@ -432,7 +448,9 @@ function ShopFinder() {
                   lat: state.selectedShop.lat,
                   lng: state.selectedShop.lng,
                 }}
-                onCloseClick={() => setState({ ...state, selectedShop: null })}
+                onCloseClick={() =>
+                  setState((prev) => ({ ...prev, selectedShop: null }))
+                }
                 options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
               >
                 <Box>
@@ -768,8 +786,7 @@ function ShopFinder() {
                             whiteSpace: "pre-line",
                           }}
                         >
-                          {shop.summary?.detailed_summary ||
-                            "No summary available"}
+                          {shop.summary || "No summary available"}
                         </Typography>
                       </Box>
                     </CardContent>
@@ -783,35 +800,39 @@ function ShopFinder() {
       <ExplanationPopup
         open={state.openExplanationModal}
         onClose={() =>
-          setState({
-            ...state,
+          setState((prev) => ({
+            ...prev,
             openExplanationModal: false,
             explanationContent: "",
-          })
+          }))
         }
         explanation={state.explanationContent}
       />
       <ReviewSettingPopup
         open={state.showReviewModal}
-        onClose={() => setState({ ...state, showReviewModal: false })}
+        onClose={() =>
+          setState((prev) => ({ ...prev, showReviewModal: false }))
+        }
         selectedOption={state.selectedOption}
         setSelectedOption={(option) =>
-          setState({ ...state, selectedOption: option })
+          setState((prev) => ({ ...prev, selectedOption: option }))
         }
         customReviewCount={state.customReviewCount}
         setCustomReviewCount={(count) =>
-          setState({ ...state, customReviewCount: count })
+          setState((prev) => ({ ...prev, customReviewCount: count }))
         }
         tempDontAskAgain={state.tempDontAskAgain}
         setTempDontAskAgain={(val) =>
-          setState({ ...state, tempDontAskAgain: val })
+          setState((prev) => ({ ...prev, tempDontAskAgain: val }))
         }
         coverage={state.coverage}
-        setCoverage={(cov) => setState({ ...state, coverage: cov })}
+        setCoverage={(cov) => setState((prev) => ({ ...prev, coverage: cov }))}
         allShops={state.allShops}
-        setAllShops={(val) => setState({ ...state, allShops: val })}
+        setAllShops={(val) => setState((prev) => ({ ...prev, allShops: val }))}
         customCoverage={state.customCoverage}
-        setCustomCoverage={(val) => setState({ ...state, customCoverage: val })}
+        setCustomCoverage={(val) =>
+          setState((prev) => ({ ...prev, customCoverage: val }))
+        }
         handleConfirm={handleReviewModalConfirm}
       />
     </Container>

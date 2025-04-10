@@ -19,9 +19,6 @@ nltk.download("stopwords")
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 
-# -------------------------------
-# 1) Load Pre-trained Models and Vectorizer
-# -------------------------------
 
 # Load the TF-IDF vectorizer (trained previously)
 tfidf_vectorizer_path = "models/reviewPredictionModel/tfidf_vectorizer.pkl"
@@ -52,12 +49,9 @@ summarization_model_name = "facebook/bart-large-cnn"
 summarization_tokenizer = AutoTokenizer.from_pretrained(summarization_model_name)
 summarization_model = AutoModelForSeq2SeqLM.from_pretrained(summarization_model_name)
 
-# -------------------------------
-# 2) Prepare Global Feature Metadata
-# -------------------------------
-# IMPORTANT: Use the same embedding extraction method as during training.
+
 # Here we extract the CLS token from the last hidden state.
-embedding_dim = distilbert_model.config.hidden_size  # e.g., typically 768 for DistilBERT
+embedding_dim = distilbert_model.config.hidden_size 
 expected_combined_dim = embedding_dim + len(vocab)
 print("Expected combined feature vector dimension:", expected_combined_dim)
 
@@ -65,17 +59,13 @@ print("Expected combined feature vector dimension:", expected_combined_dim)
 combined_feature_names = [f"distilbert_feature_{i+1}" for i in range(embedding_dim)] + list(vocab)
 xgb_model.feature_names = combined_feature_names
 
-# -------------------------------
-# 3) Set Up Explainers
-# -------------------------------
+
 lime_explainer = LimeTextExplainer(
     class_names=["Rating 1", "Rating 2", "Rating 3", "Rating 4", "Rating 5"]
 )
 shap_explainer = shap.TreeExplainer(xgb_model)
 
-# -------------------------------
-# 4) Define Helper Functions
-# -------------------------------
+
 
 def get_distilbert_embeddings(text_list, tokenizer, model):
     """
@@ -179,7 +169,7 @@ def predict_review_rating_with_explanations(reviews):
     Given a list of reviews, predict the overall rating (weighted) and return both raw and user-friendly explanations.
     """
     if not reviews:
-        return {"predicted_rating": 0.0, "explanations": []}
+        return {"predicted_rating": 0.0, "explanations": "No Overall Expalanition available."}
     
     embeddings = get_distilbert_embeddings(reviews, distilbert_tokenizer, distilbert_model)
     tfidf_features = vectorizer.transform(reviews).toarray()
@@ -189,20 +179,28 @@ def predict_review_rating_with_explanations(reviews):
     weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)
     avg_rating = np.mean(weighted_ratings)
     
-    explanations = []
+    all_shap_summaries = []
+    all_lime_summaries = []
+
     for review in reviews:
         raw_exp = get_explanations_for_review(review)
+        # Extract top features explanations
         shap_summary = format_shap_explanation(raw_exp["shap"], top_n=5)
         lime_summary = format_lime_explanation(raw_exp["lime"], top_n=5)
-        combined_raw = shap_summary + "\n" + lime_summary
-        user_friendly = generate_user_friendly_explanation(combined_raw)
-        explanations.append({
-            "review": review,
-            "raw_explanation": combined_raw,
-            "user_friendly_explanation": user_friendly
-        })
+        # Append the individual summaries
+        all_shap_summaries.append(shap_summary)
+        all_lime_summaries.append(lime_summary)
+
+    # Combine individual summaries into one raw explanation text.
+    overall_raw_explanation = (
+        "Overall SHAP Explanation:\n" + "\n".join(all_shap_summaries) +
+        "\n\nOverall LIME Explanation:\n" + "\n".join(all_lime_summaries)
+    )
+
+    # Generate a single user-friendly explanation using the summarization model.
+    overall_user_friendly_explanation = generate_user_friendly_explanation(overall_raw_explanation)
     
-    return {"predicted_rating": round(avg_rating, 2), "explanations": explanations}
+    return {"predicted_rating": round(avg_rating, 2), "explanations": overall_user_friendly_explanation}
 
 def classify_reviews_by_rating(reviews):
     """
@@ -224,11 +222,8 @@ def classify_reviews_by_rating(reviews):
     positive_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] >= 4]
     negative_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] <= 2]
     neutral_reviews = [reviews[i] for i in range(len(reviews)) if predicted_ratings[i] == 3]
-    weighted_ratings = np.sum(pred_probs * np.arange(1, 6), axis=1)
-    weighted_average_rating = np.mean(weighted_ratings)
-    majority_rating = pd.Series(predicted_ratings).mode()[0]
-    avg_rating = np.mean(predicted_ratings)
-    return positive_reviews, neutral_reviews, negative_reviews, avg_rating, weighted_average_rating, majority_rating
+
+    return positive_reviews, neutral_reviews, negative_reviews
 
 def generate_summary(reviews):
     """
@@ -238,11 +233,8 @@ def generate_summary(reviews):
     if not reviews:
         return {
             "detailed_summary": "No reviews available.",
-            "average_rating": 0.00,
-            "weighted_average_rating": 0.00,
-            "most_common_rating": 0
         }
-    pos_reviews, neutral_reviews, neg_reviews, avg_rating, weighted_avg, majority_rating = classify_reviews_by_rating(reviews)
+    pos_reviews, neutral_reviews, neg_reviews = classify_reviews_by_rating(reviews)
     combined_text = ""
     if pos_reviews:
         combined_text += "Positive reviews include: " + " ".join(pos_reviews) + " "
@@ -255,9 +247,7 @@ def generate_summary(reviews):
     summary_ids = summarization_model.generate(inputs, max_length=1024, min_length=100, length_penalty=1.0, num_beams=4, early_stopping=False)
     summary = summarization_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
     summary = summary.replace("I ", "Some users ").replace("We ", "Many users ").replace("My ", "Their ").replace("Our ", "The product's ")
-    return {
-        "detailed_summary": summary.strip(),
-        "average_rating": round(avg_rating, 2),
-        "weighted_average_rating": round(weighted_avg, 2),
-        "most_common_rating": majority_rating
-    }
+    # return {
+    #     "detailed_summary": summary.strip(),
+    # }
+    return summary.strip()

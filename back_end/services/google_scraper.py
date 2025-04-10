@@ -5,6 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
@@ -29,7 +30,7 @@ stop_words = set(stopwords.words("english"))
 
 # Setup Selenium WebDriver options
 options = Options()
-options.add_argument("--headless")  # Run in headless mode; remove if you need a visible browser
+options.add_argument("--headless")
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
@@ -153,7 +154,7 @@ def scrape_reviews(place_id, max_reviews):
     valid_reviews = {}  # key: author, value: review dict {"author":..., "text":..., "date":...}
     scraped_texts = set()  # To track already processed review texts
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
     driver.get(url)
     

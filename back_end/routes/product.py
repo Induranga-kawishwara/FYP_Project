@@ -71,15 +71,13 @@ def search_product():
                 # Predict rating and obtain XAI outputs (raw and user-friendly).
                 xai_results = predict_review_rating_with_explanations(combined_reviews)
                 summary = generate_summary(combined_reviews)
-                shop["reviews"] = valid_reviews
                 shop["summary"] = summary
                 shop["predicted_rating"] = xai_results["predicted_rating"]
                 shop["xai_explanations"] = xai_results["explanations"]
             else:
-                shop["reviews"] = []
                 shop["summary"] = "No reviews available."
                 shop["predicted_rating"] = 0
-                shop["xai_explanations"] = []
+                shop["xai_explanations"] = "NO Explanations available."
             
             shops.append(convert_numpy_types(shop))
         except Exception as e:

@@ -23,12 +23,6 @@ import {
   styled,
 } from "@mui/material";
 import {
-  LoadScript,
-  GoogleMap,
-  Marker,
-  InfoWindow,
-} from "@react-google-maps/api";
-import {
   Search as SearchIcon,
   Store as StoreIcon,
   Reviews as ReviewsIcon,
@@ -37,6 +31,12 @@ import {
   Settings as SettingsIcon,
   Directions as DirectionsIcon,
 } from "@mui/icons-material";
+import {
+  LoadScript,
+  GoogleMap,
+  Marker,
+  InfoWindow,
+} from "@react-google-maps/api";
 import ExplanationPopup from "../../reUse/ExplanationPopup/ExplanationPopup.jsx";
 import ReviewSettingPopup from "../../reUse/ReviewSettingPopup/ReviewSettingPopup.jsx";
 
@@ -104,26 +104,29 @@ function ShopFinder() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const mapRef = useRef(null);
 
-  const [state, setState] = useState({
-    query: "",
-    shops: [],
-    isLoading: false,
-    currentLocation: null,
-    selectedShop: null,
-    mapCenter: { lat: 40.7128, lng: -74.006 },
-    reviewCount: null,
-    openExplanationModal: false,
-    explanationContent: "",
-    tempDontAskAgain: false,
-    selectedOption: "10",
-    customReviewCount: "",
-    modalTriggeredBySearch: false,
-    dontAskAgain: false,
-    coverage: "10",
-    allShops: false,
-    customCoverage: "",
-    showReviewModal: false,
-  });
+  // Define general states
+  const [query, setQuery] = useState("");
+  const [shops, setShops] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
+
+  // Define review settings states with their setters
+  const [reviewCount, setReviewCount] = useState(null);
+  const [selectedOption, setSelectedOption] = useState("10");
+  const [customReviewCount, setCustomReviewCount] = useState("");
+  const [tempDontAskAgain, setTempDontAskAgain] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(false);
+  const [coverage, setCoverage] = useState("10");
+  const [allShops, setAllShops] = useState(false);
+  const [customCoverage, setCustomCoverage] = useState("");
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
+
+  // Explanation popup states
+  const [openExplanationModal, setOpenExplanationModal] = useState(false);
+  const [explanationContent, setExplanationContent] = useState("");
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -132,103 +135,77 @@ function ShopFinder() {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        setState((prev) => ({
-          ...prev,
-          currentLocation: userLocation,
-          mapCenter: userLocation,
-        }));
+        setCurrentLocation(userLocation);
+        setMapCenter(userLocation);
       },
       (error) => console.error("Location Error:", error)
     );
   }, []);
 
   const handleSearch = () => {
-    if (
-      state.dontAskAgain &&
-      state.reviewCount &&
-      (state.allShops || state.coverage)
-    ) {
-      performSearch(state.reviewCount);
+    if (dontAskAgain && reviewCount && (allShops || coverage)) {
+      performSearch(reviewCount);
     } else {
-      setState((prev) => ({
-        ...prev,
-        showReviewModal: true,
-        modalTriggeredBySearch: true,
-      }));
+      setShowReviewModal(true);
+      setModalTriggeredBySearch(true);
     }
   };
 
   const performSearch = async (finalReviewCount) => {
     try {
-      setState((prev) => ({ ...prev, isLoading: true }));
+      setIsLoading(true);
       const response = await axios.post(
         "http://127.0.0.1:5000/product/search_product",
         {
-          product: state.query,
+          product: query,
           reviewCount: finalReviewCount,
-          coverage: state.allShops
+          coverage: allShops
             ? "all"
-            : state.coverage === "customcoverage"
-            ? state.customCoverage
-            : state.coverage,
-          location: state.currentLocation,
+            : coverage === "customcoverage"
+            ? customCoverage
+            : coverage,
+          location: currentLocation,
         }
       );
-      setState((prev) => ({
-        ...prev,
-        shops: response.data.shops,
-        isLoading: false,
-      }));
+      setShops(response.data.shops);
+      setIsLoading(false);
     } catch (error) {
       console.error("Search Error:", error);
-      setState((prev) => ({ ...prev, isLoading: false }));
+      setIsLoading(false);
     }
   };
 
   const selectShop = (shop) => {
-    setState((prev) => ({
-      ...prev,
-      selectedShop: shop,
-      mapCenter: { lat: shop.lat, lng: shop.lng },
-    }));
+    setSelectedShop(shop);
+    setMapCenter({ lat: shop.lat, lng: shop.lng });
     mapRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const getDirections = () => {
-    if (state.currentLocation && state.selectedShop) {
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${state.currentLocation.lat},${state.currentLocation.lng}&destination=${state.selectedShop.lat},${state.selectedShop.lng}`;
+    if (currentLocation && selectedShop) {
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentLocation.lat},${currentLocation.lng}&destination=${selectedShop.lat},${selectedShop.lng}`;
       window.open(url, "_blank");
     }
   };
 
   const getXaiExplanation = () => {
-    const explanation = state.selectedShop?.xai_explanations;
-    if (!explanation) return;
-
-    setState((prev) => ({
-      ...prev,
-      explanationContent: explanation,
-      openExplanationModal: true,
-    }));
+    if (!selectedShop?.xai_explanations) return;
+    setExplanationContent(selectedShop.xai_explanations);
+    setOpenExplanationModal(true);
   };
 
   const handleReviewModalConfirm = () => {
     const finalReviewCount =
-      state.selectedOption === "custom"
-        ? parseInt(state.customReviewCount)
-        : parseInt(state.selectedOption);
+      selectedOption === "custom"
+        ? parseInt(customReviewCount)
+        : parseInt(selectedOption);
     const finalCoverage =
-      state.coverage === "customcoverage"
-        ? state.customCoverage
-        : state.coverage;
-    setState((prev) => ({
-      ...prev,
-      reviewCount: finalReviewCount,
-      coverage: finalCoverage,
-      dontAskAgain: prev.tempDontAskAgain,
-      showReviewModal: false,
-    }));
-    if (state.modalTriggeredBySearch) performSearch(finalReviewCount);
+      coverage === "customcoverage" ? customCoverage : coverage;
+    setReviewCount(finalReviewCount);
+    setCoverage(finalCoverage);
+    setDontAskAgain(tempDontAskAgain);
+    setShowReviewModal(false);
+    if (modalTriggeredBySearch) performSearch(finalReviewCount);
   };
 
   return (
@@ -281,10 +258,8 @@ function ShopFinder() {
               fullWidth
               variant="outlined"
               label="What product are you looking for?"
-              value={state.query}
-              onChange={(e) =>
-                setState((prev) => ({ ...prev, query: e.target.value }))
-              }
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               InputProps={{
                 startAdornment: (
@@ -323,16 +298,16 @@ function ShopFinder() {
             <GradientButton
               fullWidth
               onClick={handleSearch}
-              disabled={state.isLoading}
+              disabled={isLoading}
               startIcon={
-                state.isLoading ? (
+                isLoading ? (
                   <CircularProgress size={24} sx={{ color: "white" }} />
                 ) : (
                   <SearchIcon sx={{ fontSize: 28 }} />
                 )
               }
               endIcon={
-                !state.isLoading && (
+                !isLoading && (
                   <SettingsIcon
                     sx={{
                       ml: 1,
@@ -342,14 +317,14 @@ function ShopFinder() {
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setState((prev) => ({ ...prev, showReviewModal: true }));
+                      setShowReviewModal(true);
                     }}
                   />
                 )
               }
               sx={{ height: 64, borderRadius: 50 }}
             >
-              {state.isLoading ? "Searching..." : "Find Shops"}
+              {isLoading ? "Searching..." : "Find Shops"}
             </GradientButton>
           </Grid>
         </Grid>
@@ -369,8 +344,8 @@ function ShopFinder() {
           }}
         >
           <GoogleMap
-            center={state.mapCenter}
-            zoom={state.selectedShop ? 16 : state.currentLocation ? 14 : 12}
+            center={mapCenter}
+            zoom={selectedShop ? 16 : currentLocation ? 14 : 12}
             mapContainerStyle={{
               height: isMobile ? "400px" : "600px",
               width: "100%",
@@ -393,9 +368,9 @@ function ShopFinder() {
               ],
             }}
           >
-            {state.currentLocation && (
+            {currentLocation && (
               <Marker
-                position={state.currentLocation}
+                position={currentLocation}
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
                   scale: 10,
@@ -413,18 +388,16 @@ function ShopFinder() {
               />
             )}
 
-            {state.shops.map((shop, index) => (
+            {shops.map((shop, index) => (
               <Marker
                 key={index}
                 position={{ lat: shop.lat, lng: shop.lng }}
                 onClick={() => selectShop(shop)}
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
-                  scale: state.selectedShop?.lat === shop.lat ? 12 : 8,
+                  scale: selectedShop?.lat === shop.lat ? 12 : 8,
                   fillColor:
-                    state.selectedShop?.lat === shop.lat
-                      ? "#FF6B6B"
-                      : "#4ECDC4",
+                    selectedShop?.lat === shop.lat ? "#FF6B6B" : "#4ECDC4",
                   fillOpacity: 0.9,
                   strokeColor: "white",
                   strokeWeight: 2,
@@ -438,15 +411,10 @@ function ShopFinder() {
               />
             ))}
 
-            {state.selectedShop && state.currentLocation && (
+            {selectedShop && currentLocation && (
               <InfoWindow
-                position={{
-                  lat: state.selectedShop.lat,
-                  lng: state.selectedShop.lng,
-                }}
-                onCloseClick={() =>
-                  setState((prev) => ({ ...prev, selectedShop: null }))
-                }
+                position={{ lat: selectedShop.lat, lng: selectedShop.lng }}
+                onCloseClick={() => setSelectedShop(null)}
               >
                 <Box sx={{ p: 2, minWidth: 300 }}>
                   <Typography
@@ -459,7 +427,7 @@ function ShopFinder() {
                       mb: 2,
                     }}
                   >
-                    {state.selectedShop.shop_name}
+                    {selectedShop.shop_name}
                   </Typography>
 
                   <Box
@@ -471,7 +439,7 @@ function ShopFinder() {
                     }}
                   >
                     <Rating
-                      value={state.selectedShop.predicted_rating || 0}
+                      value={selectedShop.predicted_rating || 0}
                       readOnly
                       precision={0.5}
                       size="medium"
@@ -479,10 +447,10 @@ function ShopFinder() {
                     />
                     <Typography variant="body1" color="text.secondary">
                       {computeDistance(
-                        state.currentLocation.lat,
-                        state.currentLocation.lng,
-                        state.selectedShop.lat,
-                        state.selectedShop.lng
+                        currentLocation.lat,
+                        currentLocation.lng,
+                        selectedShop.lat,
+                        selectedShop.lng
                       ).toFixed(2)}{" "}
                       km away
                     </Typography>
@@ -525,7 +493,7 @@ function ShopFinder() {
 
       {/* Shop Results Grid */}
       <Grid container spacing={4} sx={{ mt: 4 }}>
-        {state.shops.length === 0 && !state.isLoading && (
+        {shops.length === 0 && !isLoading && (
           <Grid item xs={12}>
             <Box
               sx={{
@@ -552,7 +520,7 @@ function ShopFinder() {
           </Grid>
         )}
 
-        {state.isLoading
+        {isLoading
           ? Array.from(new Array(4)).map((_, index) => (
               <Grid item xs={12} md={6} lg={4} key={index}>
                 <Skeleton
@@ -565,7 +533,7 @@ function ShopFinder() {
                 />
               </Grid>
             ))
-          : state.shops.map((shop, index) => (
+          : shops.map((shop, index) => (
               <Grid item xs={12} md={6} lg={4} key={index}>
                 <Zoom
                   in
@@ -573,7 +541,7 @@ function ShopFinder() {
                   style={{ transitionDelay: `${index * 50}ms` }}
                 >
                   <ShopCard
-                    selected={state.selectedShop?.lat === shop.lat}
+                    selected={selectedShop?.lat === shop.lat}
                     onClick={() => selectShop(shop)}
                     elevation={4}
                     sx={{ height: "100%" }}
@@ -588,7 +556,7 @@ function ShopFinder() {
                           sx={{
                             bgcolor: alpha(
                               theme.palette.primary.main,
-                              state.selectedShop?.lat === shop.lat ? 0.2 : 0.1
+                              selectedShop?.lat === shop.lat ? 0.2 : 0.1
                             ),
                             color: theme.palette.primary.main,
                             width: 64,
@@ -683,17 +651,27 @@ function ShopFinder() {
       </Grid>
 
       <ExplanationPopup
-        open={state.openExplanationModal}
-        onClose={() =>
-          setState((prev) => ({ ...prev, openExplanationModal: false }))
-        }
-        explanation={state.explanationContent}
+        open={openExplanationModal}
+        onClose={() => setOpenExplanationModal(false)}
+        explanation={explanationContent}
       />
+
       <ReviewSettingPopup
-        open={state.showReviewModal}
-        onClose={() =>
-          setState((prev) => ({ ...prev, showReviewModal: false }))
-        }
+        open={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        selectedOption={selectedOption}
+        setSelectedOption={setSelectedOption}
+        customReviewCount={customReviewCount}
+        setCustomReviewCount={setCustomReviewCount}
+        tempDontAskAgain={tempDontAskAgain}
+        setTempDontAskAgain={setTempDontAskAgain}
+        handleConfirm={handleReviewModalConfirm}
+        coverage={coverage}
+        setCoverage={setCoverage}
+        allShops={allShops}
+        setAllShops={setAllShops}
+        customCoverage={customCoverage}
+        setCustomCoverage={setCustomCoverage}
       />
     </Container>
   );

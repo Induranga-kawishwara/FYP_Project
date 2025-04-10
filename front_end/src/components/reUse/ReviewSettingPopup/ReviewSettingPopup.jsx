@@ -75,8 +75,8 @@ const ReviewSettingPopup = ({
             transform: "translate(-50%, -50%)",
             width: { xs: "90%", sm: 600 },
             maxWidth: "95%",
-            maxHeight: "90vh", // Limit height to viewport; adjust as needed
-            overflowY: "auto", // Enable vertical scrolling if content exceeds maxHeight
+            maxHeight: "90vh",
+            overflowY: "auto",
             bgcolor: "background.paper",
             borderRadius: { xs: "8px", sm: "16px" },
             boxShadow: theme.shadows[24],

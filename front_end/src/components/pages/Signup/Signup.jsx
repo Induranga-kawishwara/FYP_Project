@@ -284,7 +284,7 @@ function Signup() {
           />
 
           {error && (
-            <Fade>
+            <Fade in={!!error}>
               <Alert
                 severity="error"
                 sx={{

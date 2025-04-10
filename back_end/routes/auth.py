@@ -29,12 +29,12 @@ def signup():
     try:
         phone_e164 = format_phone_number(phone, region="GB")
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"validationErrors": str(e)}), 422
 
     # Check if the user already exists
     existing_errors = check_existing_user(email, phone_e164)
     if existing_errors:
-        return jsonify({"errors": existing_errors}), 400
+        return jsonify({"validationErrors": existing_errors}), 422
 
     try:
         # Create the user in Firebase Authentication with the formatted phone number

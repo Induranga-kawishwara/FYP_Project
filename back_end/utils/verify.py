@@ -38,7 +38,7 @@ def format_phone_number(phone, region="GB"):
         parsed = phonenumbers.parse(phone, region)
         return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     except phonenumbers.NumberParseException:
-        raise ValueError("Invalid phone number format. Please include the country code or use a valid number.")
+        raise ValueError("phone: Invalid phone number format. Please include the country code or use a valid number.")
 
 def check_existing_user(email: str, phone: str):
     """
@@ -51,14 +51,14 @@ def check_existing_user(email: str, phone: str):
     # Check in Firebase for email
     try:
         firebase_auth.get_user_by_email(email)
-        errors.append("Email already exists.")
+        errors.append("email: Email already exists.")
     except UserNotFoundError:
         pass
 
     # Check in Firebase for phone number
     try:
         firebase_auth.get_user_by_phone_number(phone)
-        errors.append("Phone number already exists.")
+        errors.append("phone: Phone number already exists.")
     except UserNotFoundError:
         pass
 

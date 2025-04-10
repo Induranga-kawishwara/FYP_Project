@@ -18,8 +18,10 @@ import {
   IconButton,
   Tooltip,
   Zoom,
+  useTheme,
+  alpha,
+  styled,
 } from "@mui/material";
-
 import {
   LoadScript,
   GoogleMap,
@@ -33,45 +35,59 @@ import {
   LocationOn as LocationIcon,
   Info as InfoIcon,
   Settings as SettingsIcon,
+  Directions as DirectionsIcon,
 } from "@mui/icons-material";
-import { alpha, styled, useTheme } from "@mui/material/styles";
 import ExplanationPopup from "../../reUse/ExplanationPopup/ExplanationPopup.jsx";
 import ReviewSettingPopup from "../../reUse/ReviewSettingPopup/ReviewSettingPopup.jsx";
 
 const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
-// Enhanced Gradient Button
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
   color: "white",
-  fontWeight: 600,
-  padding: "12px 24px",
-  borderRadius: 30,
-  boxShadow: theme.shadows[3],
-  transition: "all 0.3s ease",
+  fontWeight: 700,
+  padding: "16px 32px",
+  borderRadius: 50,
+  boxShadow: theme.shadows[4],
+  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   "&:hover": {
-    transform: "scale(1.05)",
-    boxShadow: theme.shadows[6],
+    transform: "translateY(-2px)",
+    boxShadow: theme.shadows[8],
+    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
   },
 }));
 
-// Enhanced Card Component for shop cards
 const ShopCard = styled(Card)(({ theme, selected }) => ({
-  transition: "transform 0.3s, box-shadow 0.3s",
-  cursor: "pointer",
   position: "relative",
+  borderRadius: theme.shape.borderRadius * 2,
+  transition: "all 0.3s ease",
+  overflow: "visible",
+  cursor: "pointer",
   border: selected ? `2px solid ${theme.palette.success.main}` : "none",
   boxShadow: selected ? theme.shadows[10] : theme.shadows[2],
   "&:hover": {
-    transform: "translateY(-5px)",
+    transform: "translateY(-8px)",
     boxShadow: theme.shadows[8],
+    "&::after": {
+      opacity: 1,
+    },
+  },
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: theme.shape.borderRadius * 2,
+    boxShadow: theme.shadows[16],
+    opacity: 0,
+    transition: "opacity 0.3s ease",
   },
 }));
 
-// Utility: Convert degrees to radians
 const deg2rad = (deg) => deg * (Math.PI / 180);
 
-// Haversine formula for distance calculation
 const computeDistance = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
@@ -158,7 +174,6 @@ function ShopFinder() {
           location: state.currentLocation,
         }
       );
-      console.log("Search Response:", response.data);
       setState((prev) => ({
         ...prev,
         shops: response.data.shops,
@@ -188,11 +203,7 @@ function ShopFinder() {
 
   const getXaiExplanation = () => {
     const explanation = state.selectedShop?.xai_explanations;
-
-    if (!explanation || explanation.trim() === "") {
-      alert("No explanation available for this shop.");
-      return;
-    }
+    if (!explanation) return;
 
     setState((prev) => ({
       ...prev,
@@ -222,38 +233,44 @@ function ShopFinder() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
-      {/* Title Section */}
-      <Box sx={{ textAlign: "center", mb: 8 }}>
+      {/* Animated Title Section */}
+      <Box sx={{ textAlign: "center", mb: 8, position: "relative" }}>
         <Slide in direction="down" timeout={800}>
-          <Typography
-            variant="h2"
-            component="h1"
-            sx={{
-              fontWeight: 900,
-              background: `linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1)`,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              position: "relative",
-              display: "inline-block",
-              pb: 1,
-              "&::after": {
-                content: '""',
-                position: "absolute",
-                width: "80%",
-                height: 3,
-                bgcolor: "primary.main",
-                bottom: 0,
-                left: "10%",
-                borderRadius: 2,
-              },
-            }}
-          >
-            Discover Local Shops
-          </Typography>
+          <Box>
+            <Typography
+              variant="h2"
+              component="h1"
+              sx={{
+                fontWeight: 900,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                display: "inline-block",
+                position: "relative",
+                "&::after": {
+                  content: '""',
+                  position: "absolute",
+                  width: "100%",
+                  height: 4,
+                  background: `linear-gradient(90deg, transparent, ${theme.palette.primary.main}, transparent)`,
+                  bottom: -8,
+                  left: 0,
+                  borderRadius: 2,
+                  animation: "shine 3s infinite",
+                },
+              }}
+            >
+              Discover Local Shops
+            </Typography>
+            <Typography
+              variant="h6"
+              color="text.secondary"
+              sx={{ mt: 3, letterSpacing: 1 }}
+            >
+              Find the best shops near you with AI-powered insights
+            </Typography>
+          </Box>
         </Slide>
-        <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
-          Find the best shops near you with AI-powered insights
-        </Typography>
       </Box>
 
       {/* Search Section */}
@@ -271,32 +288,35 @@ function ShopFinder() {
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               InputProps={{
                 startAdornment: (
-                  <SearchIcon sx={{ color: "primary.main", mr: 1.5 }} />
+                  <SearchIcon
+                    sx={{ color: "primary.main", mr: 2, fontSize: 28 }}
+                  />
                 ),
                 endAdornment: (
-                  <Tooltip title="Search Tips" placement="right">
+                  <Tooltip title="Search Tips" arrow>
                     <IconButton
                       sx={{
                         color: "primary.main",
                         "&:hover": { color: "secondary.main" },
                       }}
                     >
-                      <InfoIcon fontSize="small" />
+                      <InfoIcon fontSize="medium" />
                     </IconButton>
                   </Tooltip>
                 ),
                 sx: {
                   borderRadius: 50,
-                  bgcolor: "background.default",
+                  bgcolor: alpha(theme.palette.background.default, 0.8),
+                  backdropFilter: "blur(8px)",
+                  "& .MuiOutlinedInput-input": { py: 2 },
                   "& .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "primary.main",
+                    borderColor: alpha(theme.palette.primary.main, 0.3),
                   },
                   "&:hover .MuiOutlinedInput-notchedOutline": {
-                    borderColor: "secondary.main",
+                    borderColor: theme.palette.primary.main,
                   },
                 },
               }}
-              sx={{ bgcolor: "background.paper", borderRadius: 50 }}
             />
           </Grid>
           <Grid item xs={12} sm={3}>
@@ -308,14 +328,18 @@ function ShopFinder() {
                 state.isLoading ? (
                   <CircularProgress size={24} sx={{ color: "white" }} />
                 ) : (
-                  <SearchIcon />
+                  <SearchIcon sx={{ fontSize: 28 }} />
                 )
               }
               endIcon={
                 !state.isLoading && (
                   <SettingsIcon
-                    fontSize="small"
-                    sx={{ ml: 1, cursor: "pointer" }}
+                    sx={{
+                      ml: 1,
+                      cursor: "pointer",
+                      transition: "transform 0.3s",
+                      "&:hover": { transform: "rotate(30deg)" },
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setState((prev) => ({ ...prev, showReviewModal: true }));
@@ -323,7 +347,7 @@ function ShopFinder() {
                   />
                 )
               }
-              sx={{ height: 60, borderRadius: 50 }}
+              sx={{ height: 64, borderRadius: 50 }}
             >
               {state.isLoading ? "Searching..." : "Find Shops"}
             </GradientButton>
@@ -331,16 +355,17 @@ function ShopFinder() {
         </Grid>
       </Box>
 
-      {/* Map Section */}
+      {/* Interactive Map */}
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
         <Box
           ref={mapRef}
           sx={{
             borderRadius: 4,
             overflow: "hidden",
-            boxShadow: theme.shadows[10],
+            boxShadow: theme.shadows[12],
             mb: 6,
             position: "relative",
+            border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
           }}
         >
           <GoogleMap
@@ -374,8 +399,8 @@ function ShopFinder() {
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
                   scale: 10,
-                  fillColor: "blue",
-                  fillOpacity: 1,
+                  fillColor: "#2196F3",
+                  fillOpacity: 0.9,
                   strokeColor: "white",
                   strokeWeight: 3,
                 }}
@@ -395,16 +420,11 @@ function ShopFinder() {
                 onClick={() => selectShop(shop)}
                 icon={{
                   path: window.google.maps.SymbolPath.CIRCLE,
-                  scale:
-                    state.selectedShop?.lat === shop.lat &&
-                    state.selectedShop?.lng === shop.lng
-                      ? 12
-                      : 8,
+                  scale: state.selectedShop?.lat === shop.lat ? 12 : 8,
                   fillColor:
-                    state.selectedShop?.lat === shop.lat &&
-                    state.selectedShop?.lng === shop.lng
+                    state.selectedShop?.lat === shop.lat
                       ? "#FF6B6B"
-                      : "#45B7D1",
+                      : "#4ECDC4",
                   fillOpacity: 0.9,
                   strokeColor: "white",
                   strokeWeight: 2,
@@ -427,30 +447,16 @@ function ShopFinder() {
                 onCloseClick={() =>
                   setState((prev) => ({ ...prev, selectedShop: null }))
                 }
-                options={{ pixelOffset: new window.google.maps.Size(0, -40) }}
               >
-                <Box>
+                <Box sx={{ p: 2, minWidth: 300 }}>
                   <Typography
-                    variant="h5"
+                    variant="h6"
                     sx={{
                       fontWeight: 700,
-                      background: (theme) =>
-                        `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       mb: 2,
-                      textAlign: "center",
-                      position: "relative",
-                      "&::after": {
-                        content: '""',
-                        position: "absolute",
-                        width: "60px",
-                        height: "3px",
-                        background: (theme) => theme.palette.primary.main,
-                        bottom: "-5px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                      },
                     }}
                   >
                     {state.selectedShop.shop_name}
@@ -460,55 +466,18 @@ function ShopFinder() {
                     sx={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      gap: 1,
+                      gap: 2,
                       mb: 2,
-                      p: 1.5,
-                      borderRadius: 2,
-                      background: (theme) =>
-                        alpha(theme.palette.success.light, 0.15),
                     }}
                   >
                     <Rating
                       value={state.selectedShop.predicted_rating || 0}
                       readOnly
                       precision={0.5}
-                      size="large"
+                      size="medium"
                       sx={{ color: "#FFD700" }}
                     />
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        color: (theme) => theme.palette.text.primary,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {state.selectedShop.predicted_rating}/5
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mb: 3,
-                      p: 1.5,
-                      borderRadius: 2,
-                      background: (theme) =>
-                        alpha(theme.palette.info.light, 0.15),
-                    }}
-                  >
-                    <LocationIcon
-                      sx={{ color: (theme) => theme.palette.info.main }}
-                    />
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        color: (theme) => theme.palette.text.secondary,
-                        fontWeight: 500,
-                      }}
-                    >
+                    <Typography variant="body1" color="text.secondary">
                       {computeDistance(
                         state.currentLocation.lat,
                         state.currentLocation.lng,
@@ -519,38 +488,16 @@ function ShopFinder() {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ display: "flex", gap: 1.5 }}>
+                  <Box sx={{ display: "flex", gap: 1.5, mt: 2 }}>
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       color="primary"
                       startIcon={<ReviewsIcon />}
                       onClick={getXaiExplanation}
                       sx={{
-                        flex: 1,
                         borderRadius: 25,
-                        padding: "8px 16px",
                         textTransform: "none",
-                        fontWeight: 600,
-                        border: (theme) =>
-                          `1px solid ${alpha(theme.palette.primary.main, 0.8)}`,
-                        background: (theme) =>
-                          alpha(theme.palette.primary.light, 0.1),
-                        boxShadow: (theme) =>
-                          `0 2px 8px ${alpha(
-                            theme.palette.primary.main,
-                            0.15
-                          )}`,
-                        transition: "all 0.3s ease",
-                        "&:hover": {
-                          background: (theme) =>
-                            alpha(theme.palette.primary.main, 0.2),
-                          transform: "translateY(-2px)",
-                          boxShadow: (theme) =>
-                            `0 4px 12px ${alpha(
-                              theme.palette.primary.main,
-                              0.25
-                            )}`,
-                        },
+                        boxShadow: theme.shadows[2],
                       }}
                     >
                       Explain Rating
@@ -558,32 +505,15 @@ function ShopFinder() {
                     <Button
                       variant="contained"
                       color="secondary"
-                      startIcon={<LocationIcon />}
+                      startIcon={<DirectionsIcon />}
                       onClick={getDirections}
                       sx={{
-                        flex: 1,
                         borderRadius: 25,
-                        padding: "8px 16px",
                         textTransform: "none",
-                        fontWeight: 600,
-                        boxShadow: (theme) =>
-                          `0 2px 8px ${alpha(
-                            theme.palette.secondary.main,
-                            0.3
-                          )}`,
-                        transition: "all 0.3s ease",
-                        "&:hover": {
-                          transform: "translateY(-2px)",
-                          boxShadow: (theme) =>
-                            `0 4px 12px ${alpha(
-                              theme.palette.secondary.main,
-                              0.4
-                            )}`,
-                          background: (theme) => theme.palette.secondary.dark,
-                        },
+                        boxShadow: theme.shadows[2],
                       }}
                     >
-                      Get Directions
+                      Directions
                     </Button>
                   </Box>
                 </Box>
@@ -593,6 +523,7 @@ function ShopFinder() {
         </Box>
       </LoadScript>
 
+      {/* Shop Results Grid */}
       <Grid container spacing={4} sx={{ mt: 4 }}>
         {state.shops.length === 0 && !state.isLoading && (
           <Grid item xs={12}>
@@ -600,20 +531,22 @@ function ShopFinder() {
               sx={{
                 textAlign: "center",
                 p: 6,
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                bgcolor: alpha(theme.palette.primary.main, 0.03),
                 borderRadius: 4,
+                border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
               }}
             >
-              <img
+              <Box
+                component="img"
                 src="/empty-state.svg"
                 alt="No shops found"
-                style={{ height: 250, marginBottom: 24 }}
+                sx={{ height: 200, mb: 4, opacity: 0.8 }}
               />
-              <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
-                No shops found
+              <Typography variant="h6" color="textSecondary" sx={{ mb: 2 }}>
+                No matching shops found
               </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Try adjusting your search terms or location
+              <Typography variant="body1" color="textSecondary">
+                Try adjusting your search criteria or expanding the search area
               </Typography>
             </Box>
           </Grid>
@@ -621,144 +554,121 @@ function ShopFinder() {
 
         {state.isLoading
           ? Array.from(new Array(4)).map((_, index) => (
-              <Grid item xs={12} md={6} key={index}>
+              <Grid item xs={12} md={6} lg={4} key={index}>
                 <Skeleton
                   variant="rounded"
-                  height={200}
+                  height={300}
                   sx={{
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
                     borderRadius: 4,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
                   }}
                 />
               </Grid>
             ))
           : state.shops.map((shop, index) => (
               <Grid item xs={12} md={6} lg={4} key={index}>
-                <Zoom in timeout={(index + 1) * 200}>
+                <Zoom
+                  in
+                  timeout={(index + 1) * 200}
+                  style={{ transitionDelay: `${index * 50}ms` }}
+                >
                   <ShopCard
-                    selected={
-                      state.selectedShop?.lat === shop.lat &&
-                      state.selectedShop?.lng === shop.lng
-                    }
+                    selected={state.selectedShop?.lat === shop.lat}
                     onClick={() => selectShop(shop)}
-                    elevation={
-                      state.selectedShop?.lat === shop.lat &&
-                      state.selectedShop?.lng === shop.lng
-                        ? 10
-                        : 3
-                    }
-                    sx={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
+                    elevation={4}
+                    sx={{ height: "100%" }}
                   >
                     <CardContent
-                      sx={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
+                      sx={{ flex: 1, display: "flex", flexDirection: "column" }}
                     >
                       <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 2 }}
+                        sx={{ display: "flex", alignItems: "center", mb: 3 }}
                       >
                         <Avatar
                           sx={{
                             bgcolor: alpha(
                               theme.palette.primary.main,
-                              state.selectedShop?.lat === shop.lat &&
-                                state.selectedShop?.lng === shop.lng
-                                ? 0.2
-                                : 0.1
+                              state.selectedShop?.lat === shop.lat ? 0.2 : 0.1
                             ),
                             color: theme.palette.primary.main,
-                            width: 56,
-                            height: 56,
+                            width: 64,
+                            height: 64,
                             mr: 3,
+                            boxShadow: theme.shadows[4],
                           }}
                         >
                           <StoreIcon fontSize="large" />
                         </Avatar>
                         <Box>
-                          <Typography variant="h6" component="div">
+                          <Typography
+                            variant="h6"
+                            component="div"
+                            sx={{ fontWeight: 700 }}
+                          >
                             {shop.shop_name}
                           </Typography>
-                          <Rating
-                            value={shop.predicted_rating || 0}
-                            precision={0.5}
-                            readOnly
-                            size="large"
-                            sx={{ color: "#FFD700" }}
-                          />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              mt: 1,
+                            }}
+                          >
+                            <Rating
+                              value={shop.predicted_rating || 0}
+                              precision={0.5}
+                              readOnly
+                              size="large"
+                              sx={{ color: "#FFD700", mr: 1.5 }}
+                            />
+                            <Typography
+                              variant="subtitle1"
+                              sx={{ color: "text.secondary", fontWeight: 600 }}
+                            >
+                              ({shop.predicted_rating}/5)
+                            </Typography>
+                          </Box>
                         </Box>
                       </Box>
                       <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 2 }}
+                        sx={{ display: "flex", alignItems: "center", mb: 3 }}
                       >
-                        <LocationIcon color="action" sx={{ mr: 1 }} />
+                        <LocationIcon
+                          color="action"
+                          sx={{ mr: 1.5, fontSize: 24 }}
+                        />
                         <Typography variant="body2" color="text.secondary">
                           {shop.address}
                         </Typography>
                       </Box>
                       <Box
                         sx={{
-                          height: { xs: 120, sm: 150 },
-                          maxHeight: 200,
-                          width: "auto",
-                          p: 2,
-                          mt: 2,
-                          borderRadius: 4,
-                          bgcolor: (theme) =>
-                            alpha(theme.palette.primary.light, 0.15),
-                          border: (theme) =>
-                            `1px solid ${alpha(
-                              theme.palette.primary.main,
-                              0.2
-                            )}`,
-                          overflowY: "auto",
+                          flex: 1,
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: alpha(theme.palette.primary.light, 0.08),
+                          border: `1px solid ${alpha(
+                            theme.palette.primary.main,
+                            0.15
+                          )}`,
                           position: "relative",
-                          boxShadow: (theme) =>
-                            `inset 0 0 12px ${alpha(
-                              theme.palette.grey[500],
-                              0.1
-                            )}`,
-                          transition: "box-shadow 0.3s",
-                          "&:hover": {
-                            boxShadow: (theme) =>
-                              `inset 0 0 16px ${alpha(
-                                theme.palette.grey[500],
-                                0.2
-                              )}`,
-                          },
-                          "&::-webkit-scrollbar": {
-                            width: 6,
-                            height: 6,
-                          },
-                          "&::-webkit-scrollbar-track": {
-                            bgcolor: "transparent",
-                            borderRadius: 4,
-                          },
-                          "&::-webkit-scrollbar-thumb": {
-                            bgcolor: (theme) =>
-                              alpha(theme.palette.primary.main, 0.5),
-                            borderRadius: 4,
-                            border: (theme) =>
-                              `2px solid ${theme.palette.background.paper}`,
-                            transition: "background-color 0.3s",
-                          },
-                          "&::-webkit-scrollbar-thumb:hover": {
-                            bgcolor: (theme) =>
-                              alpha(theme.palette.primary.main, 0.8),
+                          overflow: "hidden",
+                          "&::before": {
+                            content: '""',
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 4,
+                            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                           },
                         }}
                       >
                         <Typography
                           variant="body2"
                           sx={{
-                            fontStyle: "italic",
-                            lineHeight: 1.6,
-                            color: (theme) => theme.palette.text.secondary,
+                            lineHeight: 1.7,
+                            color: "text.secondary",
                             whiteSpace: "pre-line",
                           }}
                         >
@@ -772,15 +682,10 @@ function ShopFinder() {
             ))}
       </Grid>
 
-      {/* Explanation Popup */}
       <ExplanationPopup
         open={state.openExplanationModal}
         onClose={() =>
-          setState((prev) => ({
-            ...prev,
-            openExplanationModal: false,
-            explanationContent: "",
-          }))
+          setState((prev) => ({ ...prev, openExplanationModal: false }))
         }
         explanation={state.explanationContent}
       />
@@ -789,27 +694,6 @@ function ShopFinder() {
         onClose={() =>
           setState((prev) => ({ ...prev, showReviewModal: false }))
         }
-        selectedOption={state.selectedOption}
-        setSelectedOption={(option) =>
-          setState((prev) => ({ ...prev, selectedOption: option }))
-        }
-        customReviewCount={state.customReviewCount}
-        setCustomReviewCount={(count) =>
-          setState((prev) => ({ ...prev, customReviewCount: count }))
-        }
-        tempDontAskAgain={state.tempDontAskAgain}
-        setTempDontAskAgain={(val) =>
-          setState((prev) => ({ ...prev, tempDontAskAgain: val }))
-        }
-        coverage={state.coverage}
-        setCoverage={(cov) => setState((prev) => ({ ...prev, coverage: cov }))}
-        allShops={state.allShops}
-        setAllShops={(val) => setState((prev) => ({ ...prev, allShops: val }))}
-        customCoverage={state.customCoverage}
-        setCustomCoverage={(val) =>
-          setState((prev) => ({ ...prev, customCoverage: val }))
-        }
-        handleConfirm={handleReviewModalConfirm}
       />
     </Container>
   );

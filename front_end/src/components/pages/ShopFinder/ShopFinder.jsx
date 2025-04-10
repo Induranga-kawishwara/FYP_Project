@@ -186,41 +186,17 @@ function ShopFinder() {
     }
   };
 
-  // Updated function to retrieve and format XAI explanations.
   const getXaiExplanation = () => {
-    const explanations = state.selectedShop?.xai_explanations;
-    if (
-      !explanations ||
-      (Array.isArray(explanations) && explanations.length === 0) ||
-      (typeof explanations === "string" && explanations.trim() === "")
-    ) {
+    const explanation = state.selectedShop?.xai_explanations;
+
+    if (!explanation || explanation.trim() === "") {
       alert("No explanation available for this shop.");
       return;
     }
 
-    let explanationText = "";
-
-    // If explanations is an array, loop through each element
-    if (Array.isArray(explanations)) {
-      explanations.forEach((exp, idx) => {
-        explanationText += `Review ${idx + 1}:\n`;
-        if (typeof exp === "object") {
-          explanationText += "Raw Explanation:\n";
-          explanationText += (exp.raw_explanation || "N/A") + "\n";
-          explanationText += "User-friendly Explanation:\n";
-          explanationText += (exp.user_friendly_explanation || "N/A") + "\n\n";
-        } else {
-          // If not an object, treat as a plain string.
-          explanationText += `${exp}\n\n`;
-        }
-      });
-    } else if (typeof explanations === "string") {
-      explanationText = explanations;
-    }
-
     setState((prev) => ({
       ...prev,
-      explanationContent: explanationText,
+      explanationContent: explanation,
       openExplanationModal: true,
     }));
   };

@@ -1,4 +1,3 @@
-// ReviewSettingPopup.jsx
 import React from "react";
 import {
   TextField,
@@ -8,14 +7,43 @@ import {
   Modal,
   Radio,
   RadioGroup,
-  FormControl,
+  Grid,
   FormControlLabel,
   FormLabel,
   Checkbox,
   IconButton,
+  Divider,
+  Fade,
+  useTheme,
+  styled,
 } from "@mui/material";
-import { Close } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
+import { Close, Settings, Explore, RateReview } from "@mui/icons-material";
+
+const GradientButton = styled(Button)(({ theme }) => ({
+  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  color: "white",
+  fontWeight: 600,
+  padding: "12px 24px",
+  borderRadius: "12px",
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: theme.shadows[4],
+  },
+}));
+
+const SettingCard = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(3),
+  borderRadius: theme.shape.borderRadius * 2,
+  backgroundColor: theme.palette.background.paper,
+  border: `1px solid ${theme.palette.divider}`,
+  boxShadow: theme.shadows[2],
+  transition: "all 0.2s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: theme.shadows[4],
+  },
+}));
 
 const ReviewSettingPopup = ({
   open,
@@ -27,7 +55,6 @@ const ReviewSettingPopup = ({
   tempDontAskAgain,
   setTempDontAskAgain,
   handleConfirm,
-  // New props for coverage settings:
   coverage,
   setCoverage,
   allShops,
@@ -38,157 +65,252 @@ const ReviewSettingPopup = ({
   const theme = useTheme();
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <Box
-        sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 450,
-          bgcolor: "background.paper",
-          boxShadow: theme.shadows[20],
-          borderRadius: 4,
-          p: 4,
-          outline: "none",
-        }}
-      >
-        <IconButton
-          onClick={onClose}
+    <Modal open={open} onClose={onClose} closeAfterTransition>
+      <Fade in={open}>
+        <Box
           sx={{
             position: "absolute",
-            top: 8,
-            right: 8,
-            color: "text.secondary",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: { xs: "90%", sm: 600 },
+            maxWidth: "95%",
+            maxHeight: "90vh", // Limit height to viewport; adjust as needed
+            overflowY: "auto", // Enable vertical scrolling if content exceeds maxHeight
+            bgcolor: "background.paper",
+            borderRadius: { xs: "8px", sm: "16px" },
+            boxShadow: theme.shadows[24],
+            p: { xs: 3, sm: 4 },
+            outline: "none",
+            border: `2px solid ${theme.palette.primary.light}20`,
           }}
         >
-          <Close />
-        </IconButton>
-        <Typography variant="h6" sx={{ mb: 3, textAlign: "center" }}>
-          Search Settings
-        </Typography>
-
-        <FormControl component="fieldset" fullWidth>
-          {/* Review Count Section */}
-          <FormLabel component="legend">Select Reviews to Analyze</FormLabel>
-          <RadioGroup
-            value={selectedOption}
-            onChange={(e) => setSelectedOption(e.target.value)}
-            sx={{ ml: 2 }}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              mb: 3,
+              position: "relative",
+            }}
           >
-            {[10, 100, 500, 1000].map((num) => (
-              <FormControlLabel
-                key={num}
-                value={num.toString()}
-                control={<Radio />}
-                label={`${num.toLocaleString()} reviews`}
-              />
-            ))}
-            <FormControlLabel
-              value="custom"
-              control={<Radio />}
-              label="Custom amount"
-            />
-          </RadioGroup>
-
-          {selectedOption === "custom" && (
-            <TextField
-              fullWidth
-              label="Enter custom review count"
-              type="number"
-              value={customReviewCount}
-              onChange={(e) => setCustomReviewCount(e.target.value)}
-              sx={{ mt: 2 }}
-              InputProps={{
-                inputProps: { min: 1, max: 1000 },
+            <Settings
+              sx={{
+                fontSize: { xs: 28, sm: 32 },
+                color: "primary.main",
+                mr: 2,
+                bgcolor: "primary.lighter",
+                p: 1,
+                borderRadius: "50%",
               }}
             />
-          )}
-
-          {/* Coverage Section */}
-          <Box sx={{ mt: 4 }}>
-            <FormLabel component="legend">Select Coverage</FormLabel>
-            <RadioGroup
-              row
-              value={allShops ? "all" : coverage}
-              onChange={(e) => {
-                if (e.target.value === "all") {
-                  setAllShops(true);
-                } else if (e.target.value === "customcoverage") {
-                  setAllShops(false);
-                  setCoverage("customcoverage");
-                } else {
-                  setAllShops(false);
-                  setCoverage(e.target.value);
-                }
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 800,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
               }}
-              sx={{ mt: 1 }}
             >
-              <FormControlLabel value="10" control={<Radio />} label="10 km" />
-              <FormControlLabel value="20" control={<Radio />} label="20 km" />
-              <FormControlLabel value="50" control={<Radio />} label="50 km" />
-              <FormControlLabel
-                value="100"
-                control={<Radio />}
-                label="100 km"
-              />
-              <FormControlLabel
-                value="all"
-                control={<Radio />}
-                label="All Shops"
-              />
-              <FormControlLabel
-                value="customcoverage"
-                control={<Radio />}
-                label="Custom Coverage (Km)"
-              />
-            </RadioGroup>
-            {coverage === "customcoverage" && (
-              <TextField
-                fullWidth
-                label="Enter custom coverage (km)"
-                type="number"
-                value={customCoverage}
-                onChange={(e) => setCustomCoverage(e.target.value)}
-                sx={{ mt: 2 }}
-                InputProps={{
-                  inputProps: { min: 1, max: 100 },
-                }}
-              />
-            )}
-          </Box>
-
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={tempDontAskAgain}
-                onChange={(e) => setTempDontAskAgain(e.target.checked)}
-              />
-            }
-            label="Don't show this again"
-            sx={{ mt: 2 }}
-          />
-
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}>
-            <Button
-              variant="outlined"
-              color="primary"
+              Advanced Search Settings
+            </Typography>
+            <IconButton
               onClick={onClose}
-              sx={{ flex: 1, mr: 2 }}
+              sx={{
+                position: "absolute",
+                top: 16,
+                right: 16,
+                color: "text.secondary",
+                "&:hover": {
+                  color: "primary.main",
+                  transform: "rotate(90deg)",
+                },
+                transition: "all 0.3s ease",
+              }}
             >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleConfirm}
-              sx={{ flex: 1, ml: 2 }}
-            >
-              Confirm
-            </Button>
+              <Close />
+            </IconButton>
           </Box>
-        </FormControl>
-      </Box>
+
+          <Divider sx={{ mb: 4, borderColor: "divider" }} />
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {/* Review Analysis Section */}
+            <SettingCard>
+              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                <RateReview sx={{ color: "primary.main", mr: 2 }} />
+                <FormLabel component="legend" sx={{ fontWeight: 600 }}>
+                  Review Analysis Settings
+                </FormLabel>
+              </Box>
+
+              <RadioGroup
+                value={selectedOption}
+                onChange={(e) => setSelectedOption(e.target.value)}
+              >
+                <Grid container spacing={2}>
+                  {[10, 100, 500, 1000].map((num) => (
+                    <Grid item xs={12} sm={6} key={num}>
+                      <FormControlLabel
+                        value={num.toString()}
+                        control={<Radio color="primary" />}
+                        label={`${num.toLocaleString()} reviews`}
+                        sx={{
+                          borderRadius: "8px",
+                          p: 1,
+                          "&:hover": { bgcolor: "action.hover" },
+                        }}
+                      />
+                    </Grid>
+                  ))}
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      value="custom"
+                      control={<Radio color="primary" />}
+                      label="Custom amount"
+                      sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                    />
+                  </Grid>
+                </Grid>
+              </RadioGroup>
+
+              {selectedOption === "custom" && (
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  label="Custom Review Count"
+                  type="number"
+                  value={customReviewCount}
+                  onChange={(e) => setCustomReviewCount(e.target.value)}
+                  sx={{ mt: 2 }}
+                  InputProps={{
+                    inputProps: { min: 1, max: 1000 },
+                    sx: { borderRadius: "8px" },
+                  }}
+                />
+              )}
+            </SettingCard>
+
+            {/* Coverage Section */}
+            <SettingCard>
+              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                <Explore sx={{ color: "primary.main", mr: 2 }} />
+                <FormLabel component="legend" sx={{ fontWeight: 600 }}>
+                  Search Coverage
+                </FormLabel>
+              </Box>
+
+              <RadioGroup
+                row
+                value={allShops ? "all" : coverage}
+                onChange={(e) => {
+                  if (e.target.value === "all") {
+                    setAllShops(true);
+                  } else if (e.target.value === "customcoverage") {
+                    setAllShops(false);
+                    setCoverage("customcoverage");
+                  } else {
+                    setAllShops(false);
+                    setCoverage(e.target.value);
+                  }
+                }}
+                sx={{ gap: 2 }}
+              >
+                <Grid container spacing={2}>
+                  {["10", "20", "50", "100", "all", "customcoverage"].map(
+                    (value) => (
+                      <Grid item xs={6} sm={4} key={value}>
+                        <FormControlLabel
+                          value={value}
+                          control={<Radio color="primary" />}
+                          label={
+                            value === "all"
+                              ? "All Shops"
+                              : value === "customcoverage"
+                              ? "Custom"
+                              : `${value} km`
+                          }
+                          sx={{
+                            borderRadius: "8px",
+                            p: 1,
+                            "&:hover": { bgcolor: "action.hover" },
+                          }}
+                        />
+                      </Grid>
+                    )
+                  )}
+                </Grid>
+              </RadioGroup>
+
+              {coverage === "customcoverage" && (
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  label="Custom Coverage (km)"
+                  type="number"
+                  value={customCoverage}
+                  onChange={(e) => setCustomCoverage(e.target.value)}
+                  sx={{ mt: 2 }}
+                  InputProps={{
+                    inputProps: { min: 1, max: 100 },
+                    sx: { borderRadius: "8px" },
+                  }}
+                />
+              )}
+            </SettingCard>
+
+            {/* Preferences Section */}
+            <SettingCard>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    color="primary"
+                    checked={tempDontAskAgain}
+                    onChange={(e) => setTempDontAskAgain(e.target.checked)}
+                  />
+                }
+                label={
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    Remember these settings
+                  </Typography>
+                }
+              />
+            </SettingCard>
+
+            {/* Action Buttons */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+                mt: 4,
+              }}
+            >
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={onClose}
+                sx={{
+                  flex: 1,
+                  borderRadius: "12px",
+                  py: 1.5,
+                  borderWidth: 2,
+                  "&:hover": { borderWidth: 2 },
+                }}
+              >
+                Cancel
+              </Button>
+              <GradientButton
+                variant="contained"
+                onClick={handleConfirm}
+                sx={{ flex: 1, py: 1.5 }}
+              >
+                Apply Settings
+              </GradientButton>
+            </Box>
+          </Box>
+        </Box>
+      </Fade>
     </Modal>
   );
 };

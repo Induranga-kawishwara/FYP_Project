@@ -1,16 +1,15 @@
-// ExplanationPopup.jsx
 import React from "react";
 import {
   Button,
   Typography,
   Box,
   Modal,
-  Chip,
-  Alert,
+  TextField,
   IconButton,
+  Alert,
 } from "@mui/material";
-import { CheckCircle, Cancel, Insights } from "@mui/icons-material";
-import { alpha, useTheme } from "@mui/material/styles";
+import { Cancel, Insights } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
 
 const ExplanationPopup = ({ open, onClose, explanation }) => {
   const theme = useTheme();
@@ -64,51 +63,20 @@ const ExplanationPopup = ({ open, onClose, explanation }) => {
         </Box>
 
         {explanation ? (
-          explanation.split("\n").map((line, idx) => {
-            const [wordPart, weightPart] = line.split(": ");
-            const weight = parseFloat(weightPart);
-            return (
-              <Box
-                key={idx}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  mb: 2,
-                  p: 2,
-                  borderRadius: 2,
-                  bgcolor:
-                    weight > 0
-                      ? alpha(theme.palette.success.main, 0.1)
-                      : alpha(theme.palette.error.main, 0.1),
-                }}
-              >
-                {weight > 0 ? (
-                  <CheckCircle sx={{ mr: 2 }} color="success" />
-                ) : (
-                  <Cancel sx={{ mr: 2 }} color="error" />
-                )}
-                <Typography variant="body1" sx={{ flex: 1 }}>
-                  <strong>{wordPart.replace("ðŸ”¹ ", "")}</strong>
-                </Typography>
-                <Chip
-                  label={
-                    weight > 0 ? `+${weight.toFixed(2)}` : weight.toFixed(2)
-                  }
-                  sx={{
-                    bgcolor:
-                      weight > 0
-                        ? alpha(theme.palette.success.main, 0.2)
-                        : alpha(theme.palette.error.main, 0.2),
-                    color:
-                      weight > 0
-                        ? theme.palette.success.dark
-                        : theme.palette.error.dark,
-                    fontWeight: 600,
-                  }}
-                />
-              </Box>
-            );
-          })
+          <TextField
+            multiline
+            fullWidth
+            readOnly
+            variant="outlined"
+            value={explanation}
+            InputProps={{
+              style: {
+                maxHeight: 300,
+                overflowY: "auto",
+              },
+            }}
+            sx={{ mb: 4 }}
+          />
         ) : (
           <Alert severity="info" sx={{ mt: 2 }}>
             No explanation available for this rating.

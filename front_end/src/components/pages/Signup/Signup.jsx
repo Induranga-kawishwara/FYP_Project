@@ -5,13 +5,15 @@ import {
   TextField,
   Button,
   Typography,
-  Paper,
   Box,
   Link,
   CircularProgress,
   InputAdornment,
   IconButton,
+  Divider,
   Alert,
+  Fade,
+  useTheme,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,49 +23,49 @@ import {
   Visibility,
   EmailOutlined,
   PhoneOutlined,
+  Fingerprint,
 } from "@mui/icons-material";
 
 function Signup() {
-  const [name, setName] = useState("");
-  const [surname, setSurname] = useState("");
-  const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const theme = useTheme();
+  const [formData, setFormData] = useState({
+    name: "",
+    surname: "",
+    email: "",
+    phoneNumber: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
-
-    // Validate password match
-    if (password !== confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     setIsLoading(true);
     try {
-      // Combine name and surname into username as expected by the backend
-      const username = `${name} ${surname}`.trim();
-
-      // Prepare the payload; note phone is sent as "phone"
       const payload = {
-        username,
-        email,
-        phone: phoneNumber,
-        password,
+        username: `${formData.name} ${formData.surname}`.trim(),
+        email: formData.email,
+        phone: formData.phoneNumber,
+        password: formData.password,
       };
 
-      // Real API call to the backend
       await axios.post("http://127.0.0.1:5000/auth/signup", payload);
-
-      // Redirect to login page after successful signup
-      navigate("/login");
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
-      // Use the error message from the backend, if available
       setError(err.response?.data?.error || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -71,14 +73,43 @@ function Signup() {
   };
 
   return (
-    <Container maxWidth="xs">
-      <Paper
-        elevation={6}
+    <Container
+      maxWidth="sm"
+      sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}
+    >
+      <Box
         sx={{
-          mt: 8,
-          p: 4,
-          borderRadius: 4,
-          background: "linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%)",
+          position: "relative",
+          width: "100%",
+          my: 8,
+          p: 6,
+          borderRadius: 6,
+          background: theme.palette.background.paper,
+          boxShadow: theme.shadows[10],
+          "&:before": {
+            content: '""',
+            position: "absolute",
+            top: -50,
+            left: -50,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: `linear-gradient(45deg, ${theme.palette.primary.light}, transparent)`,
+            filter: "blur(40px)",
+            zIndex: -1,
+          },
+          "&:after": {
+            content: '""',
+            position: "absolute",
+            bottom: -50,
+            right: -50,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: `linear-gradient(45deg, ${theme.palette.secondary.light}, transparent)`,
+            filter: "blur(40px)",
+            zIndex: -1,
+          },
         }}
       >
         <Box
@@ -88,130 +119,171 @@ function Signup() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 2,
+            gap: 3,
           }}
         >
-          <LockOutlined
+          <Box
             sx={{
-              fontSize: 40,
-              color: "primary.main",
-              bgcolor: "background.paper",
-              p: 1.5,
-              borderRadius: "50%",
-              boxShadow: 3,
+              position: "relative",
+              mb: 4,
+              "& svg": {
+                fontSize: 60,
+                color: theme.palette.primary.main,
+                filter: `drop-shadow(0 4px 8px ${theme.palette.primary.light}40)`,
+              },
             }}
-          />
-          <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>
-            Create Account
+          >
+            <Fingerprint />
+            <LockOutlined
+              sx={{
+                position: "absolute",
+                right: -20,
+                bottom: -10,
+                fontSize: 30,
+                color: theme.palette.secondary.main,
+              }}
+            />
+          </Box>
+
+          <Typography
+            variant="h3"
+            sx={{
+              mb: 3,
+              fontWeight: 800,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Join ShopFinder
           </Typography>
 
-          {/* Name Field */}
-          <TextField
-            fullWidth
-            label="Name"
-            variant="outlined"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonOutline color="action" />
-                </InputAdornment>
-              ),
-            }}
+          <Box
             sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-              },
+              width: "100%",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 3,
             }}
-            required
-          />
+          >
+            <TextField
+              name="name"
+              label="First Name"
+              value={formData.name}
+              onChange={handleChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonOutline sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  transition: "all 0.3s",
+                  "&:hover": {
+                    boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                  },
+                },
+              }}
+              required
+            />
 
-          {/* Surname Field */}
+            <TextField
+              name="surname"
+              label="Last Name"
+              value={formData.surname}
+              onChange={handleChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonOutline sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                  transition: "all 0.3s",
+                  "&:hover": {
+                    boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                  },
+                },
+              }}
+              required
+            />
+          </Box>
+
           <TextField
             fullWidth
-            label="Surname"
-            variant="outlined"
-            value={surname}
-            onChange={(e) => setSurname(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonOutline color="action" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-              },
-            }}
-            required
-          />
-
-          {/* Email Field */}
-          <TextField
-            fullWidth
+            name="email"
             label="Email"
-            variant="outlined"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <EmailOutlined color="action" />
+                  <EmailOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
             }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 borderRadius: 2,
+                transition: "all 0.3s",
+                "&:hover": {
+                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                },
               },
             }}
             required
           />
 
-          {/* Phone Number Field */}
           <TextField
             fullWidth
+            name="phoneNumber"
             label="Phone Number"
-            variant="outlined"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
+            value={formData.phoneNumber}
+            onChange={handleChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <PhoneOutlined color="action" />
+                  <PhoneOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
             }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 borderRadius: 2,
+                transition: "all 0.3s",
+                "&:hover": {
+                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                },
               },
             }}
             required
           />
 
-          {/* Password Field */}
           <TextField
             fullWidth
+            name="password"
             label="Password"
             type={showPassword ? "text" : "password"}
-            variant="outlined"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={formData.password}
+            onChange={handleChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <LockOutlined color="action" />
+                  <LockOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
                     onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
+                    sx={{ color: "text.secondary" }}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -221,81 +293,133 @@ function Signup() {
             sx={{
               "& .MuiOutlinedInput-root": {
                 borderRadius: 2,
+                transition: "all 0.3s",
+                "&:hover": {
+                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                },
               },
             }}
             required
           />
 
-          {/* Confirm Password Field */}
           <TextField
             fullWidth
+            name="confirmPassword"
             label="Confirm Password"
             type={showPassword ? "text" : "password"}
-            variant="outlined"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            value={formData.confirmPassword}
+            onChange={handleChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <LockOutlined color="action" />
+                  <LockOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
             }}
             sx={{
               "& .MuiOutlinedInput-root": {
                 borderRadius: 2,
+                transition: "all 0.3s",
+                "&:hover": {
+                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                },
               },
             }}
             required
           />
 
-          {/* Error Message */}
-          {error && (
-            <Alert severity="error" sx={{ width: "100%" }}>
+          <Fade in={!!error}>
+            <Alert
+              severity="error"
+              sx={{
+                width: "100%",
+                border: `1px solid ${theme.palette.error.main}`,
+                bgcolor: theme.palette.error.light,
+              }}
+            >
               {error}
             </Alert>
-          )}
+          </Fade>
 
-          {/* Submit Button */}
+          <Fade in={success}>
+            <Alert
+              severity="success"
+              sx={{
+                width: "100%",
+                border: `1px solid ${theme.palette.success.main}`,
+                bgcolor: theme.palette.success.light,
+              }}
+            >
+              Account created successfully! Redirecting...
+            </Alert>
+          </Fade>
+
           <Button
             fullWidth
             variant="contained"
             type="submit"
             disabled={isLoading}
             sx={{
-              py: 1.5,
+              py: 2,
               borderRadius: 2,
               fontSize: 16,
-              fontWeight: "bold",
-              textTransform: "none",
-              transition: "transform 0.2s",
+              fontWeight: 700,
+              letterSpacing: 1,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
+              transition: "all 0.3s",
               "&:hover": {
                 transform: "translateY(-2px)",
+                boxShadow: `0 8px 24px ${theme.palette.primary.light}40`,
               },
             }}
           >
             {isLoading ? (
-              <CircularProgress size={24} color="inherit" />
+              <CircularProgress
+                size={24}
+                sx={{
+                  color: "white",
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))",
+                }}
+              />
             ) : (
-              "Create Account"
+              "Create Free Account"
             )}
           </Button>
 
-          {/* Login Link */}
-          <Box sx={{ mt: 2, textAlign: "center" }}>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Already have an account?{" "}
-              <Link
-                onClick={() => navigate("/login")}
-                fontWeight="bold"
-                style={{ cursor: "pointer" }}
-              >
-                Login
-              </Link>
+          <Typography variant="body2" sx={{ color: "text.secondary", mt: 2 }}>
+            By signing up, you agree to our{" "}
+            <Link href="/terms" fontWeight="bold" color="text.primary">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" fontWeight="bold" color="text.primary">
+              Privacy Policy
+            </Link>
+          </Typography>
+
+          <Box
+            sx={{ display: "flex", alignItems: "center", width: "100%", my: 2 }}
+          >
+            <Divider sx={{ flexGrow: 1 }} />
+            <Typography variant="body2" sx={{ px: 2, color: "text.secondary" }}>
+              OR
             </Typography>
+            <Divider sx={{ flexGrow: 1 }} />
           </Box>
+
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            Already have an account?{" "}
+            <Link
+              onClick={() => navigate("/login")}
+              fontWeight="bold"
+              color="primary"
+              sx={{ cursor: "pointer" }}
+            >
+              Login here
+            </Link>
+          </Typography>
         </Box>
-      </Paper>
+      </Box>
     </Container>
   );
 }

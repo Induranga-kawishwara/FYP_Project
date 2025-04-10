@@ -5,13 +5,15 @@ import {
   TextField,
   Button,
   Typography,
-  Paper,
   Box,
   Link,
   CircularProgress,
   InputAdornment,
   IconButton,
   Alert,
+  Fade,
+  Divider,
+  useTheme,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,6 +21,9 @@ import {
   VisibilityOff,
   Visibility,
   EmailOutlined,
+  GitHub,
+  Google,
+  Fingerprint,
 } from "@mui/icons-material";
 import {
   signInWithPopup,
@@ -28,6 +33,7 @@ import {
 import { auth } from "../../../Config.js";
 
 function Login() {
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,16 +41,12 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  // Email/Password login handler (handled by your backend)
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     try {
-      await axios.post("http://127.0.0.1:5000/auth/login", {
-        email,
-        password,
-      });
+      await axios.post("http://127.0.0.1:5000/auth/login", { email, password });
       navigate("/shopfinder");
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Please try again.");
@@ -53,46 +55,20 @@ function Login() {
     }
   };
 
-  // Google login handler using Firebase client SDK
-  const handleGoogleLogin = async () => {
+  const handleSocialLogin = async (provider) => {
     setIsLoading(true);
     setError("");
     try {
-      const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-
-      // Send the Firebase ID token to your backend for verification
       await axios.post("http://127.0.0.1:5000/auth/login", {
         id_token: idToken,
       });
       navigate("/shopfinder");
     } catch (err) {
       setError(
-        err.response?.data?.error || "Google login failed. Please try again."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // GitHub login handler using Firebase client SDK
-  const handleGithubLogin = async () => {
-    setIsLoading(true);
-    setError("");
-    try {
-      const provider = new GithubAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const idToken = await result.user.getIdToken();
-
-      // Send the Firebase ID token to your backend for verification
-      await axios.post("http://127.0.0.1:5000/auth/login", {
-        id_token: idToken,
-      });
-      navigate("/shopfinder");
-    } catch (err) {
-      setError(
-        err.response?.data?.error || "GitHub login failed. Please try again."
+        err.response?.data?.error ||
+          `${provider.providerId} login failed. Please try again.`
       );
     } finally {
       setIsLoading(false);
@@ -100,14 +76,43 @@ function Login() {
   };
 
   return (
-    <Container maxWidth="xs">
-      <Paper
-        elevation={6}
+    <Container
+      maxWidth="sm"
+      sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}
+    >
+      <Box
         sx={{
-          mt: 8,
-          p: 4,
-          borderRadius: 4,
-          background: "linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%)",
+          position: "relative",
+          width: "100%",
+          my: 8,
+          p: 6,
+          borderRadius: 6,
+          background: theme.palette.background.paper,
+          boxShadow: theme.shadows[10],
+          "&:before": {
+            content: '""',
+            position: "absolute",
+            top: -50,
+            left: -50,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: `linear-gradient(45deg, ${theme.palette.primary.light}, transparent)`,
+            filter: "blur(40px)",
+            zIndex: -1,
+          },
+          "&:after": {
+            content: '""',
+            position: "absolute",
+            bottom: -50,
+            right: -50,
+            width: 120,
+            height: 120,
+            borderRadius: "50%",
+            background: `linear-gradient(45deg, ${theme.palette.secondary.light}, transparent)`,
+            filter: "blur(40px)",
+            zIndex: -1,
+          },
         }}
       >
         <Box
@@ -117,27 +122,58 @@ function Login() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 2,
+            gap: 3,
           }}
         >
-          <LockOutlined
+          <Box
             sx={{
-              fontSize: 40,
-              color: "primary.main",
-              bgcolor: "background.paper",
-              p: 1.5,
-              borderRadius: "50%",
-              boxShadow: 3,
+              position: "relative",
+              mb: 4,
+              "& svg": {
+                fontSize: 60,
+                color: theme.palette.primary.main,
+                filter: `drop-shadow(0 4px 8px ${theme.palette.primary.light}40)`,
+              },
             }}
-          />
-          <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>
+          >
+            <Fingerprint />
+            <LockOutlined
+              sx={{
+                position: "absolute",
+                right: -20,
+                bottom: -10,
+                fontSize: 30,
+                color: theme.palette.secondary.main,
+              }}
+            />
+          </Box>
+
+          <Typography
+            variant="h3"
+            sx={{
+              mb: 3,
+              fontWeight: 800,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
             Welcome Back
           </Typography>
-          {error && (
-            <Alert severity="error" sx={{ width: "100%" }}>
+
+          <Fade in={!!error}>
+            <Alert
+              severity="error"
+              sx={{
+                width: "100%",
+                border: `1px solid ${theme.palette.error.main}`,
+                bgcolor: theme.palette.error.light,
+              }}
+            >
               {error}
             </Alert>
-          )}
+          </Fade>
+
           <TextField
             fullWidth
             label="Email"
@@ -147,116 +183,174 @@ function Login() {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <EmailOutlined color="action" />
+                  <EmailOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
             }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+                transition: "all 0.3s",
+                "&:hover": {
+                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                },
+              },
+            }}
             required
           />
+
           <TextField
             fullWidth
             label="Password"
             type={showPassword ? "text" : "password"}
-            variant="outlined"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <LockOutlined color="action" />
+                  <LockOutlined sx={{ color: "text.secondary" }} />
                 </InputAdornment>
               ),
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
                     onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
+                    sx={{ color: "text.secondary" }}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
               ),
             }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 2,
+                transition: "all 0.3s",
+                "&:hover": {
+                  boxShadow: `0 0 0 2px ${theme.palette.primary.light}`,
+                },
+              },
+            }}
             required
           />
+
           <Button
             fullWidth
             variant="contained"
             type="submit"
             disabled={isLoading}
             sx={{
-              py: 1.5,
+              py: 2,
               borderRadius: 2,
               fontSize: 16,
-              fontWeight: "bold",
-              textTransform: "none",
-              transition: "transform 0.2s",
-              "&:hover": { transform: "translateY(-2px)" },
+              fontWeight: 700,
+              letterSpacing: 1,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
+              transition: "all 0.3s",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                boxShadow: `0 8px 24px ${theme.palette.primary.light}40`,
+              },
             }}
           >
             {isLoading ? (
-              <CircularProgress size={24} color="inherit" />
+              <CircularProgress
+                size={24}
+                sx={{
+                  color: "white",
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))",
+                }}
+              />
             ) : (
               "Sign In"
             )}
           </Button>
-          <Typography
-            variant="body2"
-            sx={{
-              mt: 2,
-              color: "text.secondary",
-              width: "100%",
-              textAlign: "center",
-            }}
-          >
-            Or sign in with
-          </Typography>
+
           <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              justifyContent: "center",
-              width: "100%",
-            }}
+            sx={{ display: "flex", alignItems: "center", width: "100%", my: 2 }}
           >
+            <Divider sx={{ flexGrow: 1 }} />
+            <Typography variant="body2" sx={{ px: 2, color: "text.secondary" }}>
+              Or continue with
+            </Typography>
+            <Divider sx={{ flexGrow: 1 }} />
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
             <Button
+              fullWidth
               variant="outlined"
-              onClick={handleGoogleLogin}
+              onClick={() => handleSocialLogin(new GoogleAuthProvider())}
               disabled={isLoading}
-              sx={{ textTransform: "none", flex: 1 }}
+              startIcon={<Google />}
+              sx={{
+                py: 1.5,
+                borderRadius: 2,
+                borderColor: "text.secondary",
+                "&:hover": {
+                  borderColor: "#db4437",
+                  backgroundColor: "#db443710",
+                },
+              }}
             >
               Google
             </Button>
             <Button
+              fullWidth
               variant="outlined"
-              onClick={handleGithubLogin}
+              onClick={() => handleSocialLogin(new GithubAuthProvider())}
               disabled={isLoading}
-              sx={{ textTransform: "none", flex: 1 }}
+              startIcon={<GitHub />}
+              sx={{
+                py: 1.5,
+                borderRadius: 2,
+                borderColor: "text.secondary",
+                "&:hover": {
+                  borderColor: "#333",
+                  backgroundColor: "#33310",
+                },
+              }}
             >
               GitHub
             </Button>
           </Box>
-          <Box sx={{ mt: 2, textAlign: "center" }}>
+
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: "100%",
+              mt: 2,
+            }}
+          >
             <Link
               onClick={() => navigate("/forgot-password")}
               variant="body2"
-              sx={{ color: "text.secondary", cursor: "pointer" }}
+              sx={{
+                color: "text.secondary",
+                cursor: "pointer",
+                "&:hover": { color: "primary.main" },
+              }}
             >
-              Forgot password?
+              Forgot Password?
             </Link>
-            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
-              Don't have an account?{" "}
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              New user?{" "}
               <Link
                 onClick={() => navigate("/signup")}
-                fontWeight="bold"
-                style={{ cursor: "pointer" }}
+                sx={{
+                  color: "primary.main",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  "&:hover": { textDecoration: "underline" },
+                }}
               >
-                Sign up
+                Create Account
               </Link>
             </Typography>
           </Box>
         </Box>
-      </Paper>
+      </Box>
     </Container>
   );
 }

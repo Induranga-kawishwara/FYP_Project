@@ -65,10 +65,4 @@ def check_existing_user(email: str, phone: str):
     except UserNotFoundError:
         pass
 
-    # Check in MongoDB using the User model
-    if User.objects(email=email).first():
-        errors.append("Email already exists in our database.")
-    if User.objects(phone=phone).first():
-        errors.append("Phone number already exists in our database.")
-
     return errors

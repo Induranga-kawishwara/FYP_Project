@@ -46,10 +46,10 @@ const GradientPaper = styled(Paper)(({ theme }) => ({
   "&:before": {
     content: '""',
     position: "absolute",
-    top: -50,
-    right: -50,
-    width: 100,
-    height: 100,
+    top: -theme.spacing(6),
+    right: -theme.spacing(6),
+    width: { xs: 80, md: 100 },
+    height: { xs: 80, md: 100 },
     borderRadius: "50%",
     background: `radial-gradient(${alpha(
       theme.palette.primary.main,
@@ -94,9 +94,8 @@ function Profile() {
       showSnackbar("Passwords do not match.", "error");
       return;
     }
-
     try {
-      // Simulating a profile update API call
+      // Simulate profile update API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       showSnackbar("Profile Updated Successfully!", "success");
       setTimeout(() => {
@@ -109,10 +108,9 @@ function Profile() {
 
   const handleDeleteAccount = async () => {
     try {
-      // Simulating an account deletion API call
+      // Simulate account deletion API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
       showSnackbar("Account Deleted Successfully!", "success");
-      // Wait 1.5 seconds before navigating so the snackbar is visible
       setTimeout(() => {
         navigate("/login");
       }, 1500);
@@ -129,17 +127,23 @@ function Profile() {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 8, py: 4 }}>
+    <Container
+      maxWidth="md"
+      sx={{
+        mt: { xs: 4, md: 8 },
+        py: { xs: 2, md: 4 },
+      }}
+    >
       <GradientPaper elevation={0}>
-        <Box sx={{ textAlign: "center", mb: 6 }}>
+        <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
           <Security
             sx={{
-              fontSize: 60,
+              fontSize: { xs: 40, md: 60 },
               color: "primary.main",
               bgcolor: alpha(theme.palette.primary.light, 0.1),
-              p: 2,
+              p: { xs: 1, md: 2 },
               borderRadius: "50%",
-              mb: 3,
+              mb: { xs: 2, md: 3 },
               boxShadow: 3,
             }}
           />
@@ -151,6 +155,8 @@ function Profile() {
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              fontSize: { xs: "1.8rem", md: "2.5rem" },
+              textAlign: "center",
             }}
           >
             Account Settings
@@ -265,14 +271,22 @@ function Profile() {
           </Grid>
         </Grid>
 
-        <Box sx={{ display: "flex", gap: 3, mt: 4, flexWrap: "wrap" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: { xs: 2, md: 3 },
+            mt: { xs: 3, md: 4 },
+            flexWrap: "wrap",
+          }}
+        >
           <Button
             variant="contained"
             onClick={handleUpdateProfile}
             startIcon={<Edit />}
             sx={{
-              px: 6,
-              py: 1.5,
+              flex: 1,
+              px: { xs: 4, md: 6 },
+              py: { xs: 1, md: 1.5 },
               borderRadius: 3,
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
               "&:hover": {
@@ -289,8 +303,9 @@ function Profile() {
             onClick={() => setDeleteDialogOpen(true)}
             startIcon={<DeleteForever />}
             sx={{
-              px: 6,
-              py: 1.5,
+              flex: 1,
+              px: { xs: 4, md: 6 },
+              py: { xs: 1, md: 1.5 },
               borderRadius: 3,
               borderColor: "error.main",
               color: "error.main",
@@ -354,6 +369,7 @@ function Profile() {
             borderRadius: 3,
             boxShadow: theme.shadows[6],
             alignItems: "center",
+            fontSize: { xs: "0.8rem", md: "1rem" },
           }}
           icon={false}
         >

@@ -3,16 +3,16 @@ import {
   Container,
   Typography,
   Box,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Link,
   Chip,
-  Divider,
   Card,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from "@mui/material";
 import {
-  ExpandMore,
   Gavel,
   Storefront,
   Person,
@@ -21,6 +21,10 @@ import {
   Info,
   Mail,
   Description,
+  CheckCircle,
+  Warning,
+  Code,
+  LockClock,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 
@@ -28,82 +32,90 @@ const sections = [
   {
     title: "Use of the Site",
     icon: <Storefront />,
-    content: `ShopFinder ("the Service"), developed by Induranga Kawishwara, provides a machine learning-powered platform to help users discover optimal retail locations and products. You may use this service to:
-- Search for products and view verified retail locations
-- Access AI-generated quality assessments and rating predictions
-- Filter out promotional/fake reviews using our proprietary ML models
-- View explainable AI (XAI) breakdowns of review authenticity analyses
-
-Prohibited activities include:
-- Reverse-engineering or attacking our ML models
-- Scraping review data or XAI explanations
-- Misrepresenting authentic reviews as promotional content
-- Manipulating rating prediction systems through artificial means`,
+    id: "use",
+    content: [
+      {
+        icon: <CheckCircle />,
+        primary: "Permitted Uses",
+        secondary:
+          "Search products, view retail locations, access AI quality assessments, and use XAI explanations",
+      },
+      {
+        icon: <Warning />,
+        primary: "Prohibited Activities",
+        secondary:
+          "Reverse-engineering ML models, scraping data, manipulating rating systems",
+      },
+    ],
   },
   {
     title: "User Accounts",
     icon: <Person />,
-    content: `To access advanced features, you may create an account by:
-1. Providing valid contact information
-2. Verifying your email address
-3. Agreeing to our review validation protocols
-
-Account holders must:
-- Maintain accurate prediction feedback records
-- Report suspected fake reviews through proper channels
-- Not share API access credentials
-
-We employ continuous ML validation to detect and suspend accounts that:
-- Submit artificial review patterns
-- Attempt to bias our rating prediction models
-- Abuse XAI transparency features for commercial scraping`,
+    id: "accounts",
+    content: [
+      {
+        icon: <LockClock />,
+        primary: "Account Requirements",
+        secondary:
+          "Valid contact information, email verification, review validation agreement",
+      },
+      {
+        icon: <Code />,
+        primary: "ML Monitoring",
+        secondary:
+          "Continuous validation detects artificial patterns and model manipulation",
+      },
+    ],
   },
   {
     title: "Intellectual Property",
     icon: <Copyright />,
-    content: `All ML models, including our:
-- Review authenticity classifier (v3.1)
-- Rating prediction neural network
-- XAI explanation generator
-are proprietary technology of Induranga Kawishwara.
-
-You retain rights to your user-generated content, but grant us a license to:
-- Process reviews through our ML pipelines
-- Use anonymized data for model improvement
-- Generate aggregated quality metrics
-
-The XAI-generated explanations are for personal use only; commercial use of our transparency reports requires written permission.`,
+    id: "ip",
+    content: [
+      {
+        primary: "Proprietary Technology",
+        secondary:
+          "Review classifier v3.1, rating prediction NN, XAI generator",
+      },
+      {
+        primary: "Content License",
+        secondary:
+          "User grants processing rights for ML improvement and metrics generation",
+      },
+    ],
   },
   {
     title: "Termination",
     icon: <Block />,
-    content: `We may terminate access for:
-- Manipulating review sentiment scores
-- Exploiting XAI vulnerabilities
-- Automated querying of our ML endpoints
-- False reporting of legitimate reviews
-
-Upon termination:
-- All API access will be revoked
-- Saved predictions will be anonymized
-- Model interaction history will be archived
-
-Service may be suspended without notice if our ML systems detect coordinated review manipulation attempts.`,
+    id: "termination",
+    content: [
+      {
+        primary: "Grounds for Termination",
+        secondary:
+          "Review manipulation, XAI exploitation, automated ML queries",
+      },
+      {
+        primary: "Post-Termination",
+        secondary:
+          "API revocation, prediction anonymization, interaction archiving",
+      },
+    ],
   },
   {
     title: "Disclaimer",
     icon: <Info />,
-    content: `ShopFinder's predictions are statistical estimates, not guarantees:
-- Fake review detection accuracy: 89.7% (F1-score)
-- Rating prediction MAE: ±0.32 stars
-- XAI explanations show key influencing factors, not full model logic
-
-We disclaim liability for:
-- Retailer inventory changes post-prediction
-- Evolving promotional tactics bypassing our ML filters
-- Local market fluctuations affecting quality assessments
-
-Our ML models are continuously updated - historical predictions are not retroactively adjusted.`,
+    id: "disclaimer",
+    content: [
+      {
+        primary: "Accuracy Metrics",
+        secondary: "89.7% detection F1-score, ±0.32 star MAE predictions",
+      },
+      {
+        primary: "Limitations",
+        secondary:
+          "Inventory changes, evolving promotional tactics, market fluctuations",
+      },
+    ],
   },
 ];
 
@@ -111,55 +123,17 @@ const TermsOfService = () => {
   const theme = useTheme();
 
   return (
-    <Container
-      maxWidth="md"
-      sx={{
-        py: { xs: 4, md: 6 },
-        position: "relative",
-      }}
-    >
-      {/* Header Section */}
-      <Box
-        sx={{
-          textAlign: "center",
-          mb: { xs: 4, md: 6 },
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-          borderRadius: 2,
-          p: { xs: 2, md: 4 },
-          color: "white",
-          boxShadow: theme.shadows[6],
-        }}
-      >
-        <Gavel sx={{ fontSize: { xs: 40, md: 60 }, color: "white", mb: 2 }} />
-        <Typography
-          variant="h3"
-          component="h1"
-          gutterBottom
-          sx={{
-            fontWeight: 800,
-            letterSpacing: 1,
-            fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
-          }}
-        >
-          ShopFinder Terms of Service
-        </Typography>
-        <Chip
-          label={`Last updated: ${new Date().toLocaleDateString()}`}
-          variant="outlined"
-          sx={{
-            mb: 3,
-            color: "white",
-            borderColor: "rgba(255,255,255,0.3)",
-            fontSize: { xs: "0.75rem", md: "1rem" },
-          }}
-        />
-      </Box>
-
+    <React.Fragment>
+      <div id="back-to-top-anchor" />
       <Box
         sx={{
           display: "flex",
-          gap: { xs: 2, md: 4 },
           flexDirection: { xs: "column", md: "row" },
+          gap: 4,
+          py: { xs: 4, sm: 6, md: 8 },
+          px: { xs: 2, sm: 4 },
+          maxWidth: "lg",
+          margin: "0 auto",
         }}
       >
         {/* Table of Contents */}
@@ -176,10 +150,10 @@ const TermsOfService = () => {
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Contents
             </Typography>
-            {sections.map((section, index) => (
+            {sections.map((section) => (
               <Link
-                key={index}
-                href={`#section-${index}`}
+                key={section.id}
+                href={`#${section.id}`}
                 underline="none"
                 color="text.primary"
                 sx={{
@@ -229,127 +203,169 @@ const TermsOfService = () => {
         </Box>
 
         {/* Main Content */}
-        <Box sx={{ flexGrow: 1 }}>
-          {sections.map((section, index) => (
-            <Accordion
-              key={index}
-              id={`section-${index}`}
-              defaultExpanded
+        <Container
+          maxWidth="md"
+          sx={{
+            flexGrow: 1,
+            position: "relative",
+            p: 0,
+          }}
+        >
+          <Box
+            sx={{
+              textAlign: "center",
+              mb: { xs: 4, sm: 6 },
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              borderRadius: 4,
+              p: { xs: 2, sm: 4, md: 6 },
+              color: "white",
+              boxShadow: theme.shadows[6],
+            }}
+          >
+            <Gavel
               sx={{
+                fontSize: { xs: 40, sm: 60 },
+                color: "white",
                 mb: 2,
-                borderRadius: 2,
-                overflow: "hidden",
-                transition: "all 0.3s ease",
-                "&:before": { display: "none" },
-                "&.Mui-expanded": {
-                  boxShadow: theme.shadows[3],
-                  transform: "translateY(-2px)",
-                },
+              }}
+            />
+            <Typography
+              variant="h3"
+              component="h1"
+              gutterBottom
+              sx={{
+                fontWeight: 800,
+                letterSpacing: 1,
+                fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3rem" },
               }}
             >
-              <AccordionSummary
-                expandIcon={<ExpandMore />}
-                sx={{
-                  bgcolor: "background.paper",
-                  "&:hover": { bgcolor: "action.hover" },
-                  p: { xs: 1, md: 2 },
-                }}
+              Terms of Service
+            </Typography>
+            <Chip
+              label={`Last updated: ${new Date().toLocaleDateString()}`}
+              variant="outlined"
+              sx={{
+                mb: 3,
+                color: "white",
+                borderColor: "rgba(255,255,255,0.3)",
+                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 },
+              }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              display: "flex",
+              gap: { xs: 2, sm: 4 },
+              flexDirection: "column",
+            }}
+          >
+            {sections.map((section) => (
+              <Card
+                key={section.id}
+                id={section.id}
+                sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                  <Box sx={{ color: "primary.main", mr: 1.5 }}>
-                    {section.icon}
-                  </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    mb: { xs: 2, sm: 3 },
+                  }}
+                >
+                  {React.cloneElement(section.icon, {
+                    sx: { color: "primary.main", fontSize: { xs: 30, sm: 40 } },
+                  })}
                   <Typography
-                    variant="h6"
+                    variant="h5"
                     sx={{
-                      fontWeight: 600,
-                      fontSize: { xs: "1rem", md: "1.25rem" },
+                      fontWeight: 700,
+                      fontSize: { xs: "1.2rem", sm: "1.5rem" },
                     }}
                   >
                     {section.title}
                   </Typography>
                 </Box>
-              </AccordionSummary>
-              <AccordionDetails
+                <List>
+                  {section.content.map((item, index) => (
+                    <ListItem key={index}>
+                      {item.icon && (
+                        <ListItemIcon>
+                          {React.cloneElement(item.icon, { color: "primary" })}
+                        </ListItemIcon>
+                      )}
+                      <ListItemText
+                        primary={item.primary}
+                        secondary={item.secondary}
+                        sx={{ "& .MuiListItemText-secondary": { mt: 0.5 } }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Card>
+            ))}
+
+            {/* Contact Section */}
+            <Card id="contact" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Box
                 sx={{
-                  bgcolor: "background.default",
-                  borderTop: `1px solid ${theme.palette.divider}`,
-                  p: { xs: 1, md: 2 },
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: { xs: 2, sm: 3 },
                 }}
               >
+                <Mail
+                  sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
+                />
                 <Typography
-                  component="div"
+                  variant="h5"
                   sx={{
-                    lineHeight: 1.7,
-                    color: "text.secondary",
-                    fontSize: { xs: "0.875rem", md: "1rem" },
-                    "& ul": { pl: 3, mb: 2 },
-                    "& li": { mb: 1 },
-                    "& strong": { color: "text.primary" },
+                    fontWeight: 700,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
                   }}
                 >
-                  {section.content.split("\n").map((line, i) => (
-                    <p key={i} style={{ margin: "0.8em 0" }}>
-                      {line.replace(/-/g, "•")}
-                    </p>
-                  ))}
+                  Contact Us
                 </Typography>
-              </AccordionDetails>
-            </Accordion>
-          ))}
-
-          <Card
-            id="contact"
-            sx={{
-              mt: { xs: 4, md: 6 },
-              p: { xs: 2, md: 4 },
-              borderRadius: 2,
-              bgcolor: "background.paper",
-              boxShadow: theme.shadows[2],
-            }}
-          >
-            <Typography
-              variant="h5"
-              gutterBottom
-              sx={{
-                fontWeight: 700,
-                fontSize: { xs: "1.25rem", md: "1.5rem" },
-              }}
-            >
-              <Mail sx={{ mr: 1.5, color: "primary.main" }} />
-              Contact Us
-            </Typography>
-            <Typography
-              paragraph
-              sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "1rem" } }}
-            >
-              For inquiries regarding our ML models or transparency reports:
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-              <Description sx={{ color: "primary.main" }} />
+              </Box>
               <Typography
-                variant="body1"
-                sx={{ fontSize: { xs: "0.875rem", md: "1rem" } }}
+                paragraph
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                }}
               >
-                <strong>XAI Methodology White Paper</strong> Available Upon
-                Request
+                For inquiries regarding our ML models or transparency reports:
               </Typography>
-            </Box>
-            <Chip
-              icon={<Mail />}
-              label="support@shopfinder.ai"
-              component="a"
-              href="mailto:support@shopfinder.ai"
-              clickable
-              sx={{
-                mt: 1,
-                fontSize: { xs: "0.75rem", md: "0.875rem" },
-              }}
-            />
-          </Card>
-        </Box>
+              <List>
+                <ListItem>
+                  <ListItemText
+                    primary="Technical Documentation"
+                    secondary={
+                      <Link href="#">
+                        XAI Methodology White Paper (Available Upon Request)
+                      </Link>
+                    }
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Email Support"
+                    secondary={
+                      <Link href="mailto:support@shopfinder.ai">
+                        support@shopfinder.ai
+                      </Link>
+                    }
+                  />
+                </ListItem>
+              </List>
+            </Card>
+          </Box>
+        </Container>
       </Box>
-    </Container>
+    </React.Fragment>
   );
 };
 

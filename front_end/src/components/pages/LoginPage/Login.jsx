@@ -35,12 +35,13 @@ import { auth } from "../../../Config.js";
 
 function Login() {
   const theme = useTheme();
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -83,39 +84,46 @@ function Login() {
   return (
     <Container
       maxWidth="sm"
-      sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        py: { xs: 2, md: 4 },
+      }}
     >
       <Box
         sx={{
           position: "relative",
           width: "100%",
-          my: 8,
-          p: 6,
-          borderRadius: 6,
+          p: { xs: 2, md: 6 },
+          my: { xs: 4, md: 8 },
+          borderRadius: 3,
           background: theme.palette.background.paper,
-          boxShadow: theme.shadows[10],
+          boxShadow: 3,
+          overflow: "hidden",
+          // Responsive pseudo-elements adjustments
           "&:before": {
             content: '""',
             position: "absolute",
-            top: -50,
-            left: -50,
-            width: 120,
-            height: 120,
+            top: -30,
+            left: -30,
+            width: { xs: 80, md: 120 },
+            height: { xs: 80, md: 120 },
             borderRadius: "50%",
             background: `linear-gradient(45deg, ${theme.palette.primary.light}, transparent)`,
-            filter: "blur(40px)",
+            filter: "blur(20px)",
             zIndex: -1,
           },
           "&:after": {
             content: '""',
             position: "absolute",
-            bottom: -50,
-            right: -50,
-            width: 120,
-            height: 120,
+            bottom: -30,
+            right: -30,
+            width: { xs: 80, md: 120 },
+            height: { xs: 80, md: 120 },
             borderRadius: "50%",
             background: `linear-gradient(45deg, ${theme.palette.secondary.light}, transparent)`,
-            filter: "blur(40px)",
+            filter: "blur(20px)",
             zIndex: -1,
           },
         }}
@@ -127,15 +135,15 @@ function Login() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 3,
+            gap: { xs: 2, md: 3 },
           }}
         >
           <Box
             sx={{
               position: "relative",
-              mb: 4,
+              mb: { xs: 2, md: 4 },
               "& svg": {
-                fontSize: 60,
+                fontSize: { xs: 40, md: 60 },
                 color: theme.palette.primary.main,
                 filter: `drop-shadow(0 4px 8px ${theme.palette.primary.light}40)`,
               },
@@ -145,9 +153,9 @@ function Login() {
             <LockOutlined
               sx={{
                 position: "absolute",
-                right: -20,
-                bottom: -10,
-                fontSize: 30,
+                right: { xs: -12, md: -20 },
+                bottom: { xs: -12, md: -10 },
+                fontSize: { xs: 20, md: 30 },
                 color: theme.palette.secondary.main,
               }}
             />
@@ -156,11 +164,13 @@ function Login() {
           <Typography
             variant="h3"
             sx={{
-              mb: 3,
+              mb: { xs: 2, md: 3 },
               fontWeight: 800,
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              fontSize: { xs: "1.5rem", md: "2.5rem" },
+              textAlign: "center",
             }}
           >
             Welcome Back
@@ -173,6 +183,7 @@ function Login() {
                 width: "100%",
                 border: `1px solid ${theme.palette.error.main}`,
                 bgcolor: theme.palette.error.light,
+                fontSize: { xs: "0.8rem", md: "1rem" },
               }}
             >
               {error}
@@ -245,9 +256,9 @@ function Login() {
             type="submit"
             disabled={isLoading}
             sx={{
-              py: 2,
+              py: { xs: 1.5, md: 2 },
               borderRadius: 2,
-              fontSize: 16,
+              fontSize: { xs: 14, md: 16 },
               fontWeight: 700,
               letterSpacing: 1,
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
@@ -272,16 +283,24 @@ function Login() {
           </Button>
 
           <Box
-            sx={{ display: "flex", alignItems: "center", width: "100%", my: 2 }}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              my: { xs: 2, md: 3 },
+            }}
           >
             <Divider sx={{ flexGrow: 1 }} />
-            <Typography variant="body2" sx={{ px: 2, color: "text.secondary" }}>
+            <Typography
+              variant="body2"
+              sx={{ px: { xs: 1, md: 2 }, color: "text.secondary" }}
+            >
               Or continue with
             </Typography>
             <Divider sx={{ flexGrow: 1 }} />
           </Box>
 
-          <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
+          <Box sx={{ display: "flex", gap: { xs: 1, md: 2 }, width: "100%" }}>
             <Button
               fullWidth
               variant="outlined"
@@ -289,7 +308,7 @@ function Login() {
               disabled={isLoading}
               startIcon={<Google />}
               sx={{
-                py: 1.5,
+                py: { xs: 1, md: 1.5 },
                 borderRadius: 2,
                 borderColor: "text.secondary",
                 "&:hover": {
@@ -307,7 +326,7 @@ function Login() {
               disabled={isLoading}
               startIcon={<GitHub />}
               sx={{
-                py: 1.5,
+                py: { xs: 1, md: 1.5 },
                 borderRadius: 2,
                 borderColor: "text.secondary",
                 "&:hover": {
@@ -323,9 +342,10 @@ function Login() {
           <Box
             sx={{
               display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
               justifyContent: "space-between",
               width: "100%",
-              mt: 2,
+              mt: { xs: 2, md: 3 },
             }}
           >
             <Link
@@ -334,6 +354,7 @@ function Login() {
               sx={{
                 color: "text.secondary",
                 cursor: "pointer",
+                mb: { xs: 1, sm: 0 },
                 "&:hover": { color: "primary.main" },
               }}
             >

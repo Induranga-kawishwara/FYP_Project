@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   Person,
   Lock,
+  Info,
 } from "@mui/icons-material";
 import { NavLink, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -33,6 +34,7 @@ const Navbar = () => {
   const navItems = [
     { name: "Shop Finder", path: "/shopfinder", icon: <ShoppingBag /> },
     { name: "Profile", path: "/profile", icon: <Person /> },
+    { name: "About", path: "/about", icon: <Info /> },
   ];
 
   const authItem = token

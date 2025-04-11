@@ -29,11 +29,6 @@ import { useTheme } from "@mui/material/styles";
 
 const PrivacyPolicy = () => {
   const theme = useTheme();
-  const trigger = useScrollTrigger({ threshold: 100 });
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   return (
     <Container maxWidth="md" sx={{ py: 6, position: "relative" }}>
@@ -224,27 +219,6 @@ const PrivacyPolicy = () => {
           </Typography>
         </Card>
       </Box>
-
-      <Fade in={trigger}>
-        <Fab
-          onClick={scrollToTop}
-          size="medium"
-          sx={{
-            position: "fixed",
-            bottom: 32,
-            right: 32,
-            background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
-            color: "white",
-            "&:hover": {
-              boxShadow: theme.shadows[6],
-              transform: "scale(1.1)",
-            },
-            transition: "all 0.3s ease",
-          }}
-        >
-          <ArrowUpward />
-        </Fab>
-      </Fade>
     </Container>
   );
 };

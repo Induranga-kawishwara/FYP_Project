@@ -5,6 +5,7 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
+import { GlobalStyles } from "@mui/material";
 import { Box, Container, useScrollTrigger, Fab, Fade } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { KeyboardArrowUp } from "@mui/icons-material";
@@ -57,6 +58,8 @@ function App() {
       <Box
         sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
       >
+        <GlobalStyles styles={{ html: { scrollBehavior: "smooth" } }} />
+
         <Navbar />
         <Box component="main" sx={{ flexGrow: 1 }}>
           <Container maxWidth="xl" sx={{ py: 4 }}>

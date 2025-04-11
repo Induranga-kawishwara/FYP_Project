@@ -10,6 +10,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Divider,
 } from "@mui/material";
 import {
   Security,
@@ -20,8 +21,16 @@ import {
   CheckCircle,
   Cookie,
   Lock,
+  Mail,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+
+const sections = [
+  { title: "Information Collection", icon: <DataUsage />, id: "collection" },
+  { title: "Use of Information", icon: <Policy />, id: "usage" },
+  { title: "Information Sharing", icon: <Share />, id: "sharing" },
+  { title: "Your Rights", icon: <Lock />, id: "rights" },
+];
 
 const PrivacyPolicy = () => {
   const theme = useTheme();
@@ -29,345 +38,422 @@ const PrivacyPolicy = () => {
   return (
     <React.Fragment>
       <div id="back-to-top-anchor" />
-      <Container
-        maxWidth="md"
-        sx={{ py: { xs: 4, sm: 6, md: 8 }, position: "relative" }}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: 4,
+          py: { xs: 4, sm: 6, md: 8 },
+          px: { xs: 2, sm: 4 },
+          maxWidth: "lg",
+          margin: "0 auto",
+        }}
       >
-        <Box
-          sx={{
-            textAlign: "center",
-            mb: { xs: 4, sm: 6 },
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-            borderRadius: 4,
-            p: { xs: 2, sm: 4, md: 6 },
-            color: "white",
-            boxShadow: theme.shadows[6],
-          }}
-        >
-          <Security
+        {/* Table of Contents Sidebar */}
+        <Box sx={{ width: { xs: "100%", md: 240 }, flexShrink: 0 }}>
+          <Card
             sx={{
-              fontSize: { xs: 40, sm: 60 },
-              color: "white",
-              mb: 2,
-            }}
-          />
-          <Typography
-            variant="h3"
-            component="h1"
-            gutterBottom
-            sx={{
-              fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
-              fontWeight: 800,
-              letterSpacing: 1,
-              fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3rem" },
+              p: { xs: 2, md: 3 },
+              position: "sticky",
+              top: 100,
+              borderRadius: 2,
+              boxShadow: theme.shadows[2],
             }}
           >
-            Privacy Policy
-          </Typography>
-          <Chip
-            label={`Last updated: ${new Date().toLocaleDateString()}`}
-            variant="outlined"
-            sx={{
-              mb: 3,
-              color: "white",
-              borderColor: "rgba(255,255,255,0.3)",
-              fontSize: { xs: "0.75rem", sm: "0.875rem" },
-              px: { xs: 1, sm: 2 },
-            }}
-          />
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              Contents
+            </Typography>
+            {sections.map((section) => (
+              <Link
+                key={section.id}
+                href={`#${section.id}`}
+                underline="none"
+                color="text.primary"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  py: 1,
+                  px: 2,
+                  mb: 1,
+                  borderRadius: 1,
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                    transform: "translateX(4px)",
+                  },
+                  fontSize: { xs: "0.875rem", md: "1rem" },
+                }}
+              >
+                <Box sx={{ color: "primary.main", mr: 1.5 }}>
+                  {section.icon}
+                </Box>
+                {section.title}
+              </Link>
+            ))}
+            <Divider sx={{ my: 2 }} />
+            <Link
+              href="#contact"
+              underline="none"
+              color="text.primary"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                py: 1,
+                px: 2,
+                borderRadius: 1,
+                transition: "all 0.2s",
+                "&:hover": {
+                  bgcolor: "action.hover",
+                  transform: "translateX(4px)",
+                },
+                fontSize: { xs: "0.875rem", md: "1rem" },
+              }}
+            >
+              <Mail sx={{ color: "primary.main", mr: 1.5 }} />
+              Contact Us
+            </Link>
+          </Card>
         </Box>
 
-        <Card
+        {/* Main Content */}
+        <Container
+          maxWidth="md"
           sx={{
-            p: { xs: 2, sm: 4 },
-            mb: { xs: 3, sm: 4 },
-            borderRadius: 3,
+            flexGrow: 1,
+            position: "relative",
+            p: 0,
           }}
         >
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            Introduction
-          </Typography>
-          <Typography
-            paragraph
+          <Box
             sx={{
-              color: "text.secondary",
-              fontSize: { xs: "0.875rem", sm: "1rem" },
+              textAlign: "center",
+              mb: { xs: 4, sm: 6 },
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              borderRadius: 4,
+              p: { xs: 2, sm: 4, md: 6 },
+              color: "white",
+              boxShadow: theme.shadows[6],
             }}
           >
-            At ShopFinder, we prioritize your privacy. This policy outlines how
-            we collect, use, and protect your information through our AI-powered
-            retail discovery platform. By using our services, you agree to the
-            practices described below.
-          </Typography>
-        </Card>
-
-        <Box
-          sx={{
-            display: "flex",
-            gap: { xs: 2, sm: 4 },
-            flexDirection: "column",
-          }}
-        >
-          {/* Information Collection */}
-          <Card id="collection" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
-            <Box
+            <Security
               sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                mb: { xs: 2, sm: 3 },
+                fontSize: { xs: 40, sm: 60 },
+                color: "white",
+                mb: 2,
               }}
-            >
-              <DataUsage
-                sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
-              />
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                }}
-              >
-                Information Collection
-              </Typography>
-            </Box>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <Cookie />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Automated Collection"
-                  secondary="Device information, IP address, browser type, usage patterns through cookies and ML analytics"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <CheckCircle />
-                </ListItemIcon>
-                <ListItemText
-                  primary="User-Provided Data"
-                  secondary="Account details, search preferences, review feedback, and prediction corrections"
-                />
-              </ListItem>
-            </List>
-          </Card>
-
-          {/* Use of Information */}
-          <Card id="usage" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                mb: { xs: 2, sm: 3 },
-              }}
-            >
-              <Policy
-                sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
-              />
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                }}
-              >
-                Use of Information
-              </Typography>
-            </Box>
+            />
             <Typography
-              paragraph
+              variant="h3"
+              component="h1"
+              gutterBottom
               sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.875rem", sm: "1rem" },
+                fontWeight: 800,
+                letterSpacing: 1,
+                fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3rem" },
               }}
             >
-              We utilize collected data to:
+              Privacy Policy
             </Typography>
-            <List>
-              <ListItem>
-                <ListItemText primary="• Train and improve our ML models for review authenticity detection" />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary="• Personalize retail recommendations and quality predictions" />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary="• Enhance XAI (Explainable AI) transparency features" />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary="• Monitor system security and prevent fraudulent activities" />
-              </ListItem>
-            </List>
-          </Card>
-
-          {/* Information Sharing */}
-          <Card id="sharing" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
-            <Box
+            <Chip
+              label={`Last updated: ${new Date().toLocaleDateString()}`}
+              variant="outlined"
               sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                mb: { xs: 2, sm: 3 },
-              }}
-            >
-              <Share
-                sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
-              />
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                }}
-              >
-                Information Sharing
-              </Typography>
-            </Box>
-            <Typography
-              paragraph
-              sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.875rem", sm: "1rem" },
-              }}
-            >
-              We only share data with:
-            </Typography>
-            <List>
-              <ListItem>
-                <ListItemText
-                  primary="Trusted Service Providers"
-                  secondary="Cloud storage, analytics, and payment processors with strict confidentiality agreements"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemText
-                  primary="Legal Requirements"
-                  secondary="When required by law or to protect our rights and users' safety"
-                />
-              </ListItem>
-              <ListItem>
-                <ListItemText
-                  primary="Business Transfers"
-                  secondary="In case of merger/acquisition, with privacy protections maintained"
-                />
-              </ListItem>
-            </List>
-          </Card>
-
-          {/* Your Rights */}
-          <Card id="rights" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                mb: { xs: 2, sm: 3 },
-              }}
-            >
-              <Lock
-                sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
-              />
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 700,
-                  fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                }}
-              >
-                Your Rights
-              </Typography>
-            </Box>
-            <List>
-              <ListItem>
-                <ListItemText primary="• Access and download your personal data" />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary="• Request correction of inaccurate information" />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary="• Delete non-essential account data" />
-              </ListItem>
-              <ListItem>
-                <ListItemText primary="• Opt-out of non-essential cookies and tracking" />
-              </ListItem>
-            </List>
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 2,
-                color: "text.secondary",
+                mb: 3,
+                color: "white",
+                borderColor: "rgba(255,255,255,0.3)",
                 fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 },
               }}
-            >
-              Submit requests via our Data Protection Portal (available in
-              account settings) or email privacy@shopfinder.ai
-            </Typography>
-          </Card>
+            />
+          </Box>
 
-          {/* Contact Us */}
-          <Card id="contact" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                mb: { xs: 2, sm: 3 },
-              }}
-            >
-              <ContactMail
-                sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
-              />
+          <Box
+            sx={{
+              display: "flex",
+              gap: { xs: 2, sm: 4 },
+              flexDirection: "column",
+            }}
+          >
+            {/* Introduction */}
+            <Card sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                Introduction
+              </Typography>
               <Typography
-                variant="h5"
+                paragraph
                 sx={{
-                  fontWeight: 700,
-                  fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  color: "text.secondary",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
                 }}
               >
-                Contact Us
+                At ShopFinder, we prioritize your privacy. This policy outlines
+                how we collect, use, and protect your information through our
+                AI-powered retail discovery platform. By using our services, you
+                agree to the practices described below.
               </Typography>
-            </Box>
-            <Typography
-              paragraph
-              sx={{
-                color: "text.secondary",
-                fontSize: { xs: "0.875rem", sm: "1rem" },
-              }}
-            >
-              For privacy concerns or data requests:
-            </Typography>
-            <List>
-              <ListItem>
-                <ListItemText
-                  primary="Email"
-                  secondary={
-                    <Link href="mailto:privacy@shopfinder.ai">
-                      privacy@shopfinder.ai
-                    </Link>
-                  }
+            </Card>
+
+            {/* Information Collection */}
+            <Card id="collection" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: { xs: 2, sm: 3 },
+                }}
+              >
+                <DataUsage
+                  sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
                 />
-              </ListItem>
-              <ListItem>
-                <ListItemText
-                  primary="Mail"
-                  secondary="Data Protection Officer, ShopFinder Ltd., 123 Innovation Drive, Tech Valley, CA 94016"
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  }}
+                >
+                  Information Collection
+                </Typography>
+              </Box>
+              <List>
+                <ListItem>
+                  <ListItemIcon>
+                    <Cookie />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Automated Collection"
+                    secondary="Device information, IP address, browser type, usage patterns through cookies and ML analytics"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <CheckCircle />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="User-Provided Data"
+                    secondary="Account details, search preferences, review feedback, and prediction corrections"
+                  />
+                </ListItem>
+              </List>
+            </Card>
+
+            {/* Use of Information */}
+            <Card id="usage" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: { xs: 2, sm: 3 },
+                }}
+              >
+                <Policy
+                  sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
                 />
-              </ListItem>
-            </List>
-            <Typography
-              variant="body2"
-              sx={{
-                mt: 2,
-                color: "text.secondary",
-                fontSize: { xs: "0.75rem", sm: "0.875rem" },
-              }}
-            >
-              We respond within 72 hours to all verified requests
-            </Typography>
-          </Card>
-        </Box>
-      </Container>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  }}
+                >
+                  Use of Information
+                </Typography>
+              </Box>
+              <Typography
+                paragraph
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                }}
+              >
+                We utilize collected data to:
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemText primary="• Train and improve our ML models for review authenticity detection" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="• Personalize retail recommendations and quality predictions" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="• Enhance XAI (Explainable AI) transparency features" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="• Monitor system security and prevent fraudulent activities" />
+                </ListItem>
+              </List>
+            </Card>
+
+            {/* Information Sharing */}
+            <Card id="sharing" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: { xs: 2, sm: 3 },
+                }}
+              >
+                <Share
+                  sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
+                />
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  }}
+                >
+                  Information Sharing
+                </Typography>
+              </Box>
+              <Typography
+                paragraph
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                }}
+              >
+                We only share data with:
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemText
+                    primary="Trusted Service Providers"
+                    secondary="Cloud storage, analytics, and payment processors with strict confidentiality agreements"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Legal Requirements"
+                    secondary="When required by law or to protect our rights and users' safety"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Business Transfers"
+                    secondary="In case of merger/acquisition, with privacy protections maintained"
+                  />
+                </ListItem>
+              </List>
+            </Card>
+
+            {/* Your Rights */}
+            <Card id="rights" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: { xs: 2, sm: 3 },
+                }}
+              >
+                <Lock
+                  sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
+                />
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  }}
+                >
+                  Your Rights
+                </Typography>
+              </Box>
+              <List>
+                <ListItem>
+                  <ListItemText primary="• Access and download your personal data" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="• Request correction of inaccurate information" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="• Delete non-essential account data" />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="• Opt-out of non-essential cookies and tracking" />
+                </ListItem>
+              </List>
+              <Typography
+                variant="body2"
+                sx={{
+                  mt: 2,
+                  color: "text.secondary",
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                }}
+              >
+                Submit requests via our Data Protection Portal (available in
+                account settings) or email privacy@shopfinder.ai
+              </Typography>
+            </Card>
+
+            {/* Contact Us */}
+            <Card id="contact" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  mb: { xs: 2, sm: 3 },
+                }}
+              >
+                <ContactMail
+                  sx={{ color: "primary.main", fontSize: { xs: 30, sm: 40 } }}
+                />
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                  }}
+                >
+                  Contact Us
+                </Typography>
+              </Box>
+              <Typography
+                paragraph
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.875rem", sm: "1rem" },
+                }}
+              >
+                For privacy concerns or data requests:
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemText
+                    primary="Email"
+                    secondary={
+                      <Link href="mailto:privacy@shopfinder.ai">
+                        privacy@shopfinder.ai
+                      </Link>
+                    }
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Mail"
+                    secondary="Data Protection Officer, ShopFinder Ltd., 123 Innovation Drive, Tech Valley, CA 94016"
+                  />
+                </ListItem>
+              </List>
+              <Typography
+                variant="body2"
+                sx={{
+                  mt: 2,
+                  color: "text.secondary",
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                }}
+              >
+                We respond within 72 hours to all verified requests
+              </Typography>
+            </Card>
+          </Box>
+        </Container>
+      </Box>
     </React.Fragment>
   );
 };

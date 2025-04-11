@@ -19,6 +19,7 @@ import ForgotPassword from "./components/pages/ForgotPassword/ForgotPassword";
 import PrivacyPolicy from "./components/pages/PrivacyPolicy/PrivacyPolicy";
 import TermsOfService from "./components/pages/TermsOfService/TermsOfService";
 import TokenChecker from "./components/reUse/TokenChecker/TokenChecker";
+import AboutPage from "./components/pages/AboutPage/AboutPage";
 
 const ScrollTop = () => {
   const theme = useTheme();
@@ -86,6 +87,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/about" element={<AboutPage />} />
             </Routes>
           </Container>
         </Box>

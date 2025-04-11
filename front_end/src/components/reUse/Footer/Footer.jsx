@@ -38,9 +38,20 @@ const Footer = () => {
 
           <Grid item xs={12} md={4}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Legal
+              Company
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Link
+                component={RouterLink}
+                to="/about"
+                sx={{
+                  color: "inherit",
+                  textDecoration: "none",
+                  "&:hover": { textDecoration: "underline" },
+                }}
+              >
+                About Us
+              </Link>
               <Link
                 component={RouterLink}
                 to="/privacy"

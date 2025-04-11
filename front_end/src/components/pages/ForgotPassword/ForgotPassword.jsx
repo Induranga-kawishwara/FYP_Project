@@ -108,7 +108,15 @@ function ForgotPassword() {
           </Typography>
         </Box>
 
-        <Box component="form" onSubmit={handleReset} sx={{ gap: 3 }}>
+        <Box
+          component="form"
+          onSubmit={handleReset}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: { xs: 2, md: 3 },
+          }}
+        >
           <TextField
             fullWidth
             variant="outlined"
@@ -123,8 +131,12 @@ function ForgotPassword() {
               ),
               sx: {
                 borderRadius: 2,
-                "&:hover fieldset": { borderColor: "primary.light" },
-                "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                "&:hover fieldset": {
+                  borderColor: theme.palette.primary.light,
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: theme.palette.primary.main,
+                },
               },
             }}
             required

@@ -20,7 +20,7 @@ import {
 } from "@mui/icons-material";
 import { NavLink, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import useToken from "../../../hooks/useToken/useToken.js"; // adjust the path as needed
+import useToken from "../../../hooks/useToken/useToken.js";
 
 const Navbar = () => {
   const theme = useTheme();
@@ -28,7 +28,6 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
-  // Use our custom hook to get the latest token from cookies.
   const token = useToken();
 
   const navItems = [
@@ -42,7 +41,6 @@ const Navbar = () => {
 
   const handleLogout = () => {
     Cookies.remove("idToken");
-    // No need to manually update token state; useToken hook will detect change.
     navigate("/login");
   };
 
@@ -79,7 +77,6 @@ const Navbar = () => {
             </Typography>
           </Box>
 
-          {/* Navigation Items */}
           {isMobile ? (
             <>
               <IconButton onClick={handleMenuOpen}>

@@ -6,6 +6,18 @@ from utils import User
 logger = logging.getLogger(__name__)
 profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
 
+def get_uid_and_provider(token):
+
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        uid = decoded_token.get("uid")
+        # The sign_in_provider is stored in the nested "firebase" dictionary of the decoded token.
+        sign_in_provider = decoded_token.get("firebase", {}).get("sign_in_provider", "").lower()
+        return uid, sign_in_provider
+    except Exception as e:
+        logger.error(f"Token verification error: {str(e)}")
+        return None, None
+
 @profile_bp.route("/data", methods=["POST"])
 def get_profile():
     data = request.json
@@ -13,18 +25,15 @@ def get_profile():
     if not token:
         return jsonify({"error": "Token is missing"}), 400
 
-    try:
-        decoded_token = firebase_auth.verify_id_token(token)
-        uid = decoded_token.get("uid")
-        sign_in_provider = decoded_token.get("firebase", {}).get("sign_in_provider", "").lower()
-    except Exception as e:
-        logger.error(f"Token verification error: {str(e)}")
+    uid, sign_in_provider = get_uid_and_provider(token)
+    if not uid:
         return jsonify({"error": "Invalid token"}), 401
 
     # Retrieve the user from MongoDB using the Firebase UID.
     user = User.objects(firebase_uid=uid).first()
-    
 
+    # For social login users who don't have additional MongoDB data,
+    # return minimal info.
     if not user and sign_in_provider in ["google.com", "github.com"]:
         user_data = {
             "login_provider": sign_in_provider,
@@ -45,6 +54,7 @@ def get_profile():
         first_name = full_name
         surname = ""
 
+    # Prefer the token's sign_in_provider if present
     login_provider = sign_in_provider if sign_in_provider else getattr(user, "login_provider", "").lower()
 
     user_data = {
@@ -59,29 +69,22 @@ def get_profile():
 
     return jsonify({"user": user_data}), 200
 
-
-
-
 @profile_bp.route("/update", methods=["PUT"])
 def update_profile():
-
     data = request.json
     token = data.get("id_token")
     if not token:
         return jsonify({"error": "Token is missing"}), 400
 
-    try:
-        decoded_token = firebase_auth.verify_id_token(token)
-        uid = decoded_token.get("uid")
-    except Exception as e:
-        logger.error(f"Token verification error: {str(e)}")
+    uid, _ = get_uid_and_provider(token)
+    if not uid:
         return jsonify({"error": "Invalid token"}), 401
 
     user = User.objects(firebase_uid=uid).first()
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Expecting update data from the request
+    # Retrieve update data from the request.
     first_name = data.get("first_name", "").strip()
     surname = data.get("surname", "").strip()
     email = data.get("email", "").strip()
@@ -89,28 +92,27 @@ def update_profile():
     new_password = data.get("new_password", "")
 
     full_name = first_name + (" " + surname if surname else "")
-
-    # If the user logged in via a social provider, you might disallow changing email/password.
     login_provider = getattr(user, "login_provider", "").lower()
-    try:
-        if login_provider not in ["google", "github"]:
-            update_kwargs = {}
-            if email and email != user.email:
-                update_kwargs['email'] = email
-            if full_name and full_name != user.username:
-                update_kwargs['display_name'] = full_name
-            if phone and phone != user.phone:
-                update_kwargs['phone_number'] = phone
-            if new_password:
-                update_kwargs['password'] = new_password
 
-            if update_kwargs:
+    # Update Firebase only if the user is not a social login.
+    if login_provider not in ["google", "github", "google.com", "github.com"]:
+        update_kwargs = {}
+        if email and email != user.email:
+            update_kwargs['email'] = email
+        if full_name and full_name != user.username:
+            update_kwargs['display_name'] = full_name
+        if phone and phone != user.phone:
+            update_kwargs['phone_number'] = phone
+        if new_password:
+            update_kwargs['password'] = new_password
+        if update_kwargs:
+            try:
                 firebase_auth.update_user(uid, **update_kwargs)
-    except Exception as e:
-        logger.error(f"Error updating Firebase user: {str(e)}")
-        return jsonify({"error": "Failed to update Firebase user"}), 400
+            except Exception as e:
+                logger.error(f"Error updating Firebase user: {str(e)}")
+                return jsonify({"error": "Failed to update Firebase user"}), 400
 
-    # Update MongoDB record
+    # Update MongoDB record.
     if email:
         user.email = email
     if full_name:
@@ -121,20 +123,15 @@ def update_profile():
 
     return jsonify({"message": "Profile updated successfully"}), 200
 
-
 @profile_bp.route("/delete", methods=["DELETE"])
 def delete_account():
-
     data = request.json
     token = data.get("id_token")
     if not token:
         return jsonify({"error": "Token is missing"}), 400
 
-    try:
-        decoded_token = firebase_auth.verify_id_token(token)
-        uid = decoded_token.get("uid")
-    except Exception as e:
-        logger.error(f"Token verification error: {str(e)}")
+    uid, _ = get_uid_and_provider(token)
+    if not uid:
         return jsonify({"error": "Invalid token"}), 401
 
     try:

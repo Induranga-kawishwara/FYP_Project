@@ -218,6 +218,7 @@ function ShopFinder() {
               variant="h2"
               component="h1"
               sx={{
+                fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
                 fontWeight: 900,
                 background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                 WebkitBackgroundClip: "text",
@@ -239,6 +240,7 @@ function ShopFinder() {
             >
               Discover Local Shops
             </Typography>
+
             <Typography
               variant="h6"
               color="text.secondary"

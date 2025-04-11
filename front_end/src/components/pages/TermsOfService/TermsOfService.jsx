@@ -11,6 +11,7 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Gavel,
@@ -121,10 +122,69 @@ const sections = [
 
 const TermsOfService = () => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   return (
     <React.Fragment>
       <div id="back-to-top-anchor" />
+
+      {/* Mobile Floating TOC */}
+      {isMobile && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            bgcolor: "background.paper",
+            borderTop: `1px solid ${theme.palette.divider}`,
+            zIndex: 1000,
+            p: 1,
+            display: "flex",
+            overflowX: "auto",
+            "&::-webkit-scrollbar": { display: "none" },
+            boxShadow: 3,
+          }}
+        >
+          {sections.map((section) => (
+            <Link
+              key={section.id}
+              href={`#${section.id}`}
+              underline="none"
+              sx={{ minWidth: 120, mx: 0.5, flexShrink: 0 }}
+            >
+              <Chip
+                icon={React.cloneElement(section.icon, {
+                  sx: { color: "primary.main" },
+                })}
+                label={section.title}
+                sx={{
+                  borderRadius: 2,
+                  "& .MuiChip-label": {
+                    fontSize: "0.75rem",
+                    whiteSpace: "nowrap",
+                  },
+                  bgcolor: "background.default",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              />
+            </Link>
+          ))}
+          <Link href="#contact" sx={{ minWidth: 120, mx: 0.5, flexShrink: 0 }}>
+            <Chip
+              icon={<Mail sx={{ color: "primary.main" }} />}
+              label="Contact"
+              sx={{
+                borderRadius: 2,
+                "& .MuiChip-label": { fontSize: "0.75rem" },
+                bgcolor: "background.default",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
+            />
+          </Link>
+        </Box>
+      )}
+
       <Box
         sx={{
           display: "flex",
@@ -134,26 +194,54 @@ const TermsOfService = () => {
           px: { xs: 2, sm: 4 },
           maxWidth: "lg",
           margin: "0 auto",
+          pb: { xs: 10, md: 0 },
         }}
       >
-        {/* Table of Contents */}
-        <Box sx={{ width: { xs: "100%", md: 240 }, flexShrink: 0 }}>
-          <Card
-            sx={{
-              p: { xs: 2, md: 3 },
-              position: "sticky",
-              top: 100,
-              borderRadius: 2,
-              boxShadow: theme.shadows[2],
-            }}
-          >
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Contents
-            </Typography>
-            {sections.map((section) => (
+        {/* Desktop TOC */}
+        {!isMobile && (
+          <Box sx={{ width: 240, flexShrink: 0 }}>
+            <Card
+              sx={{
+                p: 3,
+                position: "sticky",
+                top: 100,
+                borderRadius: 2,
+                boxShadow: theme.shadows[2],
+              }}
+            >
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                Contents
+              </Typography>
+              {sections.map((section) => (
+                <Link
+                  key={section.id}
+                  href={`#${section.id}`}
+                  underline="none"
+                  color="text.primary"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    py: 1,
+                    px: 2,
+                    mb: 1,
+                    borderRadius: 1,
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                      transform: "translateX(4px)",
+                    },
+                    fontSize: "1rem",
+                  }}
+                >
+                  <Box sx={{ color: "primary.main", mr: 1.5 }}>
+                    {section.icon}
+                  </Box>
+                  {section.title}
+                </Link>
+              ))}
+              <Divider sx={{ my: 2 }} />
               <Link
-                key={section.id}
-                href={`#${section.id}`}
+                href="#contact"
                 underline="none"
                 color="text.primary"
                 sx={{
@@ -161,46 +249,21 @@ const TermsOfService = () => {
                   alignItems: "center",
                   py: 1,
                   px: 2,
-                  mb: 1,
                   borderRadius: 1,
                   transition: "all 0.2s",
                   "&:hover": {
                     bgcolor: "action.hover",
                     transform: "translateX(4px)",
                   },
-                  fontSize: { xs: "0.875rem", md: "1rem" },
+                  fontSize: "1rem",
                 }}
               >
-                <Box sx={{ color: "primary.main", mr: 1.5 }}>
-                  {section.icon}
-                </Box>
-                {section.title}
+                <Mail sx={{ color: "primary.main", mr: 1.5 }} />
+                Contact Us
               </Link>
-            ))}
-            <Divider sx={{ my: 2 }} />
-            <Link
-              href="#contact"
-              underline="none"
-              color="text.primary"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                py: 1,
-                px: 2,
-                borderRadius: 1,
-                transition: "all 0.2s",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  transform: "translateX(4px)",
-                },
-                fontSize: { xs: "0.875rem", md: "1rem" },
-              }}
-            >
-              <Mail sx={{ color: "primary.main", mr: 1.5 }} />
-              Contact Us
-            </Link>
-          </Card>
-        </Box>
+            </Card>
+          </Box>
+        )}
 
         {/* Main Content */}
         <Container
@@ -299,7 +362,15 @@ const TermsOfService = () => {
                       <ListItemText
                         primary={item.primary}
                         secondary={item.secondary}
-                        sx={{ "& .MuiListItemText-secondary": { mt: 0.5 } }}
+                        sx={{
+                          "& .MuiListItemText-secondary": {
+                            mt: 0.5,
+                            fontSize: { xs: "0.875rem", sm: "1rem" },
+                          },
+                          "& .MuiListItemText-primary": {
+                            fontSize: { xs: "1rem", sm: "1.1rem" },
+                          },
+                        }}
                       />
                     </ListItem>
                   ))}
@@ -341,6 +412,9 @@ const TermsOfService = () => {
               </Typography>
               <List>
                 <ListItem>
+                  <ListItemIcon>
+                    <Description color="primary" />
+                  </ListItemIcon>
                   <ListItemText
                     primary="Technical Documentation"
                     secondary={
@@ -351,6 +425,9 @@ const TermsOfService = () => {
                   />
                 </ListItem>
                 <ListItem>
+                  <ListItemIcon>
+                    <Mail color="primary" />
+                  </ListItemIcon>
                   <ListItemText
                     primary="Email Support"
                     secondary={

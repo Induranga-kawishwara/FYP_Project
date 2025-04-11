@@ -84,7 +84,8 @@ function Profile() {
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    isGoogleUser: false,
+    isSocialUser: false,
+    login_provider: "",
   });
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -106,6 +107,7 @@ function Profile() {
             email: user.email || "",
             phoneNumber: user.phone || "",
             isSocialUser: user.is_social_user,
+            login_provider: user.login_provider || "",
             password: "",
             confirmPassword: "",
           });
@@ -144,6 +146,8 @@ function Profile() {
         "success"
       );
       setTimeout(() => {
+        Cookies.remove("idToken");
+
         navigate("/login");
       }, 1500);
     } catch (error) {
@@ -155,14 +159,14 @@ function Profile() {
   const handleDeleteAccount = async () => {
     try {
       const token = Cookies.get("idToken");
-      // Send DELETE request with token in the request body (using "data" key)
       await axios.delete("http://127.0.0.1:5000/profile/delete", {
-        data: {
-          id_token: token,
-        },
+        data: { id_token: token },
       });
       showSnackbar("Account Deleted Successfully!", "success");
+
       setTimeout(() => {
+        Cookies.remove("idToken");
+
         navigate("/login");
       }, 1500);
     } catch (error) {
@@ -216,125 +220,128 @@ function Profile() {
           </Typography>
         </Box>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <ProfileTextField
-              fullWidth
-              label="firstName"
-              value={userData.firstName}
-              onChange={(e) =>
-                setUserData({ ...userData, firstName: e.target.value })
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonOutline sx={{ color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={userData.isGoogleUser}
-            />
+        {!userData.isSocialUser ? (
+          // For non-social login users, show editable form fields.
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <ProfileTextField
+                fullWidth
+                label="First Name"
+                value={userData.firstName}
+                onChange={(e) =>
+                  setUserData({ ...userData, firstName: e.target.value })
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonOutline sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <ProfileTextField
+                fullWidth
+                label="Surname"
+                value={userData.surname}
+                onChange={(e) =>
+                  setUserData({ ...userData, surname: e.target.value })
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonOutline sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <ProfileTextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={userData.email}
+                onChange={(e) =>
+                  setUserData({ ...userData, email: e.target.value })
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailOutlined sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <ProfileTextField
+                fullWidth
+                label="Phone Number"
+                value={userData.phoneNumber}
+                onChange={(e) =>
+                  setUserData({ ...userData, phoneNumber: e.target.value })
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PhoneOutlined sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            {/* Show password fields only if not social login */}
+            <Grid item xs={12} md={6}>
+              <ProfileTextField
+                fullWidth
+                label="New Password"
+                type="password"
+                value={userData.password}
+                onChange={(e) =>
+                  setUserData({ ...userData, password: e.target.value })
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlined sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <ProfileTextField
+                fullWidth
+                label="Confirm Password"
+                type="password"
+                value={userData.confirmPassword}
+                onChange={(e) =>
+                  setUserData({ ...userData, confirmPassword: e.target.value })
+                }
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlined sx={{ color: "text.secondary" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
           </Grid>
-          <Grid item xs={12} md={6}>
-            <ProfileTextField
-              fullWidth
-              label="Surname"
-              value={userData.surname}
-              onChange={(e) =>
-                setUserData({ ...userData, surname: e.target.value })
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PersonOutline sx={{ color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={userData.isGoogleUser}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <ProfileTextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={userData.email}
-              onChange={(e) =>
-                setUserData({ ...userData, email: e.target.value })
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailOutlined sx={{ color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={userData.isGoogleUser} // Disable email change for Google users
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <ProfileTextField
-              fullWidth
-              label="Phone Number"
-              value={userData.phoneNumber}
-              onChange={(e) =>
-                setUserData({ ...userData, phoneNumber: e.target.value })
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <PhoneOutlined sx={{ color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
-              }}
-              disabled={userData.isGoogleUser}
-            />
-          </Grid>
-          {/* For Google users, you might choose not to show password fields */}
-          {!userData.isGoogleUser && (
-            <>
-              <Grid item xs={12} md={6}>
-                <ProfileTextField
-                  fullWidth
-                  label="New Password"
-                  type="password"
-                  value={userData.password}
-                  onChange={(e) =>
-                    setUserData({ ...userData, password: e.target.value })
-                  }
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LockOutlined sx={{ color: "text.secondary" }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <ProfileTextField
-                  fullWidth
-                  label="Confirm Password"
-                  type="password"
-                  value={userData.confirmPassword}
-                  onChange={(e) =>
-                    setUserData({
-                      ...userData,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LockOutlined sx={{ color: "text.secondary" }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-            </>
-          )}
-        </Grid>
+        ) : (
+          // For social login users, display the service provider and a message.
+          <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Typography variant="h5">
+              You are signed in via{" "}
+              {userData.login_provider || "Social Provider"}
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 1, color: "text.secondary" }}>
+              No additional profile details are available.
+            </Typography>
+          </Box>
+        )}
 
         <Box
           sx={{
@@ -344,26 +351,27 @@ function Profile() {
             flexWrap: "wrap",
           }}
         >
-          <Button
-            variant="contained"
-            onClick={handleUpdateProfile}
-            startIcon={<Edit />}
-            sx={{
-              flex: 1,
-              px: { xs: 4, md: 6 },
-              py: { xs: 1, md: 1.5 },
-              borderRadius: 3,
-              background: `linear-gradient(45deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              "&:hover": {
-                transform: "translateY(-2px)",
-                boxShadow: theme.shadows[6],
-              },
-              transition: "all 0.3s ease",
-            }}
-            disabled={userData.isGoogleUser} // Optionally disable update for Google users
-          >
-            Update Profile
-          </Button>
+          {!userData.isSocialUser && (
+            <Button
+              variant="contained"
+              onClick={handleUpdateProfile}
+              startIcon={<Edit />}
+              sx={{
+                flex: 1,
+                px: { xs: 4, md: 6 },
+                py: { xs: 1, md: 1.5 },
+                borderRadius: 3,
+                background: `linear-gradient(45deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: theme.shadows[6],
+                },
+                transition: "all 0.3s ease",
+              }}
+            >
+              Update Profile
+            </Button>
+          )}
           <Button
             variant="outlined"
             onClick={() => setDeleteDialogOpen(true)}

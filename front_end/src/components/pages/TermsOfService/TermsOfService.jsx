@@ -138,7 +138,7 @@ const TermsOfService = () => {
           sx={{
             fontWeight: 800,
             letterSpacing: 1,
-            fontSize: { xs: "1.5rem", md: "2.5rem" },
+            fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
           }}
         >
           ShopFinder Terms of Service

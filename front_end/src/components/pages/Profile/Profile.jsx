@@ -5,264 +5,297 @@ import {
   TextField,
   Button,
   Typography,
-  Paper,
   Box,
   Snackbar,
   Alert,
   InputAdornment,
-  IconButton,
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  useTheme,
+  styled,
+  Paper,
 } from "@mui/material";
 import {
   PersonOutline,
   EmailOutlined,
   LockOutlined,
   PhoneOutlined,
+  DeleteForever,
+  Security,
+  Edit,
+  CheckCircle,
+  Error,
 } from "@mui/icons-material";
+import { alpha } from "@mui/material/styles";
+import { useNavigate } from "react-router-dom";
+
+const GradientPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(4),
+  borderRadius: theme.shape.borderRadius * 3,
+  background: `linear-gradient(145deg, ${
+    theme.palette.background.default
+  } 0%, ${alpha(theme.palette.primary.light, 0.1)} 100%)`,
+  backdropFilter: "blur(10px)",
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  boxShadow: theme.shadows[10],
+  position: "relative",
+  overflow: "hidden",
+  "&:before": {
+    content: '""',
+    position: "absolute",
+    top: -50,
+    right: -50,
+    width: 100,
+    height: 100,
+    borderRadius: "50%",
+    background: `radial-gradient(${alpha(
+      theme.palette.primary.main,
+      0.2
+    )} 0%, transparent 70%)`,
+  },
+}));
+
+const ProfileTextField = styled(TextField)(({ theme }) => ({
+  marginBottom: theme.spacing(3),
+  "& .MuiOutlinedInput-root": {
+    borderRadius: 12,
+    transition: "all 0.3s ease",
+    "&:hover fieldset": {
+      borderColor: theme.palette.primary.light,
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: theme.palette.primary.main,
+      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
+    },
+  },
+}));
 
 function Profile() {
-  const [username, setUsername] = useState("John Doe");
-  const [surname, setSurname] = useState("Doe");
-  const [email, setEmail] = useState("johndoe@example.com");
-  const [phoneNumber, setPhoneNumber] = useState("123-456-7890");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const theme = useTheme();
+  const navigate = useNavigate();
+  const [userData, setUserData] = useState({
+    username: "John Doe",
+    surname: "Doe",
+    email: "johndoe@example.com",
+    phoneNumber: "123-456-7890",
+    password: "",
+    confirmPassword: "",
+  });
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  // Handle profile update
   const handleUpdateProfile = async () => {
-    if (password !== confirmPassword) {
-      setSnackbarMessage("Passwords do not match.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+    if (userData.password !== userData.confirmPassword) {
+      showSnackbar("Passwords do not match.", "error");
       return;
     }
 
     try {
-      // Simulate API call
+      // Simulating a profile update API call
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      setSnackbarMessage("Profile Updated Successfully!");
-      setSnackbarSeverity("success");
-      setSnackbarOpen(true);
+      showSnackbar("Profile Updated Successfully!", "success");
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
     } catch (error) {
-      setSnackbarMessage("Failed to Update Profile.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
+      showSnackbar("Failed to Update Profile.", "error");
     }
   };
 
-  // Handle account deletion
   const handleDeleteAccount = async () => {
-    if (window.confirm("Are you sure you want to delete your account?")) {
-      try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setSnackbarMessage("Account Deleted Successfully!");
-        setSnackbarSeverity("success");
-        setSnackbarOpen(true);
-      } catch (error) {
-        setSnackbarMessage("Failed to Delete Account.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
-      }
+    try {
+      // Simulating an account deletion API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      showSnackbar("Account Deleted Successfully!", "success");
+      // Wait 1.5 seconds before navigating so the snackbar is visible
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
+    } catch (error) {
+      showSnackbar("Failed to Delete Account.", "error");
     }
+    setDeleteDialogOpen(false);
   };
 
-  // Close Snackbar
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
+  const showSnackbar = (message, severity) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper
-        elevation={6}
-        sx={{
-          mt: 8,
-          p: 4,
-          borderRadius: 4,
-          background: "linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%)",
-        }}
-      >
-        <Typography
-          variant="h4"
-          align="center"
-          sx={{ mb: 4, fontWeight: "bold", color: "primary.main" }}
-        >
-          User Profile
-        </Typography>
+    <Container maxWidth="md" sx={{ mt: 8, py: 4 }}>
+      <GradientPaper elevation={0}>
+        <Box sx={{ textAlign: "center", mb: 6 }}>
+          <Security
+            sx={{
+              fontSize: 60,
+              color: "primary.main",
+              bgcolor: alpha(theme.palette.primary.light, 0.1),
+              p: 2,
+              borderRadius: "50%",
+              mb: 3,
+              boxShadow: 3,
+            }}
+          />
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: "-0.5px",
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Account Settings
+          </Typography>
+        </Box>
 
-        {/* Username Field */}
-        <TextField
-          fullWidth
-          label="Username"
-          variant="outlined"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <PersonOutline color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 3,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <ProfileTextField
+              fullWidth
+              label="Username"
+              value={userData.username}
+              onChange={(e) =>
+                setUserData({ ...userData, username: e.target.value })
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonOutline sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ProfileTextField
+              fullWidth
+              label="Surname"
+              value={userData.surname}
+              onChange={(e) =>
+                setUserData({ ...userData, surname: e.target.value })
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonOutline sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ProfileTextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={userData.email}
+              onChange={(e) =>
+                setUserData({ ...userData, email: e.target.value })
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EmailOutlined sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ProfileTextField
+              fullWidth
+              label="Phone Number"
+              value={userData.phoneNumber}
+              onChange={(e) =>
+                setUserData({ ...userData, phoneNumber: e.target.value })
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PhoneOutlined sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ProfileTextField
+              fullWidth
+              label="New Password"
+              type="password"
+              value={userData.password}
+              onChange={(e) =>
+                setUserData({ ...userData, password: e.target.value })
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockOutlined sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <ProfileTextField
+              fullWidth
+              label="Confirm Password"
+              type="password"
+              value={userData.confirmPassword}
+              onChange={(e) =>
+                setUserData({ ...userData, confirmPassword: e.target.value })
+              }
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockOutlined sx={{ color: "text.secondary" }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+        </Grid>
 
-        {/* Surname Field */}
-        <TextField
-          fullWidth
-          label="Surname"
-          variant="outlined"
-          value={surname}
-          onChange={(e) => setSurname(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <PersonOutline color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 3,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
-
-        {/* Email Field */}
-        <TextField
-          fullWidth
-          label="Email"
-          variant="outlined"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <EmailOutlined color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 3,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
-
-        {/* Phone Number Field */}
-        <TextField
-          fullWidth
-          label="Phone Number"
-          variant="outlined"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <PhoneOutlined color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 3,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
-
-        {/* Password Field */}
-        <TextField
-          fullWidth
-          label="New Password"
-          variant="outlined"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <LockOutlined color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 3,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
-
-        {/* Confirm Password Field */}
-        <TextField
-          fullWidth
-          label="Confirm Password"
-          variant="outlined"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <LockOutlined color="action" />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            mb: 4,
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 2,
-            },
-          }}
-        />
-
-        {/* Buttons */}
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: 3, mt: 4, flexWrap: "wrap" }}>
           <Button
-            fullWidth
             variant="contained"
             onClick={handleUpdateProfile}
+            startIcon={<Edit />}
             sx={{
+              px: 6,
               py: 1.5,
-              borderRadius: 2,
-              fontSize: 16,
-              fontWeight: "bold",
-              textTransform: "none",
-              transition: "transform 0.2s",
+              borderRadius: 3,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
               "&:hover": {
                 transform: "translateY(-2px)",
+                boxShadow: theme.shadows[6],
               },
+              transition: "all 0.3s ease",
             }}
           >
             Update Profile
           </Button>
           <Button
-            fullWidth
             variant="outlined"
-            onClick={handleDeleteAccount}
+            onClick={() => setDeleteDialogOpen(true)}
+            startIcon={<DeleteForever />}
             sx={{
+              px: 6,
               py: 1.5,
-              borderRadius: 2,
-              fontSize: 16,
-              fontWeight: "bold",
-              textTransform: "none",
+              borderRadius: 3,
               borderColor: "error.main",
               color: "error.main",
-              transition: "transform 0.2s",
               "&:hover": {
-                transform: "translateY(-2px)",
+                backgroundColor: "error.lighter",
                 borderColor: "error.dark",
                 color: "error.dark",
               },
@@ -271,20 +304,64 @@ function Profile() {
             Delete Account
           </Button>
         </Box>
-      </Paper>
+      </GradientPaper>
 
-      {/* Snackbar for Notifications */}
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: theme.palette.background.paper,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          <DeleteForever sx={{ mr: 1, color: "error.main" }} />
+          Confirm Account Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to permanently delete your account? This
+            action cannot be undone and will remove all your data from our
+            servers.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleDeleteAccount}
+            variant="contained"
+            color="error"
+            sx={{ borderRadius: 2 }}
+          >
+            Confirm Deletion
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert
-          onClose={handleCloseSnackbar}
           severity={snackbarSeverity}
-          sx={{ width: "100%" }}
+          sx={{
+            borderRadius: 3,
+            boxShadow: theme.shadows[6],
+            alignItems: "center",
+          }}
+          icon={false}
         >
+          {snackbarSeverity === "success" ? (
+            <CheckCircle sx={{ color: "success.main", mr: 1 }} />
+          ) : (
+            <Error sx={{ color: "error.main", mr: 1 }} />
+          )}
           {snackbarMessage}
         </Alert>
       </Snackbar>

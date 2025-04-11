@@ -51,6 +51,7 @@ const Navbar = () => {
                 background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                fontSize: { xs: "0.8rem", sm: "1.3rem", md: "2rem" },
               }}
             >
               <NavLink

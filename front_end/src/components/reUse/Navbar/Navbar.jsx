@@ -18,7 +18,7 @@ import {
   Person,
   Lock,
 } from "@mui/icons-material";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 const Navbar = () => {
   const theme = useTheme();
@@ -53,9 +53,15 @@ const Navbar = () => {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
+              <NavLink
+                to="/"
+                style={{
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
+              >
                 ShopFinder
-              </Link>
+              </NavLink>
             </Typography>
           </Box>
 
@@ -72,7 +78,7 @@ const Navbar = () => {
                 {navItems.map((item) => (
                   <MenuItem
                     key={item.name}
-                    component={Link}
+                    component={NavLink}
                     to={item.path}
                     onClick={handleMenuClose}
                   >
@@ -87,7 +93,7 @@ const Navbar = () => {
               {navItems.map((item) => (
                 <Button
                   key={item.name}
-                  component={Link}
+                  component={NavLink}
                   to={item.path}
                   startIcon={item.icon}
                   sx={{

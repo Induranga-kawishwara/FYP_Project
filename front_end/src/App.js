@@ -5,6 +5,7 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
+import { GlobalStyles } from "@mui/material";
 import { Box, Container, useScrollTrigger, Fab, Fade } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { KeyboardArrowUp } from "@mui/icons-material";
@@ -20,7 +21,6 @@ import TermsOfService from "./components/pages/TermsOfService/TermsOfService";
 
 const ScrollTop = () => {
   const theme = useTheme();
-
   const trigger = useScrollTrigger({ threshold: 100 });
 
   const handleClick = () => {
@@ -54,11 +54,19 @@ const ScrollTop = () => {
 function App() {
   return (
     <Router>
+      <GlobalStyles
+        styles={{
+          "@keyframes mui-auto-fill": {
+            from: { display: "flex" },
+            to: { display: "flex" },
+          },
+        }}
+      />
+
       <Box
         sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
       >
         <Navbar />
-
         <Box component="main" sx={{ flexGrow: 1 }}>
           <Container maxWidth="xl" sx={{ py: 4 }}>
             <Routes>
@@ -73,7 +81,6 @@ function App() {
             </Routes>
           </Container>
         </Box>
-
         <Footer />
         <ScrollTop />
       </Box>

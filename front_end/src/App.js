@@ -8,7 +8,6 @@ import {
 import { Box, Container, useScrollTrigger, Fab, Fade } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { KeyboardArrowUp } from "@mui/icons-material";
-import Cookies from "js-cookie";
 import Navbar from "./components/reUse/Navbar/Navbar";
 import Footer from "./components/reUse/Footer/Footer";
 import Login from "./components/pages/LoginPage/Login";
@@ -18,25 +17,7 @@ import ShopFinder from "./components/pages/ShopFinder/ShopFinder";
 import ForgotPassword from "./components/pages/ForgotPassword/ForgotPassword";
 import PrivacyPolicy from "./components/pages/PrivacyPolicy/PrivacyPolicy";
 import TermsOfService from "./components/pages/TermsOfService/TermsOfService";
-
-// RequireAuth component for protecting routes
-function RequireAuth({ children }) {
-  const token = Cookies.get("idToken");
-  // You may add additional token validity checks here
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-  return children;
-}
-
-// PublicRoute component prevents logged-in users from accessing public pages
-function PublicRoute({ children }) {
-  const token = Cookies.get("idToken");
-  if (token) {
-    return <Navigate to="/shopfinder" replace />;
-  }
-  return children;
-}
+import TokenChecker from "./components/reUse/TokenChecker/TokenChecker";
 
 const ScrollTop = () => {
   const theme = useTheme();
@@ -81,36 +62,22 @@ function App() {
           <Container maxWidth="xl" sx={{ py: 4 }}>
             <Routes>
               <Route path="/" element={<Navigate replace to="/shopfinder" />} />
-              <Route
-                path="/signup"
-                element={
-                  <PublicRoute>
-                    <Signup />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <Login />
-                  </PublicRoute>
-                }
-              />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/login" element={<Login />} />
               <Route
                 path="/shopfinder"
                 element={
-                  <RequireAuth>
+                  <TokenChecker>
                     <ShopFinder />
-                  </RequireAuth>
+                  </TokenChecker>
                 }
               />
               <Route
                 path="/profile"
                 element={
-                  <RequireAuth>
+                  <TokenChecker>
                     <Profile />
-                  </RequireAuth>
+                  </TokenChecker>
                 }
               />
               <Route path="/forgot-password" element={<ForgotPassword />} />

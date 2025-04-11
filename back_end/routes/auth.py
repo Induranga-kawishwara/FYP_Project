@@ -11,6 +11,27 @@ import requests
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+
+@auth_bp.route("/verify", methods=["POST"])
+def verify_token():
+    """
+    Accepts a JSON payload with an 'id_token' and verifies it.
+    If valid, returns the decoded UID; if not, returns an error.
+    """
+    data = request.json
+    token = data.get("id_token")
+    if not token:
+        return jsonify({"error": "Token is missing"}), 400
+    
+    try:
+        decoded_token = firebase_auth.verify_id_token(token)
+        uid = decoded_token.get("uid")
+        return jsonify({"valid": True, "uid": uid}), 200
+    except Exception as e:
+        logger.error(f"Token verification error: {str(e)}")
+        return jsonify({"valid": False, "error": str(e)}), 401
+
+
 @auth_bp.route("/signup", methods=["POST"])
 def signup():
     data = request.json

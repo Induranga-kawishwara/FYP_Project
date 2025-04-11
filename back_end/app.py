@@ -15,8 +15,7 @@ if not firebase_admin._apps:
 connect(host=Config.MONGO_DATABASE)
 
 # Import blueprints
-from routes.auth import auth_bp
-from routes.product import product_bp
+from routes import auth_bp , product_bp , profile_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -30,6 +29,8 @@ cache.init_app(app)
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(product_bp)
+app.register_blueprint(profile_bp)
+
 
 @app.route("/")
 def home():

@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
+import Cookies from "js-cookie";
 import {
   Container,
   TextField,
@@ -77,47 +78,99 @@ function Profile() {
   const theme = useTheme();
   const navigate = useNavigate();
   const [userData, setUserData] = useState({
-    username: "John Doe",
-    surname: "Doe",
-    email: "johndoe@example.com",
-    phoneNumber: "123-456-7890",
+    firstName: "",
+    surname: "",
+    email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
+    isGoogleUser: false,
   });
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
+  useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const token = Cookies.get("idToken");
+        const res = await axios.post("http://127.0.0.1:5000/profile/data", {
+          id_token: token,
+        });
+        if (res.data && res.data.user) {
+          const user = res.data.user;
+          setUserData({
+            firstName: user.first_name || "",
+            surname: user.surname || "",
+            email: user.email || "",
+            phoneNumber: user.phone || "",
+            isSocialUser: user.is_social_user,
+            password: "",
+            confirmPassword: "",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        showSnackbar("Unable to load profile data.", "error");
+      }
+    }
+    fetchProfile();
+  }, []);
+
   const handleUpdateProfile = async () => {
     if (userData.password !== userData.confirmPassword) {
       showSnackbar("Passwords do not match.", "error");
       return;
     }
+
     try {
-      // Simulate profile update API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      showSnackbar("Profile Updated Successfully!", "success");
+      const token = Cookies.get("idToken");
+      const payload = {
+        id_token: token,
+        first_name: userData.firstName,
+        surname: userData.surname,
+        email: userData.email,
+        phone: userData.phoneNumber,
+        new_password: userData.password, // Include the new password if provided
+      };
+
+      const response = await axios.put(
+        "http://127.0.0.1:5000/profile/update",
+        payload
+      );
+      showSnackbar(
+        response.data.message || "Profile Updated Successfully!",
+        "success"
+      );
       setTimeout(() => {
         navigate("/login");
       }, 1500);
     } catch (error) {
+      console.error("Error updating profile:", error);
       showSnackbar("Failed to Update Profile.", "error");
     }
   };
 
   const handleDeleteAccount = async () => {
     try {
-      // Simulate account deletion API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const token = Cookies.get("idToken");
+      // Send DELETE request with token in the request body (using "data" key)
+      await axios.delete("http://127.0.0.1:5000/profile/delete", {
+        data: {
+          id_token: token,
+        },
+      });
       showSnackbar("Account Deleted Successfully!", "success");
       setTimeout(() => {
         navigate("/login");
       }, 1500);
     } catch (error) {
+      console.error("Error deleting account:", error);
       showSnackbar("Failed to Delete Account.", "error");
+    } finally {
+      setDeleteDialogOpen(false);
     }
-    setDeleteDialogOpen(false);
   };
 
   const showSnackbar = (message, severity) => {
@@ -167,10 +220,10 @@ function Profile() {
           <Grid item xs={12} md={6}>
             <ProfileTextField
               fullWidth
-              label="Username"
-              value={userData.username}
+              label="firstName"
+              value={userData.firstName}
               onChange={(e) =>
-                setUserData({ ...userData, username: e.target.value })
+                setUserData({ ...userData, firstName: e.target.value })
               }
               InputProps={{
                 startAdornment: (
@@ -179,6 +232,7 @@ function Profile() {
                   </InputAdornment>
                 ),
               }}
+              disabled={userData.isGoogleUser}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -196,6 +250,7 @@ function Profile() {
                   </InputAdornment>
                 ),
               }}
+              disabled={userData.isGoogleUser}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -214,6 +269,7 @@ function Profile() {
                   </InputAdornment>
                 ),
               }}
+              disabled={userData.isGoogleUser} // Disable email change for Google users
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -231,44 +287,53 @@ function Profile() {
                   </InputAdornment>
                 ),
               }}
+              disabled={userData.isGoogleUser}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
-            <ProfileTextField
-              fullWidth
-              label="New Password"
-              type="password"
-              value={userData.password}
-              onChange={(e) =>
-                setUserData({ ...userData, password: e.target.value })
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlined sx={{ color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <ProfileTextField
-              fullWidth
-              label="Confirm Password"
-              type="password"
-              value={userData.confirmPassword}
-              onChange={(e) =>
-                setUserData({ ...userData, confirmPassword: e.target.value })
-              }
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockOutlined sx={{ color: "text.secondary" }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Grid>
+          {/* For Google users, you might choose not to show password fields */}
+          {!userData.isGoogleUser && (
+            <>
+              <Grid item xs={12} md={6}>
+                <ProfileTextField
+                  fullWidth
+                  label="New Password"
+                  type="password"
+                  value={userData.password}
+                  onChange={(e) =>
+                    setUserData({ ...userData, password: e.target.value })
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockOutlined sx={{ color: "text.secondary" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <ProfileTextField
+                  fullWidth
+                  label="Confirm Password"
+                  type="password"
+                  value={userData.confirmPassword}
+                  onChange={(e) =>
+                    setUserData({
+                      ...userData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockOutlined sx={{ color: "text.secondary" }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+            </>
+          )}
         </Grid>
 
         <Box
@@ -295,6 +360,7 @@ function Profile() {
               },
               transition: "all 0.3s ease",
             }}
+            disabled={userData.isGoogleUser} // Optionally disable update for Google users
           >
             Update Profile
           </Button>

@@ -175,20 +175,21 @@ function Login() {
           >
             Welcome Back
           </Typography>
-
-          <Fade in={!!error}>
-            <Alert
-              severity="error"
-              sx={{
-                width: "100%",
-                border: `1px solid ${theme.palette.error.main}`,
-                bgcolor: theme.palette.error.light,
-                fontSize: { xs: "0.8rem", md: "1rem" },
-              }}
-            >
-              {error}
-            </Alert>
-          </Fade>
+          {error ? (
+            <Fade in={!!error}>
+              <Alert
+                severity="error"
+                sx={{
+                  width: "100%",
+                  border: `1px solid ${theme.palette.error.main}`,
+                  bgcolor: theme.palette.error.light,
+                  fontSize: { xs: "0.8rem", md: "1rem" },
+                }}
+              >
+                {error}
+              </Alert>
+            </Fade>
+          ) : null}
 
           <TextField
             fullWidth

@@ -26,7 +26,13 @@ const Footer = () => {
     >
       <Container maxWidth="xl">
         <Grid container spacing={4}>
-          <Grid item xs={12} md={4}>
+          {/* ShopFinder / About section */}
+          <Grid
+            item
+            xs={12}
+            md={4}
+            sx={{ textAlign: { xs: "center", md: "left" } }}
+          >
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               ShopFinder
             </Typography>
@@ -36,7 +42,13 @@ const Footer = () => {
             </Typography>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          {/* Company links */}
+          <Grid
+            item
+            xs={12}
+            md={4}
+            sx={{ textAlign: { xs: "center", md: "left" } }}
+          >
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Company
             </Typography>
@@ -77,11 +89,23 @@ const Footer = () => {
             </Box>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          {/* Social links */}
+          <Grid
+            item
+            xs={12}
+            md={4}
+            sx={{ textAlign: { xs: "center", md: "left" } }}
+          >
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Connect With Us
             </Typography>
-            <Box sx={{ display: "flex", gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                justifyContent: { xs: "center", md: "flex-start" },
+              }}
+            >
               <IconButton
                 component="a"
                 href="https://facebook.com"

@@ -117,12 +117,12 @@ def login():
 
         return jsonify({
             "message": "Login successful",
-            "user": {
-                "uid": uid,
-                "email": user.email,
-                "username": user.username,
-                "phone": user.phone
-            },
+            # "user": {
+            #     "uid": uid,
+            #     "email": user.email,
+            #     "username": user.username,
+            #     "phone": user.phone
+            # },
             "idToken": id_token  # Optionally return the token for client use
         }), 200
 

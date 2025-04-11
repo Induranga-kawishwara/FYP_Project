@@ -30,6 +30,7 @@ import {
   GoogleAuthProvider,
   GithubAuthProvider,
 } from "firebase/auth";
+import Cookies from "js-cookie";
 import { auth } from "../../../Config.js";
 
 function Login() {
@@ -46,7 +47,11 @@ function Login() {
     setIsLoading(true);
     setError("");
     try {
-      await axios.post("http://127.0.0.1:5000/auth/login", { email, password });
+      const responds = await axios.post("http://127.0.0.1:5000/auth/login", {
+        email,
+        password,
+      });
+      Cookies.set("idToken", responds.data.idToken, { expires: 7 });
       navigate("/shopfinder");
     } catch (err) {
       setError(err.response?.data?.error || "Login failed. Please try again.");

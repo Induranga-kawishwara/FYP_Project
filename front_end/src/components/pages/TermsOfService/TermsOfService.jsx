@@ -127,64 +127,6 @@ const TermsOfService = () => {
   return (
     <React.Fragment>
       <div id="back-to-top-anchor" />
-
-      {/* Mobile Floating TOC */}
-      {isMobile && (
-        <Box
-          sx={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            bgcolor: "background.paper",
-            borderTop: `1px solid ${theme.palette.divider}`,
-            zIndex: 1000,
-            p: 1,
-            display: "flex",
-            overflowX: "auto",
-            "&::-webkit-scrollbar": { display: "none" },
-            boxShadow: 3,
-          }}
-        >
-          {sections.map((section) => (
-            <Link
-              key={section.id}
-              href={`#${section.id}`}
-              underline="none"
-              sx={{ minWidth: 120, mx: 0.5, flexShrink: 0 }}
-            >
-              <Chip
-                icon={React.cloneElement(section.icon, {
-                  sx: { color: "primary.main" },
-                })}
-                label={section.title}
-                sx={{
-                  borderRadius: 2,
-                  "& .MuiChip-label": {
-                    fontSize: "0.75rem",
-                    whiteSpace: "nowrap",
-                  },
-                  bgcolor: "background.default",
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
-              />
-            </Link>
-          ))}
-          <Link href="#contact" sx={{ minWidth: 120, mx: 0.5, flexShrink: 0 }}>
-            <Chip
-              icon={<Mail sx={{ color: "primary.main" }} />}
-              label="Contact"
-              sx={{
-                borderRadius: 2,
-                "& .MuiChip-label": { fontSize: "0.75rem" },
-                bgcolor: "background.default",
-                "&:hover": { bgcolor: "action.hover" },
-              }}
-            />
-          </Link>
-        </Box>
-      )}
-
       <Box
         sx={{
           display: "flex",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -18,18 +18,35 @@ import {
   Person,
   Lock,
 } from "@mui/icons-material";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
 
 const Navbar = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [anchorEl, setAnchorEl] = useState(null);
+  const navigate = useNavigate();
+
+  const [token, setToken] = useState(Cookies.get("idToken"));
+
+  useEffect(() => {
+    setToken(Cookies.get("idToken"));
+  }, []);
 
   const navItems = [
     { name: "Shop Finder", path: "/shopfinder", icon: <ShoppingBag /> },
     { name: "Profile", path: "/profile", icon: <Person /> },
-    { name: "Login", path: "/login", icon: <Lock /> },
   ];
+
+  const authItem = token
+    ? { name: "Logout", icon: <Lock /> }
+    : { name: "Login", path: "/login", icon: <Lock /> };
+
+  const handleLogout = () => {
+    Cookies.remove("idToken");
+    setToken(null);
+    navigate("/login");
+  };
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -56,10 +73,7 @@ const Navbar = () => {
             >
               <NavLink
                 to="/"
-                style={{
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
+                style={{ textDecoration: "none", color: "inherit" }}
               >
                 ShopFinder
               </NavLink>
@@ -75,6 +89,11 @@ const Navbar = () => {
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
                 onClose={handleMenuClose}
+                slotProps={{
+                  paper: {
+                    sx: { width: 250, maxHeight: 300, overflowY: "auto" },
+                  },
+                }}
               >
                 {navItems.map((item) => (
                   <MenuItem
@@ -87,6 +106,28 @@ const Navbar = () => {
                     <Box sx={{ ml: 2 }}>{item.name}</Box>
                   </MenuItem>
                 ))}
+                {token ? (
+                  <MenuItem
+                    key="Logout"
+                    onClick={() => {
+                      handleMenuClose();
+                      handleLogout();
+                    }}
+                  >
+                    {authItem.icon}
+                    <Box sx={{ ml: 2 }}>Logout</Box>
+                  </MenuItem>
+                ) : (
+                  <MenuItem
+                    key="Login"
+                    component={NavLink}
+                    to="/login"
+                    onClick={handleMenuClose}
+                  >
+                    {authItem.icon}
+                    <Box sx={{ ml: 2 }}>Login</Box>
+                  </MenuItem>
+                )}
               </Menu>
             </>
           ) : (
@@ -105,6 +146,33 @@ const Navbar = () => {
                   {item.name}
                 </Button>
               ))}
+              {token ? (
+                // Logout rendered as a Button without NavLink
+                <Button
+                  key="Logout"
+                  onClick={handleLogout}
+                  startIcon={authItem.icon}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    "&:hover": { color: theme.palette.primary.main },
+                  }}
+                >
+                  Logout
+                </Button>
+              ) : (
+                <Button
+                  key="Login"
+                  component={NavLink}
+                  to="/login"
+                  startIcon={authItem.icon}
+                  sx={{
+                    color: theme.palette.text.primary,
+                    "&:hover": { color: theme.palette.primary.main },
+                  }}
+                >
+                  Login
+                </Button>
+              )}
             </Box>
           )}
         </Toolbar>

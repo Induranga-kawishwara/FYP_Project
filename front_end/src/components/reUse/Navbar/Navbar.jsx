@@ -29,13 +29,22 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
+  // Custom hook that returns a valid token if it exists.
   const token = useToken();
 
-  const navItems = [
+  // Protected navigation items (only for valid token)
+  const protectedNavItems = [
     { name: "Shop Finder", path: "/shopfinder", icon: <ShoppingBag /> },
     { name: "Profile", path: "/profile", icon: <Person /> },
-    { name: "About", path: "/about", icon: <Info /> },
   ];
+
+  // Public navigation items
+  const publicNavItems = [{ name: "About", path: "/about", icon: <Info /> }];
+
+  // Combine items depending on token availability.
+  const navItems = token
+    ? [...protectedNavItems, ...publicNavItems]
+    : publicNavItems;
 
   const authItem = token
     ? { name: "Logout", icon: <Lock /> }

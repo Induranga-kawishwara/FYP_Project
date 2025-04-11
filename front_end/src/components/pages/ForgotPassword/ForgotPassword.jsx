@@ -9,10 +9,46 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  useTheme,
+  styled,
+  InputAdornment,
+  Fade,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { Email, ArrowBack, LockReset } from "@mui/icons-material";
+
+const GradientPaper = styled(Paper)(({ theme }) => ({
+  marginTop: theme.spacing(8),
+  padding: theme.spacing(4),
+  borderRadius: theme.shape.borderRadius * 3,
+  background: `linear-gradient(145deg, ${theme.palette.background.default} 0%, ${theme.palette.primary.light}20 100%)`,
+  backdropFilter: "blur(10px)",
+  border: `1px solid ${theme.palette.primary.light}30`,
+  boxShadow: theme.shadows[10],
+  position: "relative",
+  overflow: "hidden",
+  "&:before": {
+    content: '""',
+    position: "absolute",
+    top: -50,
+    right: -50,
+    width: 100,
+    height: 100,
+    borderRadius: "50%",
+    background: `radial-gradient(${theme.palette.primary.light}20 0%, transparent 70%)`,
+  },
+}));
+
+const AnimatedButton = styled(Button)(({ theme }) => ({
+  transition: "all 0.3s ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    boxShadow: theme.shadows[4],
+  },
+}));
 
 function ForgotPassword() {
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -41,48 +77,64 @@ function ForgotPassword() {
   };
 
   return (
-    <Container maxWidth="xs">
-      <Paper
-        elevation={6}
-        sx={{
-          mt: 8,
-          p: 4,
-          borderRadius: 4,
-          background: "linear-gradient(145deg, #f5f7fa 0%, #c3cfe2 100%)",
-        }}
-      >
+    <Container maxWidth="sm">
+      <GradientPaper elevation={0}>
+        <Box sx={{ textAlign: "center", mb: 4 }}>
+          <LockReset
+            sx={{
+              fontSize: 60,
+              color: "primary.main",
+              bgcolor: "primary.lighter",
+              p: 2,
+              borderRadius: "50%",
+              boxShadow: 3,
+              mb: 3,
+            }}
+          />
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: "-0.5px",
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Password Recovery
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 1, color: "text.secondary" }}>
+            Enter your email to receive a reset link
+          </Typography>
+        </Box>
+
         <Box
           component="form"
           onSubmit={handleReset}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 2,
-          }}
+          sx={{ display: "flex", flexDirection: "column", gap: 3 }}
         >
-          <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>
-            Reset Password
-          </Typography>
-          {message && (
-            <Alert severity="success" sx={{ width: "100%" }}>
-              {message}
-            </Alert>
-          )}
-          {error && (
-            <Alert severity="error" sx={{ width: "100%" }}>
-              {error}
-            </Alert>
-          )}
           <TextField
             fullWidth
-            label="Enter your email"
             variant="outlined"
+            label="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Email sx={{ color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+              sx: {
+                borderRadius: 2,
+                "&:hover fieldset": { borderColor: "primary.light" },
+                "&.Mui-focused fieldset": { borderColor: "primary.main" },
+              },
+            }}
             required
           />
-          <Button
+
+          <AnimatedButton
             fullWidth
             variant="contained"
             type="submit"
@@ -91,31 +143,68 @@ function ForgotPassword() {
               py: 1.5,
               borderRadius: 2,
               fontSize: 16,
-              fontWeight: "bold",
-              textTransform: "none",
-              transition: "transform 0.2s",
-              "&:hover": { transform: "translateY(-2px)" },
+              fontWeight: 700,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
             }}
           >
             {isLoading ? (
-              <CircularProgress size={24} color="inherit" />
+              <CircularProgress size={24} sx={{ color: "white" }} />
             ) : (
-              "Send Reset Link"
+              "Send Reset Instructions"
             )}
-          </Button>
+          </AnimatedButton>
+
           <Button
             fullWidth
             variant="text"
             onClick={() => navigate("/login")}
+            startIcon={<ArrowBack />}
             sx={{
               textTransform: "none",
-              fontWeight: "bold",
+              fontWeight: 600,
+              color: "text.secondary",
+              "&:hover": {
+                color: "primary.main",
+                backgroundColor: "primary.lighter",
+              },
             }}
           >
-            Back to Login
+            Return to Login
           </Button>
         </Box>
-      </Paper>
+
+        {/* Notifications */}
+        <Box sx={{ mt: 3 }}>
+          <Fade in={!!message || !!error}>
+            <div>
+              {message && (
+                <Alert
+                  severity="success"
+                  sx={{
+                    borderRadius: 2,
+                    alignItems: "center",
+                    boxShadow: theme.shadows[2],
+                  }}
+                >
+                  {message}
+                </Alert>
+              )}
+              {error && (
+                <Alert
+                  severity="error"
+                  sx={{
+                    borderRadius: 2,
+                    alignItems: "center",
+                    boxShadow: theme.shadows[2],
+                  }}
+                >
+                  {error}
+                </Alert>
+              )}
+            </div>
+          </Fade>
+        </Box>
+      </GradientPaper>
     </Container>
   );
 }

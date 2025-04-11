@@ -28,6 +28,8 @@ import {
 
 function Signup() {
   const theme = useTheme();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     surname: "",
@@ -41,7 +43,6 @@ function Signup() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -88,11 +89,7 @@ function Signup() {
         password: formData.password,
       };
 
-      const response = await axios.post(
-        "http://127.0.0.1:5000/auth/signup",
-        payload
-      );
-
+      await axios.post("http://127.0.0.1:5000/auth/signup", payload);
       setSuccess(true);
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
@@ -116,17 +113,47 @@ function Signup() {
   return (
     <Container
       maxWidth="sm"
-      sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        py: { xs: 2, md: 4 },
+      }}
     >
       <Box
         sx={{
           position: "relative",
           width: "100%",
-          my: 8,
-          p: 6,
-          borderRadius: 6,
+          my: { xs: 4, md: 8 },
+          p: { xs: 2, md: 6 },
+          borderRadius: { xs: 2, md: 6 },
           background: theme.palette.background.paper,
           boxShadow: theme.shadows[10],
+          overflow: "hidden",
+          "&:before": {
+            content: '""',
+            position: "absolute",
+            top: -50,
+            left: -50,
+            width: { xs: 80, md: 120 },
+            height: { xs: 80, md: 120 },
+            borderRadius: "50%",
+            background: `linear-gradient(45deg, ${theme.palette.primary.light}, transparent)`,
+            filter: "blur(40px)",
+            zIndex: -1,
+          },
+          "&:after": {
+            content: '""',
+            position: "absolute",
+            bottom: -50,
+            right: -50,
+            width: { xs: 80, md: 120 },
+            height: { xs: 80, md: 120 },
+            borderRadius: "50%",
+            background: `linear-gradient(45deg, ${theme.palette.secondary.light}, transparent)`,
+            filter: "blur(40px)",
+            zIndex: -1,
+          },
         }}
       >
         <Box
@@ -136,15 +163,15 @@ function Signup() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 3,
+            gap: { xs: 2, md: 3 },
           }}
         >
           <Box
             sx={{
               position: "relative",
-              mb: 4,
+              mb: { xs: 2, md: 4 },
               "& svg": {
-                fontSize: 60,
+                fontSize: { xs: 40, md: 60 },
                 color: theme.palette.primary.main,
                 filter: `drop-shadow(0 4px 8px ${theme.palette.primary.light}40)`,
               },
@@ -154,9 +181,9 @@ function Signup() {
             <LockOutlined
               sx={{
                 position: "absolute",
-                right: -20,
-                bottom: -10,
-                fontSize: 30,
+                right: { xs: -12, md: -20 },
+                bottom: { xs: -12, md: -10 },
+                fontSize: { xs: 20, md: 30 },
                 color: theme.palette.secondary.main,
               }}
             />
@@ -165,21 +192,32 @@ function Signup() {
           <Typography
             variant="h3"
             sx={{
-              mb: 3,
+              mb: { xs: 2, md: 3 },
               fontWeight: 800,
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              textAlign: "center",
+              fontSize: { xs: "1.8rem", md: "2.5rem" },
             }}
           >
             Join ShopFinder
           </Typography>
 
+          {/* Display alert messages if errors or success */}
+          {error && <AlertMessage severity="error" message={error} />}
+          {success && (
+            <AlertMessage
+              severity="success"
+              message="Account created successfully! Redirecting..."
+            />
+          )}
+
           <Box
             sx={{
               width: "100%",
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               gap: 3,
             }}
           >
@@ -306,22 +344,15 @@ function Signup() {
             required
           />
 
-          {error && <AlertMessage severity="error" message={error} />}
-          {success && (
-            <AlertMessage
-              severity="success"
-              message="Account created successfully! Redirecting..."
-            />
-          )}
           <Button
             fullWidth
             variant="contained"
             type="submit"
             disabled={isLoading}
             sx={{
-              py: 2,
+              py: { xs: 1.5, md: 2 },
               borderRadius: 2,
-              fontSize: 16,
+              fontSize: { xs: 14, md: 16 },
               fontWeight: 700,
               letterSpacing: 1,
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
@@ -345,7 +376,10 @@ function Signup() {
             )}
           </Button>
 
-          <Typography variant="body2" sx={{ color: "text.secondary", mt: 2 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "text.secondary", mt: { xs: 1, md: 2 } }}
+          >
             By signing up, you agree to our{" "}
             <Link href="/terms" fontWeight="bold" color="text.primary">
               Terms of Service
@@ -357,10 +391,18 @@ function Signup() {
           </Typography>
 
           <Box
-            sx={{ display: "flex", alignItems: "center", width: "100%", my: 2 }}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              my: { xs: 1, md: 2 },
+            }}
           >
             <Divider sx={{ flexGrow: 1 }} />
-            <Typography variant="body2" sx={{ px: 2, color: "text.secondary" }}>
+            <Typography
+              variant="body2"
+              sx={{ px: { xs: 1, md: 2 }, color: "text.secondary" }}
+            >
               OR
             </Typography>
             <Divider sx={{ flexGrow: 1 }} />

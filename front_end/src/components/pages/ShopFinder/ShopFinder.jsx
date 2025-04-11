@@ -30,6 +30,7 @@ import {
   Info as InfoIcon,
   Settings as SettingsIcon,
   Directions as DirectionsIcon,
+  Storefront,
 } from "@mui/icons-material";
 import {
   LoadScript,
@@ -506,11 +507,13 @@ function ShopFinder() {
                 border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
               }}
             >
-              <Box
-                component="img"
-                src="/empty-state.svg"
-                alt="No shops found"
-                sx={{ height: 200, mb: 4, opacity: 0.8 }}
+              <Storefront
+                sx={{
+                  fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
+                  mb: 4,
+                  opacity: 0.8,
+                  color: theme.palette.text.disabled,
+                }}
               />
               <Typography variant="h6" color="textSecondary" sx={{ mb: 2 }}>
                 No matching shops found

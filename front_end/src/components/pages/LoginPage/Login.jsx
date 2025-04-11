@@ -155,7 +155,7 @@ function Login() {
                 position: "absolute",
                 right: { xs: -12, md: -20 },
                 bottom: { xs: -12, md: -10 },
-                fontSize: { xs: 20, md: 30 },
+                fontSize: { xs: 30, sm: 40, md: 50 },
                 color: theme.palette.secondary.main,
               }}
             />
@@ -169,7 +169,7 @@ function Login() {
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 90%)`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              fontSize: { xs: "1.5rem", md: "2.5rem" },
+              fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
               textAlign: "center",
             }}
           >

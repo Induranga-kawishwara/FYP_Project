@@ -82,18 +82,19 @@ function ForgotPassword() {
         <Box sx={{ textAlign: "center", mb: 4 }}>
           <LockReset
             sx={{
-              fontSize: 60,
               color: "primary.main",
               bgcolor: "primary.lighter",
               p: 2,
               borderRadius: "50%",
               boxShadow: 3,
               mb: 3,
+              fontSize: { xs: 30, sm: 40, md: 50 },
             }}
           />
           <Typography
             variant="h3"
             sx={{
+              fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
               fontWeight: 800,
               letterSpacing: "-0.5px",
               background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.secondary.main} 100%)`,

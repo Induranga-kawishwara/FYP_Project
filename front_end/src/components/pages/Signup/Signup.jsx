@@ -198,7 +198,7 @@ function Signup() {
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               textAlign: "center",
-              fontSize: { xs: "1.8rem", md: "2.5rem" },
+              fontSize: { xs: "2rem", sm: "3rem", md: "4rem" },
             }}
           >
             Join ShopFinder

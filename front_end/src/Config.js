@@ -8,7 +8,6 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_APPID,
 };
 
-console.log("Firebase Config:", firebaseConfig); // Log the config to check if it's correct
 const appFirebase = initializeApp(firebaseConfig);
 const auth = getAuth(appFirebase);
 

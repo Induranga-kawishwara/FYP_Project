@@ -67,9 +67,11 @@ function Login() {
     try {
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-      await axios.post("http://127.0.0.1:5000/auth/login", {
+      const responds = await axios.post("http://127.0.0.1:5000/auth/login", {
         id_token: idToken,
       });
+      Cookies.set("idToken", responds.data.idToken, { expires: 7 });
+
       navigate("/shopfinder");
     } catch (err) {
       setError(

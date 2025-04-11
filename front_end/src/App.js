@@ -57,15 +57,21 @@ function App() {
       <GlobalStyles
         styles={{
           "@keyframes mui-auto-fill": {
-            from: { display: "flex" },
-            to: { display: "flex" },
+            from: {
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "100vh",
+            },
+            to: {
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "100vh",
+            },
           },
         }}
       />
 
-      <Box
-        sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
-      >
+      <Box>
         <Navbar />
         <Box component="main" sx={{ flexGrow: 1 }}>
           <Container maxWidth="xl" sx={{ py: 4 }}>

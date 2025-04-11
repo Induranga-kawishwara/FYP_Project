@@ -108,11 +108,7 @@ function ForgotPassword() {
           </Typography>
         </Box>
 
-        <Box
-          component="form"
-          onSubmit={handleReset}
-          sx={{ display: "flex", flexDirection: "column", gap: 3 }}
-        >
+        <Box component="form" onSubmit={handleReset} sx={{ gap: 3 }}>
           <TextField
             fullWidth
             variant="outlined"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import { NavLink, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
+import useToken from "../../../hooks/useToken/useToken.js"; // adjust the path as needed
 
 const Navbar = () => {
   const theme = useTheme();
@@ -27,11 +28,8 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
-  const [token, setToken] = useState(Cookies.get("idToken"));
-
-  useEffect(() => {
-    setToken(Cookies.get("idToken"));
-  }, []);
+  // Use our custom hook to get the latest token from cookies.
+  const token = useToken();
 
   const navItems = [
     { name: "Shop Finder", path: "/shopfinder", icon: <ShoppingBag /> },
@@ -44,7 +42,7 @@ const Navbar = () => {
 
   const handleLogout = () => {
     Cookies.remove("idToken");
-    setToken(null);
+    // No need to manually update token state; useToken hook will detect change.
     navigate("/login");
   };
 
@@ -60,6 +58,7 @@ const Navbar = () => {
     <AppBar position="sticky" sx={{ bgcolor: theme.palette.background.paper }}>
       <Container maxWidth="xl">
         <Toolbar sx={{ justifyContent: "space-between" }}>
+          {/* Logo / Brand */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography
               variant="h4"
@@ -80,6 +79,7 @@ const Navbar = () => {
             </Typography>
           </Box>
 
+          {/* Navigation Items */}
           {isMobile ? (
             <>
               <IconButton onClick={handleMenuOpen}>
@@ -147,7 +147,6 @@ const Navbar = () => {
                 </Button>
               ))}
               {token ? (
-                // Logout rendered as a Button without NavLink
                 <Button
                   key="Logout"
                   onClick={handleLogout}

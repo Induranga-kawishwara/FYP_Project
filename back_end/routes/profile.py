@@ -14,7 +14,6 @@ def get_uid_and_provider(token):
         decoded_token = firebase_auth.verify_id_token(token)
         uid = decoded_token.get("uid")
         sign_in_provider = decoded_token.get("firebase", {}).get("sign_in_provider", "").lower()
-        print(uid, sign_in_provider)
         return uid, sign_in_provider
     except Exception as e:
         logger.error(f"Token verification error: {str(e)}")

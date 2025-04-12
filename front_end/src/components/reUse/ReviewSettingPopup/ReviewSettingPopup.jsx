@@ -57,8 +57,6 @@ const ReviewSettingPopup = ({
   handleConfirm,
   coverage,
   setCoverage,
-  allShops,
-  setAllShops,
   customCoverage,
   setCustomCoverage,
 }) => {
@@ -202,43 +200,27 @@ const ReviewSettingPopup = ({
 
               <RadioGroup
                 row
-                value={allShops ? "all" : coverage}
-                onChange={(e) => {
-                  if (e.target.value === "all") {
-                    setAllShops(true);
-                  } else if (e.target.value === "customcoverage") {
-                    setAllShops(false);
-                    setCoverage("customcoverage");
-                  } else {
-                    setAllShops(false);
-                    setCoverage(e.target.value);
-                  }
-                }}
+                value={coverage}
+                onChange={(e) => setCoverage(e.target.value)}
                 sx={{ gap: 2 }}
               >
                 <Grid container spacing={2}>
-                  {["10", "20", "50", "100", "all", "customcoverage"].map(
-                    (value) => (
-                      <Grid item xs={6} sm={4} key={value}>
-                        <FormControlLabel
-                          value={value}
-                          control={<Radio color="primary" />}
-                          label={
-                            value === "all"
-                              ? "All Shops"
-                              : value === "customcoverage"
-                              ? "Custom"
-                              : `${value} km`
-                          }
-                          sx={{
-                            borderRadius: "8px",
-                            p: 1,
-                            "&:hover": { bgcolor: "action.hover" },
-                          }}
-                        />
-                      </Grid>
-                    )
-                  )}
+                  {["10", "20", "50", "100", "customcoverage"].map((value) => (
+                    <Grid item xs={6} sm={4} key={value}>
+                      <FormControlLabel
+                        value={value}
+                        control={<Radio color="primary" />}
+                        label={
+                          value === "customcoverage" ? "Custom" : `${value} km`
+                        }
+                        sx={{
+                          borderRadius: "8px",
+                          p: 1,
+                          "&:hover": { bgcolor: "action.hover" },
+                        }}
+                      />
+                    </Grid>
+                  ))}
                 </Grid>
               </RadioGroup>
 

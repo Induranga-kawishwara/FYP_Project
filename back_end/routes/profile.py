@@ -1,7 +1,8 @@
+import datetime
 from flask import Blueprint, request, jsonify
 import logging
 from firebase_admin import auth as firebase_auth
-from utils import User
+from utils import User ,ReviewSettings
 
 logger = logging.getLogger(__name__)
 profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
@@ -147,3 +148,43 @@ def delete_account():
         user.delete()
 
     return jsonify({"message": "Account deleted successfully"}), 200
+
+@profile_bp.route("/review_settings", methods=["PUT"])
+def update_review_settings():
+
+    data = request.json
+    token = data.get("id_token")
+    remember = data.get("remember_settings", False)
+    
+    if not token:
+        return jsonify({"error": "Token is missing"}), 400
+
+    # Do not save if the user did not tick "remember settings"
+    if not remember:
+        return jsonify({"message": "Settings not saved (remember_settings not ticked)."}), 200
+
+    uid, _ = get_uid_and_provider(token)
+    if not uid:
+        return jsonify({"error": "Invalid token"}), 401
+
+    review_count = data.get("review_count")
+    coverage = data.get("coverage")
+
+    # Check for an existing review settings document, then update or create.
+    settings = ReviewSettings.objects(firebase_uid=uid).first()
+    if settings:
+        settings.review_count = review_count
+        settings.coverage = coverage
+        settings.remember_settings = True
+        settings.updated_at = datetime.datetime.utcnow()
+        settings.save()
+    else:
+        settings = ReviewSettings(
+            firebase_uid=uid,
+            review_count=review_count,
+            coverage=coverage,
+            remember_settings=True
+        )
+        settings.save()
+
+    return jsonify({"message": "Review settings updated successfully"}), 200

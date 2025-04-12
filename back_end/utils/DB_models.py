@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField
+from mongoengine import Document, BooleanField, StringField, DateTimeField
 import datetime
 
 class User(Document):
@@ -10,4 +10,15 @@ class User(Document):
 
     meta = {
         'collection': 'users'
+    }
+
+class ReviewSettings(Document):
+    firebase_uid = StringField(required=True, unique=True)
+    review_count = StringField() 
+    coverage = StringField()
+    remember_settings = BooleanField(default=False)
+    updated_at = DateTimeField(default=datetime.datetime.utcnow)
+
+    meta = {
+        'collection': 'review_settings'
     }

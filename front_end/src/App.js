@@ -68,14 +68,7 @@ function App() {
               <Route path="/" element={<Navigate replace to="/shopfinder" />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/login" element={<Login />} />
-              <Route
-                path="/shopfinder"
-                element={
-                  <TokenChecker>
-                    <ShopFinder />
-                  </TokenChecker>
-                }
-              />
+              <Route path="/shopfinder" element={<ShopFinder />} />
               <Route
                 path="/profile"
                 element={

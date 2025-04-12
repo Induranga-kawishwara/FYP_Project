@@ -34,14 +34,16 @@ const Navbar = () => {
 
   // Protected navigation items (only for valid token)
   const protectedNavItems = [
-    { name: "Shop Finder", path: "/shopfinder", icon: <ShoppingBag /> },
     { name: "Profile", path: "/profile", icon: <Person /> },
   ];
 
-  const publicNavItems = [{ name: "About", path: "/about", icon: <Info /> }];
+  const publicNavItems = [
+    { name: "Shop Finder", path: "/shopfinder", icon: <ShoppingBag /> },
+    { name: "About", path: "/about", icon: <Info /> },
+  ];
 
   const navItems = token
-    ? [...protectedNavItems, ...publicNavItems]
+    ? [...publicNavItems, ...protectedNavItems]
     : publicNavItems;
 
   const authItem = token

@@ -149,6 +149,10 @@ def delete_account():
     if user:
         user.delete()
 
+    settings = ReviewSettings.objects(firebase_uid=uid).first()
+    if settings:
+        settings.delete()
+
     return jsonify({"message": "Account deleted successfully"}), 200
 
 

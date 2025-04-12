@@ -38,10 +38,8 @@ const Navbar = () => {
     { name: "Profile", path: "/profile", icon: <Person /> },
   ];
 
-  // Public navigation items
   const publicNavItems = [{ name: "About", path: "/about", icon: <Info /> }];
 
-  // Combine items depending on token availability.
   const navItems = token
     ? [...protectedNavItems, ...publicNavItems]
     : publicNavItems;

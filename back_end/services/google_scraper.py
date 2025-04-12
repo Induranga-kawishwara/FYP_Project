@@ -1,5 +1,6 @@
 import time
 import datetime
+import tempfile
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -13,22 +14,20 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
-# Download NLTK resources (if not already downloaded)
+# Download NLTK resources if not already downloaded
 nltk.download("stopwords")
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 
 # --- Initialize Models and Tools ---
-# Load fake review model (ensure the model path is correct)
 fake_review_tokenizer = BertTokenizer.from_pretrained("models/fakeReviewModel")
 fake_review_model = BertForSequenceClassification.from_pretrained("models/fakeReviewModel")
 fake_review_model.eval()
 
-# Initialize lemmatizer and stopwords
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words("english"))
 
-# Setup Selenium WebDriver options
+# --- Setup Selenium WebDriver Options ---
 options = Options()
 options.add_argument("--headless")
 options.add_argument("window-size=1920,1080")
@@ -40,21 +39,14 @@ options.add_argument(
     "Chrome/91.0.4472.124 Safari/537.36"
 )
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
+# Optionally, use a temporary user-data-dir to avoid conflicts:
+user_data_dir = tempfile.mkdtemp()
+options.add_argument(f"--user-data-dir={user_data_dir}")
 
-# --- Helper: Parse relative date strings into a datetime object ---
+# --- Helper: Parse Relative Date ---
 def parse_relative_date(date_str):
-    """
-    Parse relative dates from Google reviews into a datetime object.
-    Examples:
-      - "Today"
-      - "Yesterday"
-      - "10 months ago"
-      - "2 weeks ago"
-      - "3 days ago"
-    """
     now = datetime.datetime.now()
     date_str = date_str.strip().lower()
-    
     if "today" in date_str:
         return now
     elif "yesterday" in date_str:
@@ -63,7 +55,6 @@ def parse_relative_date(date_str):
         try:
             parts = date_str.split()
             if len(parts) >= 2:
-                # For "a week ago" or "an hour ago"
                 num = 1 if parts[0] in ["a", "an"] else int(parts[0])
                 if "year" in date_str:
                     return now - datetime.timedelta(days=num * 365)
@@ -77,15 +68,8 @@ def parse_relative_date(date_str):
             print(f"Error parsing date '{date_str}': {e}")
     return now
 
-# --- Detect Fake Reviews using the trained model ---
+# --- Detect Fake Reviews Using Model ---
 def detect_fake_reviews(reviews):
-    """
-    Given a list of review texts, returns two lists:
-    real_reviews and fake_reviews based on model predictions.
-    
-    This version processes each review individually to enforce a fixed input
-    shape (batch size of 1, i.e. [1, 256]).
-    """
     if not reviews:
         return [], []
     real_reviews = []
@@ -101,147 +85,150 @@ def detect_fake_reviews(reviews):
         with torch.no_grad():
             outputs = fake_review_model(**inputs)
         prediction = torch.argmax(outputs.logits, dim=-1).item()
-        # Assuming label 0 means real and label 1 means fake
         if prediction == 0:
             real_reviews.append(review)
         else:
             fake_reviews.append(review)
     print(f"Detected {len(real_reviews)} real reviews and {len(fake_reviews)} fake reviews.")
-    for review in real_reviews:
-        print(f"Real Review: {review}")
-    for review in fake_reviews:
-        print(f"Fake Review: {review}")
+    print(f"Real reviews: {real_reviews}")
+    print(f"Fake reviews: {fake_reviews}")
     return real_reviews, fake_reviews
 
-# --- Preprocess Reviews (Remove stopwords and Lemmatize) ---
-def preprocess_reviews(reviews):
-    processed_reviews = []
-    for review in reviews:
-        words = review.split()
-        cleaned_words = []
-        for word in words:
-            if word.lower() not in stop_words:  # Remove stopwords
-                cleaned_word = lemmatizer.lemmatize(word.lower())
-                cleaned_words.append(cleaned_word)
-        processed_reviews.append(" ".join(cleaned_words))
-    return processed_reviews
+# --- Preprocess Reviews ---
+def preprocess_review(review):
+    words = review.split()
+    cleaned_words = [
+        lemmatizer.lemmatize(word.lower())
+        for word in words
+        if word.lower() not in stop_words
+    ]
+    return " ".join(cleaned_words)
 
-# --- Expand the review if a "More" button exists ---
+# --- Expand Review if "More" Button Exists ---
 def expand_review(driver, review_element):
     try:
         more_button = review_element.find_element(By.XPATH, ".//button[@aria-label='See more']")
         if more_button:
             driver.execute_script("arguments[0].click();", more_button)
-            time.sleep(1)  # Allow time for the review text to expand
+            time.sleep(1)
     except Exception:
         pass
 
-# --- Scroll the review container ---
+# --- Scroll Reviews Container ---
 def scroll_reviews(driver):
     try:
         reviews_container = driver.find_element(By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf")
         driver.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", reviews_container)
-        time.sleep(2)  # Allow time for new reviews to load
+        time.sleep(2)
     except Exception as e:
         print(f"Error while scrolling reviews: {e}")
 
-# --- Main function to scrape reviews ---
+# --- Context Manager for WebDriver ---
+class ChromeDriver:
+    def __init__(self, options):
+        self.options = options
+        self.driver = None
+
+    def __enter__(self):
+        self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=self.options)
+        return self.driver
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.driver:
+            self.driver.quit()
+
+# --- Main Function to Scrape Reviews ---
 def scrape_reviews(place_id, max_reviews):
     """
-    Scrapes Google reviews for a given place_id and returns up to max_reviews valid reviews.
-    For each author, only the most recent review is kept.
+    Scrapes up to max_reviews valid reviews for the given place_id.
+    Keeps only the most recent review per author.
     """
-    valid_reviews = {}  # key: author, value: review dict {"author":..., "text":..., "date":...}
-    scraped_texts = set()  # To track already processed review texts
+    valid_reviews = {}  # { author: review_dict }
+    scraped_texts = set()
 
-    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
-    driver.get(url)
-    
-    try:
-        # Wait for and click the Reviews tab
-        reviews_tab = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label*='Reviews for']"))
-        )
-        reviews_tab.click()
-        time.sleep(2)
-    except Exception as e:
-        print(f"Error finding reviews tab: {e}")
-        driver.quit()
-        return []
-
-    scroll_attempts = 0
-
-    while len(valid_reviews) < max_reviews:
+    with ChromeDriver(options) as driver:
+        driver.get(url)
         try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf"))
+            reviews_tab = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label*='Reviews for']"))
             )
+            reviews_tab.click()
+            time.sleep(2)
         except Exception as e:
-            print(f"Could not locate reviews container: {e}")
-            break
+            print(f"Error finding reviews tab: {e}")
+            return []
 
-        review_elements = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
-        new_reviews = []
+        scroll_attempts = 0
 
-        for review_element in review_elements:
+        while len(valid_reviews) < max_reviews:
             try:
-                expand_review(driver, review_element)
-                
-                author_element = review_element.find_element(By.CSS_SELECTOR, "div.d4r55")
-                author = author_element.text.strip() if author_element else "N/A"
-                
-                text_element = review_element.find_element(By.CSS_SELECTOR, "span.wiI7pd")
-                text = text_element.text.strip() if text_element else ""
-                
-                date_element = review_element.find_element(By.CSS_SELECTOR, "span.rsqaWe")
-                date_text = date_element.text.strip() if date_element else ""
-                review_date = parse_relative_date(date_text)
-                
-                if not text or text in scraped_texts:
-                    continue
-                scraped_texts.add(text)
-                new_reviews.append({"author": author, "text": text, "date": review_date})
-            except Exception:
-                continue
-
-        if new_reviews:
-            review_texts = [r["text"] for r in new_reviews]
-            # Preprocess reviews before feeding to the model
-            processed_reviews = preprocess_reviews(review_texts)
-            real_texts, _ = detect_fake_reviews(processed_reviews)
-            
-            # Update valid_reviews with reviews predicted as real
-            for review_obj in new_reviews:
-                processed_version = preprocess_reviews([review_obj["text"]])[0]
-                if processed_version in real_texts:
-                    author = review_obj["author"]
-                    # Keep the most recent review per author
-                    if author in valid_reviews:
-                        if review_obj["date"] > valid_reviews[author]["date"]:
-                            valid_reviews[author] = review_obj
-                    else:
-                        valid_reviews[author] = review_obj
-                    if len(valid_reviews) >= max_reviews:
-                        break
-
-        if len(valid_reviews) >= max_reviews:
-            break
-
-        previous_count = len(review_elements)
-        scroll_reviews(driver)
-        time.sleep(2)
-        review_elements_after_scroll = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
-        current_count = len(review_elements_after_scroll)
-
-        if current_count == previous_count:
-            scroll_attempts += 1
-            if scroll_attempts >= 3:
-                print("No more reviews to load.")
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf"))
+                )
+            except Exception as e:
+                print(f"Could not locate reviews container: {e}")
                 break
-        else:
-            scroll_attempts = 0
 
-    driver.quit()
+            review_elements = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
+            new_reviews = []
+
+            for review_element in review_elements:
+                try:
+                    expand_review(driver, review_element)
+                    author_element = review_element.find_element(By.CSS_SELECTOR, "div.d4r55")
+                    author = author_element.text.strip() if author_element else "N/A"
+
+                    text_element = review_element.find_element(By.CSS_SELECTOR, "span.wiI7pd")
+                    text = text_element.text.strip() if text_element else ""
+                    
+                    date_element = review_element.find_element(By.CSS_SELECTOR, "span.rsqaWe")
+                    date_text = date_element.text.strip() if date_element else ""
+                    review_date = parse_relative_date(date_text)
+
+                    if not text or text in scraped_texts:
+                        continue
+
+                    scraped_texts.add(text)
+                    new_reviews.append({
+                        "author": author,
+                        "text": text,
+                        "date": review_date,
+                        "processed_text": preprocess_review(text)
+                    })
+                except Exception:
+                    continue
+
+            if new_reviews:
+                review_texts = [r["processed_text"] for r in new_reviews]
+                real_texts, _ = detect_fake_reviews(review_texts)
+
+                for review_obj in new_reviews:
+                    if review_obj["processed_text"] in real_texts:
+                        author = review_obj["author"]
+                        if author in valid_reviews:
+                            if review_obj["date"] > valid_reviews[author]["date"]:
+                                valid_reviews[author] = review_obj
+                        else:
+                            valid_reviews[author] = review_obj
+                        if len(valid_reviews) >= max_reviews:
+                            break
+
+            if len(valid_reviews) >= max_reviews:
+                break
+
+            prev_count = len(review_elements)
+            scroll_reviews(driver)
+            # Wait briefly to allow new reviews to load.
+            time.sleep(2)
+            curr_count = len(driver.find_elements(By.CSS_SELECTOR, "div.jftiEf"))
+            if curr_count == prev_count:
+                scroll_attempts += 1
+                if scroll_attempts >= 3:
+                    print("No more reviews to load.")
+                    break
+            else:
+                scroll_attempts = 0
+
     final_reviews = sorted(valid_reviews.values(), key=lambda r: r["date"], reverse=True)
     return final_reviews[:max_reviews]

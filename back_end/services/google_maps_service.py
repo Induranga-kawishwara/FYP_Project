@@ -29,6 +29,5 @@ def fetch_all_shops(product_name, lat, lng, radius):
         next_page_token = response.get("next_page_token")
         if not next_page_token:
             break
-    return shops[0:2]
-    # return shops
+    return shops
 

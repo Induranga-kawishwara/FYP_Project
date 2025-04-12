@@ -20,7 +20,6 @@ def search_product():
 
     data = request.get_json()
 
-    print(f"Received data: {data}")
     product_name = data.get("product")
     review_count = data.get("reviewCount")
     coverage = data.get("coverage")

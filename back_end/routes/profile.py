@@ -1,26 +1,29 @@
 import datetime
-from flask import Blueprint, request, jsonify
 import logging
+from flask import Blueprint, request, jsonify
 from firebase_admin import auth as firebase_auth
-from utils import User ,ReviewSettings
+from utils import User, ReviewSettings  # Adjust the import as needed
 
 logger = logging.getLogger(__name__)
 profile_bp = Blueprint('profile', __name__, url_prefix='/profile')
+
 
 def get_uid_and_provider(token):
 
     try:
         decoded_token = firebase_auth.verify_id_token(token)
         uid = decoded_token.get("uid")
-        # The sign_in_provider is stored in the nested "firebase" dictionary of the decoded token.
         sign_in_provider = decoded_token.get("firebase", {}).get("sign_in_provider", "").lower()
+        print(uid, sign_in_provider)
         return uid, sign_in_provider
     except Exception as e:
         logger.error(f"Token verification error: {str(e)}")
         return None, None
 
+
 @profile_bp.route("/data", methods=["POST"])
 def get_profile():
+
     data = request.json
     token = data.get("id_token")
     if not token:
@@ -30,11 +33,9 @@ def get_profile():
     if not uid:
         return jsonify({"error": "Invalid token"}), 401
 
-    # Retrieve the user from MongoDB using the Firebase UID.
     user = User.objects(firebase_uid=uid).first()
 
-    # For social login users who don't have additional MongoDB data,
-    # return minimal info.
+    # For social login users with no saved MongoDB record
     if not user and sign_in_provider in ["google.com", "github.com"]:
         user_data = {
             "login_provider": sign_in_provider,
@@ -55,7 +56,7 @@ def get_profile():
         first_name = full_name
         surname = ""
 
-    # Prefer the token's sign_in_provider if present
+    # Prefer token-provided provider if available
     login_provider = sign_in_provider if sign_in_provider else getattr(user, "login_provider", "").lower()
 
     user_data = {
@@ -70,8 +71,10 @@ def get_profile():
 
     return jsonify({"user": user_data}), 200
 
+
 @profile_bp.route("/update", methods=["PUT"])
 def update_profile():
+
     data = request.json
     token = data.get("id_token")
     if not token:
@@ -85,7 +88,6 @@ def update_profile():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    # Retrieve update data from the request.
     first_name = data.get("first_name", "").strip()
     surname = data.get("surname", "").strip()
     email = data.get("email", "").strip()
@@ -95,17 +97,18 @@ def update_profile():
     full_name = first_name + (" " + surname if surname else "")
     login_provider = getattr(user, "login_provider", "").lower()
 
-    # Update Firebase only if the user is not a social login.
+    # Update Firebase if the user is not a social login
     if login_provider not in ["google", "github", "google.com", "github.com"]:
         update_kwargs = {}
         if email and email != user.email:
-            update_kwargs['email'] = email
+            update_kwargs["email"] = email
         if full_name and full_name != user.username:
-            update_kwargs['display_name'] = full_name
+            update_kwargs["display_name"] = full_name
         if phone and phone != user.phone:
-            update_kwargs['phone_number'] = phone
+            update_kwargs["phone_number"] = phone
         if new_password:
-            update_kwargs['password'] = new_password
+            update_kwargs["password"] = new_password
+
         if update_kwargs:
             try:
                 firebase_auth.update_user(uid, **update_kwargs)
@@ -113,7 +116,7 @@ def update_profile():
                 logger.error(f"Error updating Firebase user: {str(e)}")
                 return jsonify({"error": "Failed to update Firebase user"}), 400
 
-    # Update MongoDB record.
+    # Update the MongoDB record
     if email:
         user.email = email
     if full_name:
@@ -124,8 +127,10 @@ def update_profile():
 
     return jsonify({"message": "Profile updated successfully"}), 200
 
+
 @profile_bp.route("/delete", methods=["DELETE"])
 def delete_account():
+
     data = request.json
     token = data.get("id_token")
     if not token:
@@ -136,41 +141,63 @@ def delete_account():
         return jsonify({"error": "Invalid token"}), 401
 
     try:
-        # Delete the Firebase user. This applies to both social and regular accounts.
         firebase_auth.delete_user(uid)
     except Exception as e:
         logger.error(f"Error deleting Firebase user: {str(e)}")
         return jsonify({"error": "Failed to delete Firebase user"}), 400
 
-    # Attempt to delete the MongoDB record if it exists.
     user = User.objects(firebase_uid=uid).first()
     if user:
         user.delete()
 
     return jsonify({"message": "Account deleted successfully"}), 200
 
-@profile_bp.route("/review_settings", methods=["PUT"])
-def update_review_settings():
 
-    data = request.json
-    token = data.get("id_token")
-    remember = data.get("remember_settings", False)
-    
+@profile_bp.route("/review_settings", methods=["GET"])
+def get_review_settings():
+
+    token = request.args.get("id_token")
     if not token:
         return jsonify({"error": "Token is missing"}), 400
 
-    # Do not save if the user did not tick "remember settings"
+    uid, _ = get_uid_and_provider(token)
+    if not uid:
+        return jsonify({"error": "Invalid token"}), 401
+
+    settings = ReviewSettings.objects(firebase_uid=uid).first()
+    if settings:
+        review_settings = {
+            "review_count": settings.review_count,
+            "coverage": settings.coverage,
+            "remember_settings": settings.remember_settings,
+            "updated_at": settings.updated_at.isoformat() if settings.updated_at else None
+        }
+        return jsonify({"review_settings": review_settings}), 200
+    else:
+        return jsonify({"review_settings": {}}), 200
+    
+@profile_bp.route("/Update_review_settings", methods=["PUT"])
+def update_review_settings():
+    data = request.json
+    token = data.get("id_token")
+    remember = data.get("remember_settings", False)
+
+    if not token:
+        return jsonify({"error": "Token is missing"}), 400
+
     if not remember:
+        # If the user did not tick "remember settings", do not save.
         return jsonify({"message": "Settings not saved (remember_settings not ticked)."}), 200
 
     uid, _ = get_uid_and_provider(token)
     if not uid:
         return jsonify({"error": "Invalid token"}), 401
 
-    review_count = data.get("review_count")
-    coverage = data.get("coverage")
+    # Cast the review_count and coverage values to string
+    review_count = str(data.get("review_count"))
+    coverage = str(data.get("coverage"))
 
-    # Check for an existing review settings document, then update or create.
+    # Try to update an existing settings document; if not, create a new one.
     settings = ReviewSettings.objects(firebase_uid=uid).first()
     if settings:
         settings.review_count = review_count

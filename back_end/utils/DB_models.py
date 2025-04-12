@@ -14,8 +14,8 @@ class User(Document):
 
 class ReviewSettings(Document):
     firebase_uid = StringField(required=True, unique=True)
-    review_count = StringField() 
-    coverage = StringField()
+    review_count = StringField(required=True)
+    coverage = StringField(required=True)
     remember_settings = BooleanField(default=False)
     updated_at = DateTimeField(default=datetime.datetime.utcnow)
 

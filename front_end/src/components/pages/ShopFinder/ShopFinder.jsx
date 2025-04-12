@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import useToken from "../../../hooks/useToken/useToken.js";
 import {
   Container,
   TextField,
@@ -21,6 +23,10 @@ import {
   useTheme,
   alpha,
   styled,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -41,8 +47,7 @@ import {
 import ExplanationPopup from "../../reUse/ExplanationPopup/ExplanationPopup.jsx";
 import ReviewSettingPopup from "../../reUse/ReviewSettingPopup/ReviewSettingPopup.jsx";
 
-const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
-
+// ---------- Styled Components ----------
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
   color: "white",
@@ -69,9 +74,7 @@ const ShopCard = styled(Card)(({ theme, selected }) => ({
   "&:hover": {
     transform: "translateY(-8px)",
     boxShadow: theme.shadows[8],
-    "&::after": {
-      opacity: 1,
-    },
+    "&::after": { opacity: 1 },
   },
   "&::after": {
     content: '""',
@@ -87,8 +90,8 @@ const ShopCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
+// ---------- Utility Functions ----------
 const deg2rad = (deg) => deg * (Math.PI / 180);
-
 const computeDistance = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
@@ -100,12 +103,16 @@ const computeDistance = (lat1, lng1, lat2, lng2) => {
   return R * c;
 };
 
+// ---------- Full ShopFinder Component ----------
 function ShopFinder() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const mapRef = useRef(null);
+  const token = useToken();
+  const navigate = useNavigate();
+  const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
-  // Define general states
+  // Shop search related states
   const [query, setQuery] = useState("");
   const [shops, setShops] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,22 +120,25 @@ function ShopFinder() {
   const [selectedShop, setSelectedShop] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
 
-  // Define review settings states with their setters
+  // Review settings states (no "all shops" option)
   const [reviewCount, setReviewCount] = useState(null);
   const [selectedOption, setSelectedOption] = useState("10");
   const [customReviewCount, setCustomReviewCount] = useState("");
   const [tempDontAskAgain, setTempDontAskAgain] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [coverage, setCoverage] = useState("10");
-  const [allShops, setAllShops] = useState(false);
   const [customCoverage, setCustomCoverage] = useState("");
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
 
-  // Explanation popup states
+  // Explanation Popup state
   const [openExplanationModal, setOpenExplanationModal] = useState(false);
   const [explanationContent, setExplanationContent] = useState("");
 
+  // Login Required Modal state
+  const [loginRequiredModalOpen, setLoginRequiredModalOpen] = useState(false);
+
+  // ---------- useEffect: Load Geolocation & Review Settings ----------
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -141,12 +151,63 @@ function ShopFinder() {
       },
       (error) => console.error("Location Error:", error)
     );
+
+    if (token) {
+      (async () => {
+        try {
+          const res = await axios.get(
+            "http://127.0.0.1:5000/profile/review_settings",
+            {
+              params: { id_token: token },
+            }
+          );
+          if (res.data && res.data.review_settings) {
+            const settings = res.data.review_settings;
+            // Review count: preset values are "10", "100", "500", "1000"
+            if (
+              ["10", "100", "500", "1000"].includes(
+                settings.review_count.toString()
+              )
+            ) {
+              setSelectedOption(settings.review_count.toString());
+              setCustomReviewCount("");
+            } else {
+              setSelectedOption("custom");
+              setCustomReviewCount(settings.review_count.toString());
+            }
+            // Coverage: preset values are "10", "20", "50", "100"
+            if (
+              ["10", "20", "50", "100"].includes(settings.coverage.toString())
+            ) {
+              setCoverage(settings.coverage.toString());
+              setCustomCoverage("");
+            } else {
+              setCoverage("customcoverage");
+              setCustomCoverage(settings.coverage.toString());
+            }
+            setDontAskAgain(settings.remember_settings);
+            setTempDontAskAgain(settings.remember_settings);
+            setReviewCount(parseInt(settings.review_count));
+          }
+        } catch (error) {
+          console.error("Error loading review settings:", error);
+        }
+      })();
+    }
   }, []);
 
+  // ---------- Handlers ----------
   const handleSearch = () => {
-    if (dontAskAgain && reviewCount && (allShops || coverage)) {
+    // If not logged in, prompt login.
+    if (!token) {
+      setLoginRequiredModalOpen(true);
+      return;
+    }
+    // If settings are already saved (remembered) and both reviewCount and coverage exist, perform search.
+    if (dontAskAgain && reviewCount && coverage) {
       performSearch(reviewCount);
     } else {
+      // Otherwise, show the ReviewSettingPopup for user to update/save settings.
       setShowReviewModal(true);
       setModalTriggeredBySearch(true);
     }
@@ -160,11 +221,7 @@ function ShopFinder() {
         {
           product: query,
           reviewCount: finalReviewCount,
-          coverage: allShops
-            ? "all"
-            : coverage === "customcoverage"
-            ? customCoverage
-            : coverage,
+          coverage: coverage === "customcoverage" ? customCoverage : coverage,
           location: currentLocation,
         }
       );
@@ -195,7 +252,13 @@ function ShopFinder() {
     setOpenExplanationModal(true);
   };
 
-  const handleReviewModalConfirm = () => {
+  // ---------- Review Setting Confirmation Handler ----------
+  const handleReviewModalConfirm = async () => {
+    // Ensure token exists before saving settings.
+    if (!token) {
+      setLoginRequiredModalOpen(true);
+      return;
+    }
     const finalReviewCount =
       selectedOption === "custom"
         ? parseInt(customReviewCount)
@@ -206,7 +269,24 @@ function ShopFinder() {
     setCoverage(finalCoverage);
     setDontAskAgain(tempDontAskAgain);
     setShowReviewModal(false);
-    if (modalTriggeredBySearch) performSearch(finalReviewCount);
+
+    // Call backend to update the review settings.
+    try {
+      await axios.put("http://127.0.0.1:5000/profile/Update_review_settings", {
+        id_token: token,
+        review_count: finalReviewCount,
+        coverage: finalCoverage,
+        remember_settings: tempDontAskAgain,
+      });
+      // Optionally show a snackbar message here.
+    } catch (error) {
+      console.error("Error updating review settings:", error);
+      // Optionally show an error message.
+    }
+
+    if (modalTriggeredBySearch) {
+      performSearch(finalReviewCount);
+    }
   };
 
   return (
@@ -241,7 +321,6 @@ function ShopFinder() {
             >
               Discover Local Shops
             </Typography>
-
             <Typography
               variant="h6"
               color="text.secondary"
@@ -390,7 +469,6 @@ function ShopFinder() {
                 }}
               />
             )}
-
             {shops.map((shop, index) => (
               <Marker
                 key={index}
@@ -413,7 +491,6 @@ function ShopFinder() {
                 }}
               />
             ))}
-
             {selectedShop && currentLocation && (
               <InfoWindow
                 position={{ lat: selectedShop.lat, lng: selectedShop.lng }}
@@ -432,7 +509,6 @@ function ShopFinder() {
                   >
                     {selectedShop.shop_name}
                   </Typography>
-
                   <Box
                     sx={{
                       display: "flex",
@@ -458,7 +534,6 @@ function ShopFinder() {
                       km away
                     </Typography>
                   </Box>
-
                   <Box sx={{ display: "flex", gap: 1.5, mt: 2 }}>
                     <Button
                       variant="contained"
@@ -524,7 +599,6 @@ function ShopFinder() {
             </Box>
           </Grid>
         )}
-
         {isLoading
           ? Array.from(new Array(4)).map((_, index) => (
               <Grid item xs={12} md={6} lg={4} key={index}>
@@ -673,11 +747,35 @@ function ShopFinder() {
         handleConfirm={handleReviewModalConfirm}
         coverage={coverage}
         setCoverage={setCoverage}
-        allShops={allShops}
-        setAllShops={setAllShops}
         customCoverage={customCoverage}
         setCustomCoverage={setCustomCoverage}
       />
+
+      {/* Login Required Modal */}
+      <Dialog
+        open={loginRequiredModalOpen}
+        onClose={() => setLoginRequiredModalOpen(false)}
+      >
+        <DialogTitle>Login Required</DialogTitle>
+        <DialogContent>
+          <Typography>
+            You must be logged in to save review settings.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLoginRequiredModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setLoginRequiredModalOpen(false);
+              navigate("/login");
+            }}
+          >
+            Login
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

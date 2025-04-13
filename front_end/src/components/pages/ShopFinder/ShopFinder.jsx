@@ -114,11 +114,16 @@ function ShopFinder() {
 
   // Shop search related states
   const [query, setQuery] = useState("");
-  const [shops, setShops] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [shops, setShops] = useState([]); // Stores the fetched shops
+  const [isLoading, setIsLoading] = useState(false); // Loading state for initial search
   const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
+
+  // Pagination-related states
+  const [offset, setOffset] = useState(0); // Pagination offset
+  const [hasMoreShops, setHasMoreShops] = useState(true); // If there are more shops to load
+  const [showLoadMoreButton, setShowLoadMoreButton] = useState(false); // Initially hidden, becomes true after first load
 
   // Review settings states (no "all shops" option)
   const [reviewCount, setReviewCount] = useState(null);
@@ -163,7 +168,6 @@ function ShopFinder() {
           );
           if (res.data && res.data.review_settings) {
             const settings = res.data.review_settings;
-            // Review count: preset values are "10", "100", "500", "1000"
             if (
               ["10", "100", "500", "1000"].includes(
                 settings.review_count.toString()
@@ -175,7 +179,6 @@ function ShopFinder() {
               setSelectedOption("custom");
               setCustomReviewCount(settings.review_count.toString());
             }
-            // Coverage: preset values are "10", "20", "50", "100"
             if (
               ["10", "20", "50", "100"].includes(settings.coverage.toString())
             ) {
@@ -198,16 +201,14 @@ function ShopFinder() {
 
   // ---------- Handlers ----------
   const handleSearch = () => {
-    // If not logged in, prompt login.
     if (!token || !isValid) {
-      setLoginRequiredModalOpen(true);
+      setLoginRequiredModalOpen(true); // Show login required modal if not logged in
       return;
     }
-    // If settings are already saved (remembered) and both reviewCount and coverage exist, perform search.
+
     if (dontAskAgain && reviewCount && coverage) {
       performSearch(reviewCount);
     } else {
-      // Otherwise, show the ReviewSettingPopup for user to update/save settings.
       setShowReviewModal(true);
       setModalTriggeredBySearch(true);
     }
@@ -223,10 +224,19 @@ function ShopFinder() {
           reviewCount: finalReviewCount,
           coverage: coverage === "customcoverage" ? customCoverage : coverage,
           location: currentLocation,
+          offset: offset, // Pass the offset for pagination
         }
       );
-      console.log("Search Response:", response.data.shops);
-      setShops(response.data.shops);
+      const newShops = response.data.shops;
+
+      if (newShops.length === 0) {
+        setHasMoreShops(false);
+      } else {
+        setShops((prevShops) => [...prevShops, ...newShops]);
+        setOffset(offset + 5); // Increment the offset for the next set of shops
+        setShowLoadMoreButton(true); // Show the "Load More" button after the first load
+      }
+
       setIsLoading(false);
     } catch (error) {
       console.error("Search Error:", error);
@@ -255,11 +265,11 @@ function ShopFinder() {
 
   // ---------- Review Setting Confirmation Handler ----------
   const handleReviewModalConfirm = async () => {
-    // Ensure token exists before saving settings.
     if (!token || !isValid) {
-      setLoginRequiredModalOpen(true);
+      setLoginRequiredModalOpen(true); // Show login required modal if not logged in
       return;
     }
+
     const finalReviewCount =
       selectedOption === "custom"
         ? parseInt(customReviewCount)
@@ -271,7 +281,6 @@ function ShopFinder() {
     setDontAskAgain(tempDontAskAgain);
     setShowReviewModal(false);
 
-    // Call backend to update the review settings.
     try {
       await axios.put("http://127.0.0.1:5000/profile/Update_review_settings", {
         id_token: token,
@@ -279,10 +288,8 @@ function ShopFinder() {
         coverage: finalCoverage,
         remember_settings: tempDontAskAgain,
       });
-      // Optionally show a snackbar message here.
     } catch (error) {
       console.error("Error updating review settings:", error);
-      // Optionally show an error message.
     }
 
     if (modalTriggeredBySearch) {
@@ -293,7 +300,7 @@ function ShopFinder() {
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Animated Title Section */}
-      <Box sx={{ textAlign: "center", mb: 8, position: "relative" }}>
+      <Box sx={{ textAlign: "center", mb: 8 }}>
         <Slide in direction="down" timeout={800}>
           <Box>
             <Typography
@@ -334,7 +341,7 @@ function ShopFinder() {
       </Box>
 
       {/* Search Section */}
-      <Box sx={{ mb: 6, position: "relative" }}>
+      <Box sx={{ mb: 6 }}>
         <Grid container spacing={3} alignItems="center">
           <Grid item xs={12} sm={9}>
             <TextField
@@ -572,7 +579,7 @@ function ShopFinder() {
 
       {/* Shop Results Grid */}
       <Grid container spacing={4} sx={{ mt: 4 }}>
-        {shops.length === 0 && !isLoading && (
+        {shops.length === 0 && !isLoading ? (
           <Grid item xs={12}>
             <Box
               sx={{
@@ -599,143 +606,96 @@ function ShopFinder() {
               </Typography>
             </Box>
           </Grid>
-        )}
-        {isLoading
-          ? Array.from(new Array(4)).map((_, index) => (
-              <Grid item xs={12} md={6} lg={4} key={index}>
-                <Skeleton
-                  variant="rounded"
-                  height={300}
-                  sx={{
-                    borderRadius: 4,
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                  }}
-                />
-              </Grid>
-            ))
-          : shops.map((shop, index) => (
-              <Grid item xs={12} md={6} lg={4} key={index}>
-                <Zoom
-                  in
-                  timeout={(index + 1) * 200}
-                  style={{ transitionDelay: `${index * 50}ms` }}
+        ) : isLoading ? (
+          // Skeleton Loader
+          Array.from(new Array(4)).map((_, index) => (
+            <Grid item xs={12} md={6} lg={4} key={index}>
+              <Skeleton
+                variant="rounded"
+                height={300}
+                sx={{
+                  borderRadius: 4,
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                }}
+              />
+            </Grid>
+          ))
+        ) : (
+          // Show Shops
+          shops.map((shop, index) => (
+            <Grid item xs={12} md={6} lg={4} key={index}>
+              <Zoom in timeout={(index + 1) * 200}>
+                <ShopCard
+                  selected={selectedShop?.lat === shop.lat}
+                  onClick={() => selectShop(shop)}
                 >
-                  <ShopCard
-                    selected={selectedShop?.lat === shop.lat}
-                    onClick={() => selectShop(shop)}
-                    elevation={4}
-                    sx={{ height: "100%" }}
-                  >
-                    <CardContent
-                      sx={{ flex: 1, display: "flex", flexDirection: "column" }}
-                    >
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 3 }}
-                      >
-                        <Avatar
-                          sx={{
-                            bgcolor: alpha(
-                              theme.palette.primary.main,
-                              selectedShop?.lat === shop.lat ? 0.2 : 0.1
-                            ),
-                            color: theme.palette.primary.main,
-                            width: 64,
-                            height: 64,
-                            mr: 3,
-                            boxShadow: theme.shadows[4],
-                          }}
-                        >
-                          <StoreIcon fontSize="large" />
-                        </Avatar>
-                        <Box>
-                          <Typography
-                            variant="h6"
-                            component="div"
-                            sx={{ fontWeight: 700 }}
-                          >
-                            {shop.name}
-                          </Typography>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              mt: 1,
-                            }}
-                          >
-                            <Rating
-                              value={shop.predicted_rating || 0}
-                              precision={0.5}
-                              readOnly
-                              size="large"
-                              sx={{ color: "#FFD700", mr: 1.5 }}
-                            />
-                            <Typography
-                              variant="subtitle1"
-                              sx={{ color: "text.secondary", fontWeight: 600 }}
-                            >
-                              ({shop.predicted_rating}/5)
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </Box>
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 3 }}
-                      >
-                        <LocationIcon
-                          color="action"
-                          sx={{ mr: 1.5, fontSize: 24 }}
-                        />
-                        <Typography variant="body2" color="text.secondary">
-                          {shop.address}
-                        </Typography>
-                      </Box>
-                      <Box
+                  <CardContent>
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+                      <Avatar
                         sx={{
-                          flex: 1,
-                          p: 2.5,
-                          borderRadius: 3,
-                          bgcolor: alpha(theme.palette.primary.light, 0.08),
-                          border: `1px solid ${alpha(
-                            theme.palette.primary.main,
-                            0.15
-                          )}`,
-                          position: "relative",
-                          overflow: "hidden",
-                          "&::before": {
-                            content: '""',
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: 4,
-                            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                          },
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: theme.palette.primary.main,
+                          width: 64,
+                          height: 64,
+                          mr: 3,
                         }}
                       >
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            lineHeight: 1.7,
-                            color: "text.secondary",
-                            whiteSpace: "pre-line",
-                          }}
+                        <StoreIcon fontSize="large" />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h6">{shop.name}</Typography>
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", mt: 1 }}
                         >
-                          {shop.summary || "No summary available"}
-                        </Typography>
+                          <Rating
+                            value={shop.predicted_rating || 0}
+                            readOnly
+                            size="small"
+                          />
+                          <Typography variant="subtitle1">
+                            ({shop.predicted_rating}/5)
+                          </Typography>
+                        </Box>
                       </Box>
-                    </CardContent>
-                  </ShopCard>
-                </Zoom>
-              </Grid>
-            ))}
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+                      <LocationIcon sx={{ color: "action" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {shop.address}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {shop.summary || "No summary available"}
+                    </Typography>
+                  </CardContent>
+                </ShopCard>
+              </Zoom>
+            </Grid>
+          ))
+        )}
       </Grid>
 
+      {/* Load More Button */}
+      {showLoadMoreButton && hasMoreShops && (
+        <Box sx={{ textAlign: "center", mt: 4 }}>
+          <Button
+            onClick={() => performSearch(reviewCount)}
+            variant="outlined"
+            disabled={isLoading}
+          >
+            {isLoading ? <CircularProgress size={24} /> : "Load More"}
+          </Button>
+        </Box>
+      )}
+
+      {/* Explanation Popup */}
       <ExplanationPopup
         open={openExplanationModal}
         onClose={() => setOpenExplanationModal(false)}
         explanation={explanationContent}
       />
 
+      {/* Review Settings Popup */}
       <ReviewSettingPopup
         open={showReviewModal}
         onClose={() => setShowReviewModal(false)}

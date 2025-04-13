@@ -108,7 +108,7 @@ function ShopFinder() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const mapRef = useRef(null);
-  const token = useToken();
+  const { token, isValid } = useToken(); // Get the token and validity state
   const navigate = useNavigate();
   const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
@@ -152,7 +152,7 @@ function ShopFinder() {
       (error) => console.error("Location Error:", error)
     );
 
-    if (token) {
+    if (token && isValid) {
       (async () => {
         try {
           const res = await axios.get(
@@ -199,7 +199,7 @@ function ShopFinder() {
   // ---------- Handlers ----------
   const handleSearch = () => {
     // If not logged in, prompt login.
-    if (!token) {
+    if (!token || !isValid) {
       setLoginRequiredModalOpen(true);
       return;
     }
@@ -255,7 +255,7 @@ function ShopFinder() {
   // ---------- Review Setting Confirmation Handler ----------
   const handleReviewModalConfirm = async () => {
     // Ensure token exists before saving settings.
-    if (!token) {
+    if (!token || !isValid) {
       setLoginRequiredModalOpen(true);
       return;
     }

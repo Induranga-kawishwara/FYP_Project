@@ -6,8 +6,9 @@ from services import (
     generate_summary,
     scrape_reviews
 )
+from utils import CachedShop  # Import the CachedShop model
 import logging
-import json
+from datetime import datetime
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
@@ -38,9 +39,11 @@ def search_product():
     # Use caching to reduce repeated API calls.
     cache_key = f"shops_{product_name}_{lat}_{lng}_{radius}"
     shops_results = cache.get(cache_key)
+    
     if not shops_results:
         shops_results = fetch_all_shops(product_name, lat, lng, radius)
         if shops_results:
+
             cache.set(cache_key, shops_results, timeout=300)  # Cache for 5 minutes
 
     if not shops_results:
@@ -49,38 +52,71 @@ def search_product():
     shops = []
     for place in shops_results:
         try:
-            # If place is a string, attempt to parse it as JSON.
-            if isinstance(place, str):
-                place = json.loads(place)
-            shop = {
-                "shop_name": place["name"],
-                "address": place.get("formatted_address", "N/A"),
-                "rating": float(place.get("rating", 0)),
-                "place_id": place["place_id"],
-                "lat": float(place["geometry"]["location"]["lat"]),
-                "lng": float(place["geometry"]["location"]["lng"])
-            }
-            try:
-                valid_reviews = scrape_reviews(shop["place_id"], review_count)
-            except Exception as e:
-                logger.error(f"Error scraping reviews for place_id {shop['place_id']}: {str(e)}")
-                valid_reviews = []
-
-            if valid_reviews:
-                # Combine all review texts into one string.
-                combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
-                # Predict rating and obtain XAI outputs (raw and user-friendly).
-                xai_results = predict_review_rating_with_explanations(combined_reviews)
-                summary = generate_summary(combined_reviews)
-                shop["summary"] = summary
-                shop["predicted_rating"] = xai_results["predicted_rating"]
-                shop["xai_explanations"] = xai_results["explanations"]
-            else:
-                shop["summary"] = "No reviews available."
-                shop["predicted_rating"] = 0
-                shop["xai_explanations"] = "NO Explanations available."
+            place_id = place["place_id"]
+            cached_shop = CachedShop.objects(place_id=place_id).first()
             
-            shops.append(convert_numpy_types(shop))
+            if cached_shop and cached_shop.is_cache_valid():
+                # If the cached data is valid, use it
+                shop = {
+                    "name": cached_shop.name,
+                    "address": cached_shop.address,
+                    "rating": cached_shop.rating,
+                    "place_id": cached_shop.place_id,
+                    "lat": cached_shop.lat,
+                    "lng": cached_shop.lng,
+                    "summary": cached_shop.summary,
+                    "predicted_rating": cached_shop.predicted_rating,
+                    "xai_explanations": cached_shop.xai_explanations,
+                }
+            else:
+                shop = {
+                    "name": place["name"],
+                    "address": place.get("formatted_address", "N/A"),
+                    "rating": float(place.get("rating", 0)),
+                    "place_id": place["place_id"],
+                    "lat": float(place["geometry"]["location"]["lat"]),
+                    "lng": float(place["geometry"]["location"]["lng"])
+                }
+
+                try:
+                    valid_reviews = scrape_reviews(shop["place_id"], review_count)
+                except Exception as e:
+                    logger.error(f"Error scraping reviews for place_id {shop['place_id']}: {str(e)}")
+                    valid_reviews = []
+
+                if valid_reviews:
+                    # Combine all review texts into one string.
+                    combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
+                    # Predict rating and obtain XAI outputs (raw and user-friendly).
+                    xai_results = predict_review_rating_with_explanations(combined_reviews)
+                    summary = generate_summary(combined_reviews)
+                    shop["summary"] = summary
+                    shop["predicted_rating"] = xai_results["predicted_rating"]
+                    shop["xai_explanations"] = xai_results["explanations"]
+
+                    # Cache the shop data after scraping
+                    cached_shop = CachedShop(
+                        name = shop["name"],
+                        place_id = shop["place_id"],
+                        rating = shop.get("rating", None),  # Use get() in case some fields are missing
+                        reviews = valid_reviews,
+                        summary = shop.get("summary", "No summary available"),  # Default value for summary
+                        predicted_rating = shop.get("predicted_rating", None),
+                        xai_explanations = shop.get("xai_explanations", "No explanations available"),
+                        address = shop.get("address", "No address available"),  # Default value for address
+                        lat = shop.get("lat", None) , # Handle cases where latitude might be missing
+                        lng = shop.get("lng", None) , # Handle cases where longitude might be missing
+                        cached_at = datetime.utcnow() # Set the current time as the cache time
+                    )
+                    cached_shop.save()  
+                else:
+                    shop["summary"] = "No reviews available."
+                    shop["predicted_rating"] = 0
+                    shop["xai_explanations"] = "NO Explanations available."
+
+            shops.append(convert_numpy_types(shop))  # Ensure the correct format for the response
+
         except Exception as e:
             logger.error(f"Error processing shop: {e}")
+    
     return jsonify({"shops": shops})

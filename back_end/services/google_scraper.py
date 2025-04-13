@@ -90,8 +90,6 @@ def detect_fake_reviews(reviews):
         else:
             fake_reviews.append(review)
     print(f"Detected {len(real_reviews)} real reviews and {len(fake_reviews)} fake reviews.")
-    print(f"Real reviews: {real_reviews}")
-    print(f"Fake reviews: {fake_reviews}")
     return real_reviews, fake_reviews
 
 # --- Preprocess Reviews ---
@@ -139,10 +137,7 @@ class ChromeDriver:
 
 # --- Main Function to Scrape Reviews ---
 def scrape_reviews(place_id, max_reviews):
-    """
-    Scrapes up to max_reviews valid reviews for the given place_id.
-    Keeps only the most recent review per author.
-    """
+
     valid_reviews = {}  # { author: review_dict }
     scraped_texts = set()
 

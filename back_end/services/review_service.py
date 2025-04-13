@@ -19,7 +19,6 @@ nltk.download("stopwords")
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 
-
 # Load the TF-IDF vectorizer (trained previously)
 tfidf_vectorizer_path = "models/reviewPredictionModel/tfidf_vectorizer.pkl"
 vectorizer = joblib.load(tfidf_vectorizer_path)
@@ -49,7 +48,6 @@ summarization_model_name = "facebook/bart-large-cnn"
 summarization_tokenizer = AutoTokenizer.from_pretrained(summarization_model_name)
 summarization_model = AutoModelForSeq2SeqLM.from_pretrained(summarization_model_name)
 
-
 # Here we extract the CLS token from the last hidden state.
 embedding_dim = distilbert_model.config.hidden_size 
 expected_combined_dim = embedding_dim + len(vocab)
@@ -59,13 +57,10 @@ print("Expected combined feature vector dimension:", expected_combined_dim)
 combined_feature_names = [f"distilbert_feature_{i+1}" for i in range(embedding_dim)] + list(vocab)
 xgb_model.feature_names = combined_feature_names
 
-
 lime_explainer = LimeTextExplainer(
     class_names=["Rating 1", "Rating 2", "Rating 3", "Rating 4", "Rating 5"]
 )
 shap_explainer = shap.TreeExplainer(xgb_model)
-
-
 
 def get_distilbert_embeddings(text_list, tokenizer, model):
     """
@@ -201,7 +196,6 @@ def predict_review_rating_with_explanations(reviews):
     overall_user_friendly_explanation = generate_user_friendly_explanation(overall_raw_explanation)
     
     return {"predicted_rating": round(avg_rating, 2), "explanations": overall_user_friendly_explanation}
-
 def classify_reviews_by_rating(reviews):
     """
     Classify reviews into positive, neutral, and negative based on predicted ratings.

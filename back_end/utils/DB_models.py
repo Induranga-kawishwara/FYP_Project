@@ -1,4 +1,4 @@
-from mongoengine import Document, BooleanField, StringField, DateTimeField
+from mongoengine import Document, BooleanField, StringField, DateTimeField ,FloatField,ListField, DictField
 import datetime
 
 class User(Document):
@@ -22,3 +22,24 @@ class ReviewSettings(Document):
     meta = {
         'collection': 'review_settings'
     }
+
+class CachedShop(Document):
+    name = StringField(required=True)
+    place_id = StringField(required=True, unique=True)
+    rating = FloatField()
+    reviews = ListField(DictField())  
+    summary = StringField()
+    predicted_rating = FloatField()
+    xai_explanations = StringField()
+    address = StringField()  # Added address field
+    lat = FloatField()  # Added latitude field
+    lng = FloatField()  # Added longitude field
+    cached_at = DateTimeField(default=datetime.datetime.utcnow)  
+
+    meta = {
+        'collection': 'cached_shops'
+    }
+
+    def is_cache_valid(self):
+        """ Check if the cache is older than 24 hours """
+        return (datetime.datetime.utcnow() - self.cached_at).days < 1  # Cache expires after 24 hours

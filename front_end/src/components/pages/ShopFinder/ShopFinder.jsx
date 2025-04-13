@@ -225,6 +225,7 @@ function ShopFinder() {
           location: currentLocation,
         }
       );
+      console.log("Search Response:", response.data.shops);
       setShops(response.data.shops);
       setIsLoading(false);
     } catch (error) {
@@ -484,7 +485,7 @@ function ShopFinder() {
                   strokeWeight: 2,
                 }}
                 label={{
-                  text: shop.shop_name[0].toUpperCase(),
+                  text: shop.name[0].toUpperCase(),
                   color: "white",
                   fontSize: "14px",
                   fontWeight: "bold",
@@ -507,7 +508,7 @@ function ShopFinder() {
                       mb: 2,
                     }}
                   >
-                    {selectedShop.shop_name}
+                    {selectedShop.name}
                   </Typography>
                   <Box
                     sx={{
@@ -652,7 +653,7 @@ function ShopFinder() {
                             component="div"
                             sx={{ fontWeight: 700 }}
                           >
-                            {shop.shop_name}
+                            {shop.name}
                           </Typography>
                           <Box
                             sx={{

@@ -10,7 +10,7 @@ def send_email_via_brevo(to_email, subject, html_content, text_content):
     api_instance = sib_api_v3_sdk.TransactionalEmailsApi(api_client)
     
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-        sender={"email": Config.EMAIL_FROM},
+        sender={"name": "ShopFinder", "email": Config.EMAIL_FROM},
         to=[{"email": to_email}],
         subject=subject,
         html_content=html_content,

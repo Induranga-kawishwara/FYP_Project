@@ -10,6 +10,8 @@ from utils import CachedShop  # Import the CachedShop model
 import logging
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+from selenium.common.exceptions import WebDriverException
+import time
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
@@ -102,9 +104,9 @@ def process_shop(place, review_count):
 
             try:
                 valid_reviews = scrape_reviews(shop["place_id"], review_count)
-            except Exception as e:
-                logger.error(f"Error scraping reviews for place_id {shop['place_id']}: {str(e)}")
-                valid_reviews = []
+            except WebDriverException as e:
+                logger.error(f"WebDriver exception while scraping reviews for place_id {shop['place_id']}: {e}")
+                valid_reviews = []  # Handle WebDriver exceptions gracefully
 
             if valid_reviews:
                 # Combine all review texts into one string.

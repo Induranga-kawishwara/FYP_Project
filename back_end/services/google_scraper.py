@@ -7,7 +7,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
 import nltk
@@ -29,7 +28,7 @@ stop_words = set(stopwords.words("english"))
 
 # --- Setup Selenium WebDriver Options ---
 options = Options()
-options.add_argument("--headless")
+options.add_argument("--headless")  # Run headless for background scraping
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
@@ -39,9 +38,6 @@ options.add_argument(
     "Chrome/91.0.4472.124 Safari/537.36"
 )
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
-# Optionally, use a temporary user-data-dir to avoid conflicts:
-user_data_dir = tempfile.mkdtemp()
-options.add_argument(f"--user-data-dir={user_data_dir}")
 
 # --- Helper: Parse Relative Date ---
 def parse_relative_date(date_str):
@@ -135,9 +131,8 @@ class ChromeDriver:
         if self.driver:
             self.driver.quit()
 
-# --- Main Function to Scrape Reviews ---
+# --- Scrape Reviews with Retry Logic ---
 def scrape_reviews(place_id, max_reviews):
-
     valid_reviews = {}  # { author: review_dict }
     scraped_texts = set()
 
@@ -214,7 +209,6 @@ def scrape_reviews(place_id, max_reviews):
 
             prev_count = len(review_elements)
             scroll_reviews(driver)
-            # Wait briefly to allow new reviews to load.
             time.sleep(2)
             curr_count = len(driver.find_elements(By.CSS_SELECTOR, "div.jftiEf"))
             if curr_count == prev_count:
@@ -224,6 +218,4 @@ def scrape_reviews(place_id, max_reviews):
                     break
             else:
                 scroll_attempts = 0
-
-    final_reviews = sorted(valid_reviews.values(), key=lambda r: r["date"], reverse=True)
-    return final_reviews[:max_reviews]
+    return sorted(valid_reviews.values(), key=lambda r: r["date"], reverse=True)[:max_reviews]

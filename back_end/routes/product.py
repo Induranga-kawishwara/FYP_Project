@@ -88,7 +88,6 @@ def search_product():
 
 
 def process_shop(place, review_count):
-    print(place["place_id"])
     try:
         place_id = place["place_id"]
         cached_shop = CachedShop.objects(place_id=place_id).first()
@@ -153,9 +152,8 @@ def process_shop(place, review_count):
                 cached_at=datetime.utcnow()
             )
             cached_shop.save()
-        print(cached_shop)
-        return shop
 
+        return shop
     except Exception as e:
         logger.error(f"Error processing shop {place.get('place_id', 'unknown')}: {e}")
         return None

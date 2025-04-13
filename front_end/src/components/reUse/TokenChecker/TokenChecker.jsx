@@ -18,10 +18,10 @@ const TokenChecker = ({ children }) => {
     axios
       .post("http://127.0.0.1:5000/auth/verify", { id_token: token })
       .then((res) => {
+        console.log(res.data.valid);
         if (res.data.valid) {
           setTokenValid(true);
         } else {
-          // Token is not valid so remove it
           Cookies.remove("idToken");
           setTokenValid(false);
         }

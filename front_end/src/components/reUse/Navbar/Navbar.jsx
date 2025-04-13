@@ -21,7 +21,7 @@ import {
 } from "@mui/icons-material";
 import { NavLink, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import useToken from "../../../hooks/useToken/useToken.js";
+import useToken from "../../../hooks/useToken/useToken.js"; // Custom hook for token validation
 
 const Navbar = () => {
   const theme = useTheme();
@@ -29,8 +29,8 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
 
-  // Custom hook that returns a valid token if it exists.
-  const token = useToken();
+  // Get the token and its validity status from the custom hook
+  const { token, isValid } = useToken();
 
   // Protected navigation items (only for valid token)
   const protectedNavItems = [
@@ -42,17 +42,20 @@ const Navbar = () => {
     { name: "About", path: "/about", icon: <Info /> },
   ];
 
-  const navItems = token
+  // Determine the navigation items based on token validity
+  const navItems = isValid
     ? [...publicNavItems, ...protectedNavItems]
     : publicNavItems;
 
-  const authItem = token
+  // Handle login/logout button text and actions
+  const authItem = isValid
     ? { name: "Logout", icon: <Lock /> }
     : { name: "Login", path: "/login", icon: <Lock /> };
 
+  // Handle logout action
   const handleLogout = () => {
-    Cookies.remove("idToken");
-    navigate("/login");
+    Cookies.remove("idToken"); // Remove the token from cookies
+    navigate("/login"); // Redirect to login page
   };
 
   const handleMenuOpen = (event) => {
@@ -114,7 +117,7 @@ const Navbar = () => {
                     <Box sx={{ ml: 2 }}>{item.name}</Box>
                   </MenuItem>
                 ))}
-                {token ? (
+                {isValid ? (
                   <MenuItem
                     key="Logout"
                     onClick={() => {
@@ -154,7 +157,7 @@ const Navbar = () => {
                   {item.name}
                 </Button>
               ))}
-              {token ? (
+              {isValid ? (
                 <Button
                   key="Logout"
                   onClick={handleLogout}

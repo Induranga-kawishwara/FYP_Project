@@ -28,8 +28,6 @@ def search_product():
     location = data.get("location")  
     skip_ids = data.get("offset", [])  
 
-    print(skip_ids)
-
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
     if not location or not location.get("lat") or not location.get("lng"):

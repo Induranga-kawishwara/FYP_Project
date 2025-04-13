@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from utils import cache, convert_numpy_types
 from services import (
-    fetch_all_shops,
+    fetch_and_filter_shops_with_text,
     predict_review_rating_with_explanations,
     generate_summary,
     scrape_reviews
@@ -11,7 +11,6 @@ import logging
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from selenium.common.exceptions import WebDriverException
-import time
 
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ def search_product():
     shops_results = cache.get(cache_key)
     
     if not shops_results:
-        shops_results = fetch_all_shops(product_name, lat, lng, radius)
+        shops_results = fetch_and_filter_shops_with_text(product_name, lat, lng, radius)
         if shops_results:
             cache.set(cache_key, shops_results, timeout=300)  # Cache for 5 minutes
 

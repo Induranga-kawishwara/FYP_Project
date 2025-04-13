@@ -1,7 +1,7 @@
 import time
 import requests
 from tenacity import retry, wait_fixed, stop_after_attempt
-from config import Config
+from config import Config  
 
 
 @retry(wait=wait_fixed(2), stop=stop_after_attempt(3))
@@ -10,8 +10,9 @@ def get_google_response(url):
     response.raise_for_status()
     return response.json()
 
-def fetch_all_shops(product_name, lat, lng, radius):
 
+def fetch_all_shops(product_name, lat, lng, radius):
+ 
     base_url = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
     shops = []
     next_page_token = None
@@ -23,7 +24,7 @@ def fetch_all_shops(product_name, lat, lng, radius):
         )
         if next_page_token:
             url += f"&pagetoken={next_page_token}"
-            time.sleep(2)  # Adding a delay between requests to avoid hitting API rate limits
+            time.sleep(2)  # Delay to prevent hitting API rate limits
         response = get_google_response(url)
         if "results" in response:
             shops.extend(response["results"])
@@ -32,5 +33,55 @@ def fetch_all_shops(product_name, lat, lng, radius):
         next_page_token = response.get("next_page_token")
         if not next_page_token:
             break
-    # return shops[:2]
+
     return shops
+
+
+
+def fetch_place_details(place_id):
+
+    details_url = (
+        "https://maps.googleapis.com/maps/api/place/details/json"
+        f"?place_id={place_id}"
+        f"&fields=name,rating,user_ratings_total,reviews"
+        f"&key={Config.GOOGLE_API_KEY}"
+    )
+    resp = requests.get(details_url, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("result", {})
+
+
+def fetch_and_filter_shops_with_text(product_name, lat, lng, radius):
+
+    candidate_shops = fetch_all_shops(product_name, lat, lng, radius)
+    final_shops = []
+
+    for shop in candidate_shops:
+        # Ensure the candidate shop has the necessary data.
+        if "place_id" not in shop or "rating" not in shop:
+            continue
+
+        place_id = shop["place_id"]
+        rating = shop["rating"]
+
+        try:
+            # Fetch detailed info (and reviews) for this shop.
+            details = fetch_place_details(place_id)
+        except Exception as e:
+            print(f"Error fetching details for shop {place_id}: {e}")
+            continue
+
+        reviews = details.get("reviews", [])
+        has_text_review = any(review.get("text", "").strip() for review in reviews)
+
+        # Only keep the shop if there is at least one review with non-empty text.
+        if has_text_review:
+            # You might merge details into the shop record if needed.
+            shop["rating"] = rating  # Preserve the rating for sorting.
+            shop["reviews"] = reviews  # Optionally store detailed reviews.
+            final_shops.append(shop)
+
+    # Sort the filtered shops by rating (high to low)
+    final_shops.sort(key=lambda s: s.get("rating", 0), reverse=True)
+    return final_shops

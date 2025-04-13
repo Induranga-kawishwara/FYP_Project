@@ -1,5 +1,4 @@
 import joblib
-import pandas as pd
 import numpy as np
 import torch
 from transformers import (
@@ -18,13 +17,13 @@ nltk.download("stopwords")
 nltk.download("wordnet")
 nltk.download("omw-1.4")
 
-# Load the TF-IDF vectorizer (trained previously)
+# Load the TF-IDF vectorizer
 tfidf_vectorizer_path = "models/reviewPredictionModel/tfidf_vectorizer.pkl"
 vectorizer = joblib.load(tfidf_vectorizer_path)
 vocab = vectorizer.get_feature_names_out()
 print("TF-IDF vocabulary size:", len(vocab))
 
-# Load the XGBoost hybrid model (saved as JSON)
+# Load the XGBoost hybrid model 
 xgb_model_path = "models/reviewPredictionModel/xgb_hybrid.json"
 xgb_model = xgb.Booster()
 xgb_model.load_model(xgb_model_path)
@@ -198,6 +197,7 @@ def predict_review_rating_with_explanations(reviews):
     overall_user_friendly_explanation = generate_user_friendly_explanation(overall_raw_explanation)
     
     return {"predicted_rating": round(avg_rating, 2), "explanations": overall_user_friendly_explanation}
+
 def classify_reviews_by_rating(reviews):
     """
     Classify reviews into positive, neutral, and negative based on predicted ratings.
@@ -243,7 +243,5 @@ def generate_summary(reviews):
     summary_ids = summarization_model.generate(inputs, max_length=1024, min_length=100, length_penalty=1.0, num_beams=4, early_stopping=False)
     summary = summarization_tokenizer.decode(summary_ids[0], skip_special_tokens=True)
     summary = summary.replace("I ", "Some users ").replace("We ", "Many users ").replace("My ", "Their ").replace("Our ", "The product's ")
-    # return {
-    #     "detailed_summary": summary.strip(),
-    # }
+
     return summary.strip()

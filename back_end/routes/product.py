@@ -22,12 +22,11 @@ def search_product():
         return jsonify({}), 200
 
     data = request.get_json()
-
     product_name = data.get("product")
     review_count = data.get("reviewCount")
     coverage = data.get("coverage")
-    location = data.get("location")  
-    skip_ids = data.get("offset", [])  
+    location = data.get("location")
+    skip_ids = data.get("offset", [])
 
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
@@ -35,14 +34,13 @@ def search_product():
         return jsonify({"error": "User location is required"}), 400
 
     # Convert coverage (assumed in km) to meters and extract lat/lng.
-    radius = int(coverage) * 1000  
+    radius = int(coverage) * 1000
     lat = location.get("lat")
     lng = location.get("lng")
 
     # Use caching to reduce repeated API calls.
     cache_key = f"shops_{product_name}_{lat}_{lng}_{radius}"
     shops_results = cache.get(cache_key)
-    
     if not shops_results:
         shops_results = fetch_and_filter_shops_with_text(product_name, lat, lng, radius)
         if shops_results:
@@ -51,35 +49,51 @@ def search_product():
     if not shops_results:
         return jsonify({"error": "No shops found"}), 404
 
-    # Filter out already displayed shops based on skip_ids
+    # Filter out shops that have already been displayed based on skip_ids.
     filtered_shops = [shop for shop in shops_results if shop["place_id"] not in skip_ids]
 
-    shops = []
+    desired_shop_count = 5  # We want to end up with 5 valid shops.
+    valid_shops = []  # To collect shops that pass review processing.
 
-    # Initialize ThreadPoolExecutor with a maximum of 5 concurrent threads
+    # Use ThreadPoolExecutor to process candidate shops concurrently.
     with ThreadPoolExecutor(max_workers=5) as executor:
-        # Create a list of futures (tasks) for shop processing, but limit it to 5 new shops
-        futures = [executor.submit(process_shop, place, review_count) for place in filtered_shops[:5]]  # Limit to 5 shops
+        futures = []
+        index = 0
 
-        # Wait for all futures to complete and gather results
-        for future in futures:
-            try:
-                shop = future.result()
-                if shop:
-                    shops.append(convert_numpy_types(shop))  # Ensure the correct format for the response
-            except Exception as e:
-                logger.error(f"Error processing shop: {e}")
+        # Process candidate shops until we obtain the desired count or we run out of candidates.
+        while len(valid_shops) < desired_shop_count and index < len(filtered_shops):
+            # Submit tasks so that up to max of 5 run concurrently.
+            while index < len(filtered_shops) and len(futures) < 5:
+                futures.append(executor.submit(process_shop, filtered_shops[index], review_count))
+                index += 1
 
-    return jsonify({"shops": shops})
+            # For each submitted future, wait for results.
+            for future in list(futures):
+                try:
+                    shop = future.result(timeout=60)
+                    # Only add shops that have at least one valid (text) review.
+                    if shop:
+                        valid_shops.append(convert_numpy_types(shop))
+                except Exception as e:
+                    logger.error(f"Error processing shop: {e}")
+                finally:
+                    futures.remove(future)
+                if len(valid_shops) >= desired_shop_count:
+                    break
+
+    # Sort the valid shops by predicted review rating (high to low).
+    valid_shops.sort(key=lambda shop: shop.get("predicted_rating", 0), reverse=True)
+
+    return jsonify({"shops": valid_shops[:desired_shop_count]})
 
 
 def process_shop(place, review_count):
+    print(place["place_id"])
     try:
         place_id = place["place_id"]
         cached_shop = CachedShop.objects(place_id=place_id).first()
 
         if cached_shop and cached_shop.is_cache_valid():
-            # If the cached data is valid, use it
             shop = {
                 "name": cached_shop.name,
                 "address": cached_shop.address,
@@ -102,42 +116,46 @@ def process_shop(place, review_count):
             }
 
             try:
+                # Attempt to scrape reviews and remove fake ones.
                 valid_reviews = scrape_reviews(shop["place_id"], review_count)
             except WebDriverException as e:
                 logger.error(f"WebDriver exception while scraping reviews for place_id {shop['place_id']}: {e}")
-                valid_reviews = []  # Handle WebDriver exceptions gracefully
+                return None  # Skip shop gracefully.
 
-            if valid_reviews:
-                # Combine all review texts into one string.
-                combined_reviews = [" ".join([r["text"] for r in valid_reviews])]
-                # Predict rating and obtain XAI outputs (raw and user-friendly).
-                xai_results = predict_review_rating_with_explanations(combined_reviews)
-                summary = generate_summary(combined_reviews)
-                shop["summary"] = summary
-                shop["predicted_rating"] = xai_results["predicted_rating"]
-                shop["xai_explanations"] = xai_results["explanations"]
+            # If, after filtering, there are no valid reviews, skip this shop.
+            if not valid_reviews:
+                return None
 
-                # Cache the shop data after scraping
-                cached_shop = CachedShop(
-                    name = shop["name"],
-                    place_id = shop["place_id"],
-                    rating = shop.get("rating", None),  # Use get() in case some fields are missing
-                    reviews = valid_reviews,
-                    summary = shop.get("summary", "No summary available"),  # Default value for summary
-                    predicted_rating = shop.get("predicted_rating", None),
-                    xai_explanations = shop.get("xai_explanations", "No explanations available"),
-                    address = shop.get("address", "No address available"),  # Default value for address
-                    lat = shop.get("lat", None),  # Handle cases where latitude might be missing
-                    lng = shop.get("lng", None),  # Handle cases where longitude might be missing
-                    cached_at = datetime.utcnow()  # Set the current time as the cache time
-                )
-                cached_shop.save()  
-            else:
-                shop["summary"] = "No reviews available."
-                shop["predicted_rating"] = 0
-                shop["xai_explanations"] = "NO Explanations available."
+            # Combine text from valid reviews (only including reviews that have non-empty text).
+            combined_reviews = [" ".join([r["text"] for r in valid_reviews if r.get("text", "").strip()])]
+            if not combined_reviews[0].strip():
+                return None
 
+            # Generate prediction and explanations using the combined review texts.
+            xai_results = predict_review_rating_with_explanations(combined_reviews)
+            summary = generate_summary(combined_reviews)
+            shop["summary"] = summary
+            shop["predicted_rating"] = xai_results["predicted_rating"]
+            shop["xai_explanations"] = xai_results["explanations"]
+
+            # Cache the processed shop data.
+            cached_shop = CachedShop(
+                name=shop["name"],
+                place_id=shop["place_id"],
+                rating=shop.get("rating", None),
+                reviews=valid_reviews,
+                summary=shop.get("summary", "No summary available"),
+                predicted_rating=shop.get("predicted_rating", None),
+                xai_explanations=shop.get("xai_explanations", "No explanations available"),
+                address=shop.get("address", "No address available"),
+                lat=shop.get("lat", None),
+                lng=shop.get("lng", None),
+                cached_at=datetime.utcnow()
+            )
+            cached_shop.save()
+        print(cached_shop)
         return shop
+
     except Exception as e:
         logger.error(f"Error processing shop {place.get('place_id', 'unknown')}: {e}")
         return None

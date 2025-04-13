@@ -43,3 +43,16 @@ class CachedShop(Document):
     def is_cache_valid(self):
         """ Check if the cache is older than 24 hours """
         return (datetime.datetime.utcnow() - self.cached_at).days < 1  # Cache expires after 24 hours
+
+
+class ZeroReviewShop(Document):
+    place_id = StringField(required=True, unique=True)
+    added_at = DateTimeField(default=datetime.datetime.utcnow)
+    
+    meta = {
+        'collection': 'zero_review_shops'
+    }
+
+    def is_still_invalid(self):
+        # For example, mark this invalid for 24 hours.
+        return (datetime.datetime.utcnow() - self.added_at).days < 1

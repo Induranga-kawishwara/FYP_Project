@@ -249,7 +249,7 @@ function ShopFinder() {
   };
 
   const loadMoreShops = async () => {
-    // setIsLoading(true);
+    setIsLoading(true);
     try {
       const response = await axios.post(
         "http://127.0.0.1:5000/product/search_product",

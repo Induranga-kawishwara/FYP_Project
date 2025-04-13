@@ -6,9 +6,9 @@ from services import (
     generate_summary,
     scrape_reviews
 )
-from utils import CachedShop  # Import the CachedShop model
+from utils import CachedShop,ZeroReviewShop
 import logging
-from datetime import datetime
+from datetime import datetime , timedelta
 from concurrent.futures import ThreadPoolExecutor
 from selenium.common.exceptions import WebDriverException
 
@@ -50,8 +50,11 @@ def search_product():
         return jsonify({"error": "No shops found"}), 404
 
     # Filter out shops that have already been displayed based on skip_ids.
-    filtered_shops = [shop for shop in shops_results if shop["place_id"] not in skip_ids]
-
+    filtered_shops = [
+        shop for shop in shops_results
+        if shop["place_id"] not in skip_ids and not ZeroReviewShop.objects(place_id=shop["place_id"], 
+            added_at__gte=datetime.utcnow() - timedelta(days=1)).first()]
+    
     desired_shop_count = 5  # We want to end up with 5 valid shops.
     valid_shops = []  # To collect shops that pass review processing.
 
@@ -90,6 +93,14 @@ def search_product():
 def process_shop(place, review_count):
     try:
         place_id = place["place_id"]
+
+        # Check if this shop has already been flagged as zero-review.
+        zero_entry = ZeroReviewShop.objects(place_id=place_id).first()
+        if zero_entry and zero_entry.is_still_invalid():
+            # Skip processing if the shop is recently flagged.
+            return None
+        
+
         cached_shop = CachedShop.objects(place_id=place_id).first()
 
         if cached_shop and cached_shop.is_cache_valid():
@@ -123,11 +134,14 @@ def process_shop(place, review_count):
 
             # If, after filtering, there are no valid reviews, skip this shop.
             if not valid_reviews:
+                ZeroReviewShop(place_id=shop["place_id"]).save()
                 return None
 
             # Combine text from valid reviews (only including reviews that have non-empty text).
             combined_reviews = [" ".join([r["text"] for r in valid_reviews if r.get("text", "").strip()])]
             if not combined_reviews[0].strip():
+                ZeroReviewShop(place_id=shop["place_id"]).save()
+
                 return None
 
             # Generate prediction and explanations using the combined review texts.

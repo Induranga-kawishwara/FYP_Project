@@ -218,6 +218,10 @@ function ShopFinder() {
   const performSearch = async (finalReviewCount) => {
     try {
       setIsLoading(true);
+
+      // Clear previous shops before adding new results
+      setShops([]); // This will reset the shops state
+
       const response = await axios.post(
         "http://127.0.0.1:5000/product/search_product",
         {
@@ -228,25 +232,52 @@ function ShopFinder() {
           offset: offsetRef.current, // Pass the offset for pagination
         }
       );
+
       const newShops = response.data.shops;
 
       if (newShops.length === 0) {
         setHasMoreShops(false);
       } else {
-        setShops((prevShops) => [...prevShops, ...newShops]);
-
+        setShops(newShops); // Set new shops directly
         const newPlaceIds = newShops.map((shop) => shop.place_id);
-        console.log("New Place IDs:", newPlaceIds);
-        offsetRef.current = [...offsetRef.current, ...newPlaceIds];
+        offsetRef.current = newPlaceIds; // Update offset for pagination
+      }
 
-        console.log("Updated Offset:", offsetRef.current);
+      setIsLoading(false);
+      setShowLoadMoreButton(true);
+    } catch (error) {
+      console.error("Search Error:", error);
+      setIsLoading(false);
+    }
+  };
 
-        setShowLoadMoreButton(true);
+  const loadMoreShops = async () => {
+    // setIsLoading(true);
+    try {
+      const response = await axios.post(
+        "http://127.0.0.1:5000/product/search_product",
+        {
+          product: query,
+          reviewCount: reviewCount,
+          coverage: coverage === "customcoverage" ? customCoverage : coverage,
+          location: currentLocation,
+          offset: offsetRef.current, // Continue from the current offset
+        }
+      );
+
+      const newShops = response.data.shops;
+
+      if (newShops.length === 0) {
+        setHasMoreShops(false); // No more shops to load
+      } else {
+        setShops((prevShops) => [...prevShops, ...newShops]); // Append new shops
+        const newPlaceIds = newShops.map((shop) => shop.place_id);
+        offsetRef.current = [...offsetRef.current, ...newPlaceIds]; // Update offset
       }
 
       setIsLoading(false);
     } catch (error) {
-      console.error("Search Error:", error);
+      console.error("Error loading more shops:", error);
       setIsLoading(false);
     }
   };
@@ -691,7 +722,7 @@ function ShopFinder() {
       {showLoadMoreButton && hasMoreShops && (
         <Box sx={{ textAlign: "center", mt: 4 }}>
           <Button
-            onClick={() => performSearch(reviewCount)}
+            onClick={loadMoreShops} // Call the function to load more shops
             variant="outlined"
             disabled={isLoading}
           >

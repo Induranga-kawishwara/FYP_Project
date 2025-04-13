@@ -10,7 +10,6 @@ from transformers import (
 import xgboost as xgb
 from lime.lime_text import LimeTextExplainer
 import shap
-import matplotlib.pyplot as plt
 import nltk
 from nltk.corpus import stopwords
 
@@ -64,14 +63,15 @@ shap_explainer = shap.TreeExplainer(xgb_model)
 
 def get_distilbert_embeddings(text_list, tokenizer, model):
     """
-    Extracts the CLS token from the last hidden state for a list of texts.
+    Extracts the CLS token from the last hidden state for a list of texts in a batched manner.
     """
     model.eval()
     inputs = tokenizer(text_list, padding=True, truncation=True, max_length=256, return_tensors="pt")
     with torch.no_grad():
         outputs = model(**inputs, output_hidden_states=True, return_dict=True)
-        cls_embeddings = outputs.hidden_states[-1][:, 0, :].cpu().numpy()
+        cls_embeddings = outputs.hidden_states[-1][:, 0, :].cpu().numpy()  
     return cls_embeddings
+
 
 def get_combined_features(review_text):
     """
@@ -103,19 +103,19 @@ def get_explanations_for_review(review):
     max_chars = 1000
     review_trimmed = review if len(review) <= max_chars else review[:max_chars]
     
-    # Generate LIME explanation.
+    # Generate LIME explanation with reduced sample size
     try:
         lime_exp = lime_explainer.explain_instance(
             review_trimmed,
             predict_for_lime,
-            num_features=10,
-            num_samples=500
+            num_features=10,  # You can further control the number of features to display
+            num_samples=100  # Reduced sample size from 500 to 100
         )
         lime_explanation = lime_exp.as_list()
     except ValueError as e:
         lime_explanation = [("LIME explanation unavailable: " + str(e), 0)]
     
-    # Generate SHAP explanation.
+    # Generate SHAP explanation
     features = get_combined_features(review_trimmed)
     shap_vals = shap_explainer.shap_values(features)
     if isinstance(shap_vals, list):
@@ -126,9 +126,10 @@ def get_explanations_for_review(review):
     
     return {"lime": lime_explanation, "shap": shap_explanation}
 
+
 def format_shap_explanation(shap_explanation, top_n=5):
     """
-    Converts the raw SHAP explanation into a plain language summary.
+    Converts the raw SHAP explanation into a plain language summary, filtering the most important features.
     """
     sorted_feats = sorted(shap_explanation, key=lambda x: abs(x["shap_value"]), reverse=True)
     top_feats = sorted_feats[:top_n]
@@ -137,6 +138,7 @@ def format_shap_explanation(shap_explanation, top_n=5):
         direction = "increased" if feat["shap_value"] > 0 else "decreased"
         lines.append(f"'{feat['feature']}' {direction} the rating by about {abs(feat['shap_value']):.2f} points.")
     return "SHAP Summary:\n" + "\n".join(lines)
+
 
 def format_lime_explanation(lime_explanation, top_n=5):
     """

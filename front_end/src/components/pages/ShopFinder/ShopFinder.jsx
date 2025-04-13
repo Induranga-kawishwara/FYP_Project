@@ -47,7 +47,6 @@ import {
 import ExplanationPopup from "../../reUse/ExplanationPopup/ExplanationPopup.jsx";
 import ReviewSettingPopup from "../../reUse/ReviewSettingPopup/ReviewSettingPopup.jsx";
 
-// ---------- Styled Components ----------
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
   color: "white",
@@ -90,7 +89,6 @@ const ShopCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
-// ---------- Utility Functions ----------
 const deg2rad = (deg) => deg * (Math.PI / 180);
 const computeDistance = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
@@ -103,7 +101,6 @@ const computeDistance = (lat1, lng1, lat2, lng2) => {
   return R * c;
 };
 
-// ---------- Full ShopFinder Component ----------
 function ShopFinder() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));

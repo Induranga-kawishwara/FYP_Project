@@ -121,7 +121,7 @@ function ShopFinder() {
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
 
   // Pagination-related states
-  const [offset, setOffset] = useState(0); // Pagination offset
+  const offsetRef = useRef([]);
   const [hasMoreShops, setHasMoreShops] = useState(true); // If there are more shops to load
   const [showLoadMoreButton, setShowLoadMoreButton] = useState(false); // Initially hidden, becomes true after first load
 
@@ -201,15 +201,16 @@ function ShopFinder() {
 
   // ---------- Handlers ----------
   const handleSearch = () => {
-    if (!token || !isValid) {
-      setLoginRequiredModalOpen(true); // Show login required modal if not logged in
+    // If 'dontAskAgain' is true, and the user is not logged in, show login required modal
+    if (dontAskAgain && (!token || !isValid)) {
+      setLoginRequiredModalOpen(true); // Show the login required modal if not logged in
       return;
     }
 
-    if (dontAskAgain && reviewCount && coverage) {
+    if (reviewCount && coverage) {
       performSearch(reviewCount);
     } else {
-      setShowReviewModal(true);
+      setShowReviewModal(true); // Show the review settings modal if it's not remembered
       setModalTriggeredBySearch(true);
     }
   };
@@ -224,7 +225,7 @@ function ShopFinder() {
           reviewCount: finalReviewCount,
           coverage: coverage === "customcoverage" ? customCoverage : coverage,
           location: currentLocation,
-          offset: offset, // Pass the offset for pagination
+          offset: offsetRef.current, // Pass the offset for pagination
         }
       );
       const newShops = response.data.shops;
@@ -233,8 +234,14 @@ function ShopFinder() {
         setHasMoreShops(false);
       } else {
         setShops((prevShops) => [...prevShops, ...newShops]);
-        setOffset(offset + 5); // Increment the offset for the next set of shops
-        setShowLoadMoreButton(true); // Show the "Load More" button after the first load
+
+        const newPlaceIds = newShops.map((shop) => shop.place_id);
+        console.log("New Place IDs:", newPlaceIds);
+        offsetRef.current = [...offsetRef.current, ...newPlaceIds];
+
+        console.log("Updated Offset:", offsetRef.current);
+
+        setShowLoadMoreButton(true);
       }
 
       setIsLoading(false);
@@ -265,7 +272,7 @@ function ShopFinder() {
 
   // ---------- Review Setting Confirmation Handler ----------
   const handleReviewModalConfirm = async () => {
-    if (!token || !isValid) {
+    if (dontAskAgain && (!token || !isValid)) {
       setLoginRequiredModalOpen(true); // Show login required modal if not logged in
       return;
     }
@@ -281,15 +288,20 @@ function ShopFinder() {
     setDontAskAgain(tempDontAskAgain);
     setShowReviewModal(false);
 
-    try {
-      await axios.put("http://127.0.0.1:5000/profile/Update_review_settings", {
-        id_token: token,
-        review_count: finalReviewCount,
-        coverage: finalCoverage,
-        remember_settings: tempDontAskAgain,
-      });
-    } catch (error) {
-      console.error("Error updating review settings:", error);
+    if (token && isValid) {
+      try {
+        await axios.put(
+          "http://127.0.0.1:5000/profile/Update_review_settings",
+          {
+            id_token: token,
+            review_count: finalReviewCount,
+            coverage: finalCoverage,
+            remember_settings: tempDontAskAgain,
+          }
+        );
+      } catch (error) {
+        console.error("Error updating review settings:", error);
+      }
     }
 
     if (modalTriggeredBySearch) {

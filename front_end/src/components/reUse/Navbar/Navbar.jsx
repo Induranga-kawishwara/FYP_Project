@@ -30,7 +30,7 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   // Get the token and its validity status from the custom hook
-  const { token, isValid } = useToken();
+  const { isValid } = useToken();
 
   // Protected navigation items (only for valid token)
   const protectedNavItems = [

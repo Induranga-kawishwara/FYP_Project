@@ -140,7 +140,6 @@ function ShopFinder() {
   // Login Required Modal state
   const [loginRequiredModalOpen, setLoginRequiredModalOpen] = useState(false);
 
-  // ---------- useEffect: Load Geolocation & Review Settings ----------
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (position) => {

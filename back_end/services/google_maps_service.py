@@ -1,5 +1,6 @@
 import time
 import requests
+from utils import calculate_distance
 from tenacity import retry, wait_fixed, stop_after_attempt
 from config import Config  
 
@@ -52,35 +53,38 @@ def fetch_place_details(place_id):
     return data.get("result", {})
 
 
-def fetch_and_filter_shops_with_text(product_name, lat, lng, radius):
+def fetch_and_filter_shops_with_text(product_name, lat, lng, radius_km):
 
-    candidate_shops = fetch_all_shops(product_name, lat, lng, radius)
+    candidate_shops = fetch_all_shops(product_name, lat, lng, radius_km)
     final_shops = []
 
     for shop in candidate_shops:
-        # Ensure the candidate shop has the necessary data.
         if "place_id" not in shop or "rating" not in shop:
             continue
 
         place_id = shop["place_id"]
-        rating = shop["rating"]
+        shop_lat = shop["geometry"]["location"]["lat"]
+        shop_lng = shop["geometry"]["location"]["lng"]
+        
+        # Calculate the distance from the center point to the shop
+        distance = calculate_distance(lat, lng, shop_lat, shop_lng)
+        
+        # If the distance is within the radius, include the shop
+        if distance <= radius_km:
+            try:
+                # Fetch detailed info (and reviews) for this shop
+                details = fetch_place_details(place_id)
+                reviews = details.get("reviews", [])
+                has_text_review = any(review.get("text", "").strip() for review in reviews)
 
-        try:
-            # Fetch detailed info (and reviews) for this shop.
-            details = fetch_place_details(place_id)
-        except Exception as e:
-            print(f"Error fetching details for shop {place_id}: {e}")
-            continue
-
-        reviews = details.get("reviews", [])
-        has_text_review = any(review.get("text", "").strip() for review in reviews)
-
-        # Only keep the shop if there is at least one review with non-empty text.
-        if has_text_review:
-            # You might merge details into the shop record if needed.
-            shop["rating"] = rating  # Preserve the rating for sorting.
-            shop["reviews"] = reviews  # Optionally store detailed reviews.
-            final_shops.append(shop)
+                # Only keep the shop if there is at least one review with non-empty text
+                if has_text_review:
+                    shop["rating"] = shop["rating"]  # Preserve the rating for sorting
+                    shop["reviews"] = reviews  # Optionally store detailed reviews
+                    final_shops.append(shop)
+            except Exception as e:
+                print(f"Error fetching details for shop {place_id}: {e}")
+                continue
 
     # Sort the filtered shops by rating (high to low)
     final_shops.sort(key=lambda s: s.get("rating", 0), reverse=True)

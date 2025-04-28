@@ -196,7 +196,6 @@ function ShopFinder() {
     }
   }, []);
 
-  // ---------- Handlers ----------
   const handleSearch = () => {
     // If 'dontAskAgain' is true, and the user is not logged in, show login required modal
     if (dontAskAgain && (!token || !isValid)) {

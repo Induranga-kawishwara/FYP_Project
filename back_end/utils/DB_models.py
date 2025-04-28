@@ -1,5 +1,10 @@
-from mongoengine import Document, BooleanField, StringField, DateTimeField ,FloatField,ListField, DictField
+from mongoengine import Document, BooleanField, StringField, DateTimeField, FloatField, ListField, DictField
 import datetime
+from datetime import timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class User(Document):
     firebase_uid = StringField(required=True, unique=True)
@@ -41,9 +46,18 @@ class CachedShop(Document):
     }
 
     def is_cache_valid(self):
-        """ Check if the cache is older than 24 hours """
+        """Check if the cache is older than 24 hours."""
         return (datetime.datetime.utcnow() - self.cached_at).days < 1  # Cache expires after 24 hours
-
+    
+    @classmethod
+    def cleanup_invalid_cache(cls):
+        """Deletes the cached data that is older than 24 hours."""
+        expired_shops = cls.objects(cached_at__lt=datetime.datetime.utcnow() - timedelta(days=1))
+        if expired_shops:
+            deleted_count = expired_shops.delete()
+            logger.info(f"Deleted {deleted_count} expired cached shops.")
+        else:
+            logger.info("No expired cached shops to delete.")
 
 class ZeroReviewShop(Document):
     place_id = StringField(required=True, unique=True)
@@ -56,3 +70,13 @@ class ZeroReviewShop(Document):
     def is_still_invalid(self):
         # For example, mark this invalid for 24 hours.
         return (datetime.datetime.utcnow() - self.added_at).days < 1
+
+    @classmethod
+    def cleanup_invalid_zero_review_shops(cls):
+        """Deletes ZeroReviewShop records that are older than 24 hours."""
+        expired_shops = cls.objects(added_at__lt=datetime.datetime.utcnow() - timedelta(days=1))
+        if expired_shops:
+            deleted_count = expired_shops.delete()
+            logger.info(f"Deleted {deleted_count} expired zero review shops.")
+        else:
+            logger.info("No expired zero review shops to delete.")

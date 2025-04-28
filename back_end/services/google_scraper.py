@@ -139,7 +139,7 @@ def scrape_reviews(place_id, max_reviews):
     with ChromeDriver(options) as driver:
         driver.get(url)
         try:
-            reviews_tab = WebDriverWait(driver, 10).until(
+            reviews_tab = WebDriverWait(driver, 30).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label*='Reviews for']"))
             )
             reviews_tab.click()

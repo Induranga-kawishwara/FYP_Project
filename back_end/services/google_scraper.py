@@ -27,7 +27,7 @@ stop_words = set(stopwords.words("english"))
 
 # --- Setup Selenium WebDriver Options ---
 options = Options()
-options.add_argument("--headless")  # Run headless for background scraping
+options.add_argument("--headless")  
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
@@ -36,6 +36,8 @@ options.add_argument(
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/91.0.4472.124 Safari/537.36"
 )
+options.add_argument("--disable-images")  
+options.add_argument("--disable-extensions")  
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
 # --- Helper: Parse Relative Date ---
@@ -139,7 +141,7 @@ def scrape_reviews(place_id, max_reviews):
     with ChromeDriver(options) as driver:
         driver.get(url)
         try:
-            reviews_tab = WebDriverWait(driver, 30).until(
+            reviews_tab = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label*='Reviews for']"))
             )
             reviews_tab.click()

@@ -199,14 +199,14 @@ function ShopFinder() {
   const handleSearch = () => {
     // If 'dontAskAgain' is true, and the user is not logged in, show login required modal
     if (dontAskAgain && (!token || !isValid)) {
-      setLoginRequiredModalOpen(true); // Show the login required modal if not logged in
+      setLoginRequiredModalOpen(true);
       return;
     }
 
     if (reviewCount && coverage) {
       performSearch(reviewCount);
     } else {
-      setShowReviewModal(true); // Show the review settings modal if it's not remembered
+      setShowReviewModal(true);
       setModalTriggeredBySearch(true);
     }
   };
@@ -297,10 +297,9 @@ function ShopFinder() {
     setOpenExplanationModal(true);
   };
 
-  // ---------- Review Setting Confirmation Handler ----------
   const handleReviewModalConfirm = async () => {
     if (dontAskAgain && (!token || !isValid)) {
-      setLoginRequiredModalOpen(true); // Show login required modal if not logged in
+      setLoginRequiredModalOpen(true);
       return;
     }
 

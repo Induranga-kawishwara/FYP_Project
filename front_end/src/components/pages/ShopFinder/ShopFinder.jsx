@@ -224,7 +224,7 @@ function ShopFinder() {
           reviewCount: finalReviewCount,
           coverage: coverage === "customcoverage" ? customCoverage : coverage,
           location: currentLocation,
-          offset: offsetRef.current, // Pass the offset for pagination
+          offset: [],
         }
       );
 

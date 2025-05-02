@@ -30,7 +30,7 @@ def search_product():
     coverage = data.get("coverage")
     location = data.get("location")
     skip_ids = data.get("offset", [])
-
+    print(f"Received request with product: {product_name}, review_count: {review_count}, coverage: {coverage}, location: {location}, skip_ids: {skip_ids}")
     # Validate input data
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400

@@ -41,12 +41,16 @@ def parse_relative_date(date_str):
     now = datetime.datetime.now()
     date_str = date_str.strip().lower()
     try:
+        date_str = date_str.replace("edited", "").replace("ago", "").strip()
+        parts = date_str.split()
+        if not parts:
+            return now
+
         if "today" in date_str:
             return now
         elif "yesterday" in date_str:
             return now - datetime.timedelta(days=1)
-        parts = date_str.split()
-        if len(parts) >= 2:
+        elif len(parts) >= 2:
             num = 1 if parts[0] in ["a", "an"] else int(parts[0])
             if "year" in date_str:
                 return now - datetime.timedelta(days=num * 365)
@@ -59,6 +63,7 @@ def parse_relative_date(date_str):
     except Exception as e:
         print(f"Error parsing date '{date_str}': {e}")
     return now
+
 
 # Detect fake reviews
 def detect_fake_reviews(reviews):
@@ -107,7 +112,7 @@ class ChromeDriver:
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=self.options)
         return self.driver
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self):
         if self.driver:
             self.driver.quit()
 

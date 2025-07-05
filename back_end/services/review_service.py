@@ -25,6 +25,10 @@ distilbert_model = AutoModelForSequenceClassification.from_pretrained(BASE_PATH 
 distilbert_model.eval()
 
 xgb_model = joblib.load(BASE_PATH + "xgb_hybrid_final.pkl")
+
+def patched_predict(self, data, output_margin=False, validate_features=True, iteration_range=None, **kwargs):
+    return self.predict(data, output_margin=output_margin, validate_features=validate_features, iteration_range=iteration_range)
+xgb_model.get_booster().predict = patched_predict.__get__(xgb_model.get_booster())
 tfidf_vectorizer = joblib.load(BASE_PATH + "tfidf_vect_refit.pkl")
 scaler = joblib.load(BASE_PATH + "scaler_refit.pkl")
 
@@ -80,7 +84,9 @@ def get_combined_features(text, source="UNK"):
 # Core Prediction
 def predict_review_rating(reviews):
     feature_stack = np.vstack([get_combined_features(r) for r in reviews])
-    probs = xgb_model.predict_proba(feature_stack) 
+    booster = xgb_model.get_booster()
+    num_rounds = booster.num_boosted_rounds()
+    probs = xgb_model.predict_proba(feature_stack, iteration_range=(0, num_rounds))
     ratings = np.dot(probs, np.arange(1, 6))
     return ratings, probs
 

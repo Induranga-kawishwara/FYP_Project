@@ -12,3 +12,4 @@ class Config:
     GOOGLE_API_KEY_FIREBASE = os.getenv("GOOGLE_API_KEY_FIREBASE")
     BREVO_API_KEY = os.getenv("BREVO_API_KEY")
     EMAIL_FROM = os.getenv("EMAIL_FROM")
+    GPT_API_KEY = os.getenv("GPT_API_KEY")

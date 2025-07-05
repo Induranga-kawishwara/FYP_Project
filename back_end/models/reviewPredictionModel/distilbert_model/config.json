@@ -1,12 +1,11 @@
 {
-  "_name_or_path": "distilbert-base-uncased",
   "activation": "gelu",
   "architectures": [
     "DistilBertForSequenceClassification"
   ],
   "attention_dropout": 0.1,
   "dim": 768,
-  "dropout": 0.1,
+  "dropout": 0.2,
   "hidden_dim": 3072,
   "id2label": {
     "0": "LABEL_0",
@@ -34,6 +33,6 @@
   "sinusoidal_pos_embds": false,
   "tie_weights_": true,
   "torch_dtype": "float32",
-  "transformers_version": "4.47.0",
+  "transformers_version": "4.51.3",
   "vocab_size": 30522
 }

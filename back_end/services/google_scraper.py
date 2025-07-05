@@ -112,7 +112,7 @@ class ChromeDriver:
         self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=self.options)
         return self.driver
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         if self.driver:
             self.driver.quit()
 

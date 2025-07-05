@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from lime.lime_text import LimeTextExplainer
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from afinn import Afinn
-from config import Config 
+from config import Config
 
 # Setup
 nltk.download("punkt")
@@ -19,7 +19,7 @@ openai.api_key = Config.GPT_API_KEY
 
 BASE_PATH = "models/reviewPredictionModel/"
 
-# Load Models
+# Load models
 distilbert_tokenizer = AutoTokenizer.from_pretrained(BASE_PATH + "distilbert_model")
 distilbert_model = AutoModelForSequenceClassification.from_pretrained(BASE_PATH + "distilbert_model")
 distilbert_model.eval()
@@ -31,6 +31,7 @@ scaler = joblib.load(BASE_PATH + "scaler_refit.pkl")
 # Utilities
 lime_explainer = LimeTextExplainer(class_names=["Rating 1", "Rating 2", "Rating 3", "Rating 4", "Rating 5"])
 shap_explainer = shap.Explainer(xgb_model)
+
 sia = SentimentIntensityAnalyzer()
 af = Afinn()
 
@@ -50,7 +51,7 @@ def generate_gpt_summary(raw_text, instruction="Summarize this:", max_tokens=200
     except Exception as e:
         return f"GPT summarization failed: {e}"
 
-# Meta Feature Extractor 
+# Meta Feature Extractor
 def compute_meta_features(text):
     tokens = nltk.word_tokenize(text)
     tagged = nltk.pos_tag(tokens)
@@ -79,11 +80,11 @@ def get_combined_features(text, source="UNK"):
 # Core Prediction
 def predict_review_rating(reviews):
     feature_stack = np.vstack([get_combined_features(r) for r in reviews])
-    probs = xgb_model.predict_proba(feature_stack)
-    ratings = np.dot(probs, np.arange(1, 6))  # Weighted average from class probs
+    probs = xgb_model.predict_proba(feature_stack) 
+    ratings = np.dot(probs, np.arange(1, 6))
     return ratings, probs
 
-# Explain Single Review 
+# Explain Single Review
 def get_explanations(review):
     features = get_combined_features(review)
     shap_values = shap_explainer(features)
@@ -147,7 +148,7 @@ def predict_review_rating_with_explanations(reviews):
         "raw_explanation": full_explanation
     }
 
-# Summary Generator 
+# Summary Generator
 def generate_summary(reviews):
     if not reviews:
         return "No reviews provided."

@@ -13,3 +13,4 @@ class Config:
     BREVO_API_KEY = os.getenv("BREVO_API_KEY")
     EMAIL_FROM = os.getenv("EMAIL_FROM")
     GPT_API_KEY = os.getenv("GPT_API_KEY")
+    SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")

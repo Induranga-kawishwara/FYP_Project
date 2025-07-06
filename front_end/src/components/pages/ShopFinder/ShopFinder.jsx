@@ -226,6 +226,7 @@ function ShopFinder() {
           location: currentLocation,
         }
       );
+      console.log("Search Response:", response.data);
 
       const newShops = response.data.shops;
 

@@ -11,176 +11,219 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from afinn import Afinn
 from config import Config
 
-# Setup
-nltk.download("punkt")
-nltk.download("averaged_perceptron_tagger")
-nltk.download("vader_lexicon")
+# NLTK setup 
+nltk.download("punkt", quiet=True)
+nltk.download("averaged_perceptron_tagger", quiet=True)
+nltk.download("vader_lexicon", quiet=True)
+
+# OpenAI key 
 openai.api_key = Config.GPT_API_KEY
 
+# Load models & vectorizers 
 BASE_PATH = "models/reviewPredictionModel/"
-
-# Load models
 distilbert_tokenizer = AutoTokenizer.from_pretrained(BASE_PATH + "distilbert_model")
-distilbert_model = AutoModelForSequenceClassification.from_pretrained(BASE_PATH + "distilbert_model")
+distilbert_model     = AutoModelForSequenceClassification.from_pretrained(BASE_PATH + "distilbert_model")
 distilbert_model.eval()
 
-xgb_model = joblib.load(BASE_PATH + "xgb_hybrid_final.pkl")
-
-def patched_predict(self, data, output_margin=False, validate_features=True, iteration_range=None, **kwargs):
-    return self.predict(data, output_margin=output_margin, validate_features=validate_features, iteration_range=iteration_range)
-xgb_model.get_booster().predict = patched_predict.__get__(xgb_model.get_booster())
+xgb_model        = joblib.load(BASE_PATH + "xgb_hybrid_final.pkl")
 tfidf_vectorizer = joblib.load(BASE_PATH + "tfidf_vect_refit.pkl")
-scaler = joblib.load(BASE_PATH + "scaler_refit.pkl")
+scaler           = joblib.load(BASE_PATH + "scaler_refit.pkl")
 
-# Utilities
-lime_explainer = LimeTextExplainer(class_names=["Rating 1", "Rating 2", "Rating 3", "Rating 4", "Rating 5"])
-shap_explainer = shap.Explainer(xgb_model)
+# Patch Booster.predict for SHAP compatibility 
+booster = xgb_model.get_booster()
+_orig_predict = booster.predict
+
+def _patched_predict(data,
+                     output_margin=False,
+                     validate_features=True,
+                     iteration_range=None,
+                     **kwargs):
+    # handle legacy SHAP arg
+    if "ntree_limit" in kwargs:
+        nt = kwargs.pop("ntree_limit")
+        iteration_range = (0, nt)
+    # default to full booster if no range set
+    if iteration_range is None:
+        iteration_range = (0, booster.num_boosted_rounds())
+    return _orig_predict(
+        data,
+        output_margin=output_margin,
+        validate_features=validate_features,
+        iteration_range=iteration_range,
+        **kwargs
+    )
+
+booster.predict = _patched_predict
+
+# Explainability setup 
+tree_explainer = shap.TreeExplainer(
+    xgb_model,
+    feature_perturbation="tree_path_dependent"
+)
+lime_explainer = LimeTextExplainer(class_names=[f"Rating {i}" for i in range(1, 6)])
 
 sia = SentimentIntensityAnalyzer()
-af = Afinn()
+af  = Afinn()
 
-# GPT Summarizer
+# GPT Summary Function 
 def generate_gpt_summary(raw_text, instruction="Summarize this:", max_tokens=200):
     try:
-        response = openai.ChatCompletion.create(
+        resp = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": instruction},
-                {"role": "user", "content": raw_text}
+                {"role": "user",   "content": raw_text}
             ],
             max_tokens=max_tokens,
             temperature=0.7
         )
-        return response.choices[0].message["content"].strip()
+        return resp.choices[0].message.content.strip()
     except Exception as e:
         return f"GPT summarization failed: {e}"
 
-# Meta Feature Extractor
+#  Meta-features 
 def compute_meta_features(text):
     tokens = nltk.word_tokenize(text)
     tagged = nltk.pos_tag(tokens)
-    return np.array([[len(tokens),
-                      text.count("!"),
-                      text.count("?"),
-                      sia.polarity_scores(text)["compound"],
-                      sum(tag.startswith("JJ") for _, tag in tagged),
-                      af.score(text)]], dtype=np.float32)
+    return np.array([[
+        len(tokens),
+        text.count("!"),
+        text.count("?"),
+        sia.polarity_scores(text)["compound"],
+        sum(tag.startswith("JJ") for _, tag in tagged),
+        af.score(text)
+    ]], dtype=np.float32)
 
-# Full Feature Vector
-def get_combined_features(text, source="UNK"):
-    inputs = distilbert_tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=256)
-    with torch.no_grad():
-        output = distilbert_model(**inputs, output_hidden_states=True)
-        cls_embedding = output.hidden_states[-1][:, 0, :].cpu().numpy()
-        logits = torch.softmax(output.logits, dim=-1).cpu().numpy()
+# Full dimension constant 
+_FULL_DIM = (
+    768 +
+    5 +
+    tfidf_vectorizer.get_feature_names_out().shape[0] +
+    1 +
+    6
+)
 
-    tfidf = tfidf_vectorizer.transform([text]).toarray().astype(np.float32)
-    meta = compute_meta_features(text)
-    meta_scaled = scaler.transform(meta)
-    source_encoded = np.array([[0]], dtype=np.float32)
+# Combine features 
+def get_combined_features(text):
+    try:
+        # BERT
+        inputs = distilbert_tokenizer(
+            text, return_tensors="pt",
+            truncation=True, padding=True, max_length=256
+        )
+        with torch.no_grad():
+            out     = distilbert_model(**inputs, output_hidden_states=True)
+            cls_emb = out.hidden_states[-1][:,0,:].cpu().numpy()
+            logits  = torch.softmax(out.logits, dim=-1).cpu().numpy()
 
-    return np.hstack([cls_embedding, logits, tfidf, source_encoded, meta_scaled])
+        # TF-IDF
+        tfidf = tfidf_vectorizer.transform([text]).toarray().astype(np.float32)
+        # Meta
+        meta = compute_meta_features(text)
+        meta_scaled = scaler.transform(meta)
+        # Dummy source
+        src_enc = np.zeros((1,1), dtype=np.float32)
 
-# Core Prediction
+        combined = np.hstack([cls_emb, logits, tfidf, src_enc, meta_scaled])
+        return np.nan_to_num(combined, nan=0.0, posinf=0.0, neginf=0.0)
+    except Exception as e:
+        print(f"Feature extraction failed: {e}")
+        return np.zeros((1, _FULL_DIM), dtype=np.float32)
+
+# Prediction 
 def predict_review_rating(reviews):
-    feature_stack = np.vstack([get_combined_features(r) for r in reviews])
-    booster = xgb_model.get_booster()
-    num_rounds = booster.num_boosted_rounds()
-    probs = xgb_model.predict_proba(feature_stack, iteration_range=(0, num_rounds))
-    ratings = np.dot(probs, np.arange(1, 6))
-    return ratings, probs
+    try:
+        X = np.vstack([get_combined_features(r) for r in reviews])
+        nr = booster.num_boosted_rounds()
+        probs = xgb_model.predict_proba(X, iteration_range=(0, nr))
+        ratings = np.dot(probs, np.arange(1, 6))
+        return ratings, probs
+    except Exception as e:
+        print(f"Prediction failed: {e}")
+        n = len(reviews)
+        return np.zeros(n), np.zeros((n, 5))
 
-# Explain Single Review
+# Explanations 
 def get_explanations(review):
-    features = get_combined_features(review)
-    shap_values = shap_explainer(features)
-    top_shap = sorted([{
-        "feature": f"f{i}", "value": float(v)
-    } for i, v in enumerate(shap_values.values[0])],
-        key=lambda x: abs(x["value"]), reverse=True)[:5]
+    print("SHAP explainer start")
+    feats = get_combined_features(review).astype(np.float32)
+    out = {"shap_full": [], "shap_top": [], "lime": [], "error": None}
 
     try:
-        lime_exp = lime_explainer.explain_instance(
-            review,
-            lambda x: np.vstack([predict_review_rating([t])[1][0] for t in x]),
-            num_features=10,
-            num_samples=100
-        )
-        lime_summary = lime_exp.as_list()
+        sv = tree_explainer.shap_values(feats)
+        _, p = predict_review_rating([review])
+        cls = int(np.argmax(p[0]))
+        arr = sv[cls][0]
+
+        out["shap_full"] = [float(v) for v in arr]
+        idx = np.argsort(np.abs(arr))[::-1][:8]
+        out["shap_top"] = [{"feature": int(i), "value": float(arr[i])} for i in idx]
     except Exception as e:
-        lime_summary = [("LIME error", str(e))]
+        out["error"] = f"SHAP failed: {e}"
+        print("SHAP exception:", e)
+    print("SHAP done")
 
-    return {"shap": top_shap, "lime": lime_summary}
+    print("LIME explainer start")
+    try:
+        def _lm(texts):
+            return xgb_model.predict_proba(np.vstack([get_combined_features(t) for t in texts]))
+        le = lime_explainer.explain_instance(review, _lm, num_features=6, num_samples=150)
+        out["lime"] = le.as_list()
+    except Exception as e:
+        out["error"] = out["error"] or str(e)
+        print("LIME failed:", e)
+    print("LIME done")
 
-# Prediction + Explanation + GPT Summary
+    return out
+
+# Combined predict+explain 
 def predict_review_rating_with_explanations(reviews):
     if not reviews:
         return {
             "predicted_rating": 0.0,
-            "user_friendly_explanation": "No review provided.",
-            "raw_explanation": "N/A"
+            "ratings": [], "user_friendly_explanation": "No reviews provided.", "raw_explanation": ""
         }
 
     ratings, _ = predict_review_rating(reviews)
-    avg_rating = round(np.mean(ratings), 2)
+    avg = round(np.mean(ratings), 2)
+    tops, limes = [], []
 
-    all_shap, all_lime = [], []
-    for review in reviews:
-        exp = get_explanations(review)
-        shap_lines = [
-            f"{e['feature']} contributed {'+' if e['value'] > 0 else '-'}{abs(e['value']):.2f}"
-            for e in exp["shap"]
-        ]
-        lime_lines = [
-            f"{term} contributed {'+' if val > 0 else '-'}{abs(val):.2f}"
-            for term, val in exp["lime"]
-        ]
-        all_shap.append("\n".join(shap_lines))
-        all_lime.append("\n".join(lime_lines))
+    for r in reviews:
+        e = get_explanations(r)
+        tops.append(e["shap_top"])
+        limes.append(e["lime"])
 
-    full_explanation = (
-        "SHAP Explanations:\n" + "\n\n".join(all_shap) +
-        "\n\nLIME Explanations:\n" + "\n\n".join(all_lime)
+    raw = "SHAP top contributions:\n" + "\n".join(
+        f"feat_{d['feature']} {'+' if d['value']>0 else '-'}{abs(d['value']):.2f}"
+        for d in tops[0]
+    ) + "\n\nLIME top features:\n" + "\n".join(
+        f"{t} {'+' if v>0 else '-'}{abs(v):.2f}" for t, v in limes[0]
     )
-
-    gpt_summary = generate_gpt_summary(
-        full_explanation,
-        instruction="Explain this LIME and SHAP output so a non-technical user can understand why the review got its score."
-    )
+    user_txt = generate_gpt_summary(raw, instruction="Explain simply why this review got its score.")
 
     return {
-        "predicted_rating": avg_rating,
-        "user_friendly_explanation": gpt_summary,
-        "raw_explanation": full_explanation
+        "predicted_rating": avg,
+        "ratings": ratings.tolist(),
+        "user_friendly_explanation": user_txt,
+        "raw_explanation": raw
     }
 
-# Summary Generator
+#  Review summary 
 def generate_summary(reviews):
     if not reviews:
-        return "No reviews provided."
+        return "No reviews."
 
     ratings, _ = predict_review_rating(reviews)
-    positive, neutral, negative = [], [], []
+    pos = [r for r, s in zip(reviews, ratings) if s >= 4]
+    neu = [r for r, s in zip(reviews, ratings) if 2 < s < 4]
+    neg = [r for r, s in zip(reviews, ratings) if s <= 2]
 
-    for i, r in enumerate(ratings):
-        if r >= 4.0:
-            positive.append(reviews[i])
-        elif r <= 2.0:
-            negative.append(reviews[i])
-        else:
-            neutral.append(reviews[i])
+    parts = []
+    if pos:
+        parts.append(f"{len(pos)} positive: " + "; ".join(pos[:2]) + ("..." if len(pos)>2 else ""))
+    if neu:
+        parts.append(f"{len(neu)} neutral:  " + "; ".join(neu[:2]) + ("..." if len(neu)>2 else ""))
+    if neg:
+        parts.append(f"{len(neg)} negative: " + "; ".join(neg[:2]) + ("..." if len(neg)>2 else ""))
 
-    raw_summary_parts = []
-    if positive:
-        raw_summary_parts.append(f"{len(positive)} positive reviews: " + " | ".join(positive[:2]) + "...")
-    if neutral:
-        raw_summary_parts.append(f"{len(neutral)} neutral reviews: " + " | ".join(neutral[:2]) + "...")
-    if negative:
-        raw_summary_parts.append(f"{len(negative)} negative reviews: " + " | ".join(negative[:2]) + "...")
-
-    raw_summary = "\n".join(raw_summary_parts)
-
-    return generate_gpt_summary(
-        raw_summary,
-        instruction="Rewrite this product review summary in plain English for a customer dashboard."
-    )
+    return generate_gpt_summary("\n".join(parts), instruction="Rewrite in plain English.")

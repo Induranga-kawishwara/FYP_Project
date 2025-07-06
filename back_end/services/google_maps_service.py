@@ -34,7 +34,6 @@ def fetch_all_shops(product_name, lat, lng, radius):
         next_page_token = response.get("next_page_token")
         if not next_page_token:
             break
-
     return shops
 
 
@@ -86,6 +85,6 @@ def fetch_and_filter_shops_with_text(product_name, lat, lng, radius_km):
                 print(f"Error fetching details for shop {place_id}: {e}")
                 continue
 
-    # Sort the filtered shops by rating (high to low)
+    # Sort the filtered shops by rating 
     final_shops.sort(key=lambda s: s.get("rating", 0), reverse=True)
     return final_shops

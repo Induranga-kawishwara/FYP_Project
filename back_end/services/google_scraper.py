@@ -113,8 +113,11 @@ class ChromeDriver:
         return self.driver
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.driver:
-            self.driver.quit()
+        try:
+            if self.driver:
+                self.driver.quit()
+        except Exception as e:
+            print(f"Error quitting ChromeDriver: {e}")
 
 # Main review scraping function
 def scrape_reviews(place_id, max_reviews):

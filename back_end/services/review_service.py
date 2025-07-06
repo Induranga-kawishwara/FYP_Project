@@ -53,7 +53,7 @@ def _patched_predict(data,
 
 booster.predict = _patched_predict
 
-#  Explainability setup 
+#  Explainability setup ─
 tree_explainer = shap.TreeExplainer(
     xgb_model,
     feature_perturbation="tree_path_dependent"
@@ -63,7 +63,7 @@ lime_explainer = LimeTextExplainer(class_names=[f"Rating {i}" for i in range(1, 
 sia = SentimentIntensityAnalyzer()
 af  = Afinn()
 
-#  GPT Summary Function
+#  GPT Summary Function 
 def generate_gpt_summary(raw_text: str,
                          instruction: str = "Summarize this:",
                          max_tokens: int = 200) -> str:
@@ -81,6 +81,19 @@ def generate_gpt_summary(raw_text: str,
     except Exception as e:
         return f"GPT summarization failed: {e}"
 
+#  Build XAI explanation prompt 
+def build_explanation_prompt(raw_explanation: str,
+                             review: str,
+                             predicted_rating: float) -> str:
+    return (
+        f"You are a shopping assistant. This shop was predicted to have an average rating of {predicted_rating:.1f} out of 5.\n\n"
+        "Here are the top feature contributions:\n"
+        f"{raw_explanation}\n\n"
+        "And here is one of the actual customer reviews:\n"
+        f"\"{review.strip()}\"\n\n"
+        "Please explain—using simple, customer-friendly language—how each of the top words in the review raised or lowered the score."
+    )
+
 #  Meta-features 
 def compute_meta_features(text: str) -> np.ndarray:
     tokens = nltk.word_tokenize(text)
@@ -96,11 +109,11 @@ def compute_meta_features(text: str) -> np.ndarray:
 
 #  Full dimension constant 
 _FULL_DIM = (
-    768 +                                      # BERT CLS embedding
-    5   +                                      # logits
+    768 +  # BERT CLS embedding
+    5   +  # logits
     tfidf_vectorizer.get_feature_names_out().shape[0] +
-    1   +                                      # dummy source
-    6                                          # meta‐features
+    1   +  # dummy source
+    6      # meta-features
 )
 
 #  Combine features 
@@ -122,7 +135,6 @@ def get_combined_features(text: str) -> np.ndarray:
 
         combined = np.hstack([cls_emb, logits, tfidf, src_enc, meta_scaled])
         return np.nan_to_num(combined, nan=0.0, posinf=0.0, neginf=0.0)
-
     except Exception as e:
         print(f"Feature extraction failed: {e}")
         return np.zeros((1, _FULL_DIM), dtype=np.float32)
@@ -142,7 +154,6 @@ def predict_review_rating(reviews: list[str]) -> tuple[np.ndarray, np.ndarray]:
 
 #  Explanations 
 def get_explanations(review: str) -> dict:
-    print("SHAP explainer start")
     feats = get_combined_features(review).astype(np.float32)
     out = {"shap_full": [], "shap_top": [], "lime": [], "error": None}
 
@@ -151,60 +162,37 @@ def get_explanations(review: str) -> dict:
         _, p = predict_review_rating([review])
         cls = int(np.argmax(p[0]))
         arr = sv[cls][0]
-
         out["shap_full"] = [float(v) for v in arr]
         idx = np.argsort(np.abs(arr))[::-1][:8]
         out["shap_top"] = [{"feature": int(i), "value": float(arr[i])} for i in idx]
     except Exception as e:
         out["error"] = f"SHAP failed: {e}"
-        print("SHAP exception:", e)
-    print("SHAP done")
-
-    print("LIME explainer start")
     try:
         def _lm(texts: list[str]) -> np.ndarray:
             return xgb_model.predict_proba(np.vstack([get_combined_features(t) for t in texts]))
         le = lime_explainer.explain_instance(review, _lm, num_features=6, num_samples=150)
         out["lime"] = le.as_list()
     except Exception as e:
-        out["error"] = out["error"] or str(e)
-        print("LIME failed:", e)
-    print("LIME done")
-
+        out["error"] = out.get("error") or str(e)
     return out
 
 #  Combined predict + explain 
 def predict_review_rating_with_explanations(reviews: list[str]) -> dict:
     if not reviews:
-        return {
-            "predicted_rating": 0.0,
-            "ratings": [],
-            "user_friendly_explanation": "No reviews provided.",
-            "raw_explanation": ""
-        }
+        return {"predicted_rating": 0.0, "ratings": [], "user_friendly_explanation": "No reviews provided.", "raw_explanation": ""}
 
     ratings, _ = predict_review_rating(reviews)
     avg = round(np.mean(ratings), 2)
-    tops, limes = [], []
-
-    for r in reviews:
-        e = get_explanations(r)
-        tops.append(e["shap_top"])
-        limes.append(e["lime"])
-
-    raw = (
-        "SHAP top contributions:\n"
-        + "\n".join(
-            f"feat_{d['feature']} {'+' if d['value']>0 else '-'}{abs(d['value']):.2f}"
-            for d in tops[0]
-        )
-        + "\n\nLIME top features:\n"
-        + "\n".join(
-            f"{t} {'+' if v>0 else '-'}{abs(v):.2f}"
-            for t, v in limes[0]
-        )
+    # build raw explanation from first review
+    ex = get_explanations(reviews[0])
+    raw = "SHAP top contributions:\n" + "\n".join(
+        f"feat_{d['feature']} {'+' if d['value']>0 else '-'}{abs(d['value']):.2f}" for d in ex['shap_top']
+    ) + "\n\nLIME top features:\n" + "\n".join(
+        f"{t} {'+' if v>0 else '-'}{abs(v):.2f}" for t, v in ex['lime']
     )
-    user_txt = generate_gpt_summary(raw, instruction="Explain simply why this review got its score.")
+    # create user-friendly explanation
+    prompt = build_explanation_prompt(raw, reviews[0], avg)
+    user_txt = generate_gpt_summary(prompt, max_tokens=300)
 
     return {
         "predicted_rating": avg,
@@ -218,18 +206,13 @@ def generate_summary(reviews: list[str]) -> str:
     if not reviews:
         return "No reviews."
 
-    ratings, _ = predict_review_rating(reviews)
-    pos = [r for r, s in zip(reviews, ratings) if s >= 4]
-    neu = [r for r, s in zip(reviews, ratings) if 2 < s < 4]
-    neg = [r for r, s in zip(reviews, ratings) if s <= 2]
-
-    parts: list[str] = []
-    if pos:
-        parts.append(f"{len(pos)} positive: " + "; ".join(pos[:2]) + ("..." if len(pos) > 2 else ""))
-    if neu:
-        parts.append(f"{len(neu)} neutral:  " + "; ".join(neu[:2]) + ("..." if len(neu) > 2 else ""))
-    if neg:
-        parts.append(f"{len(neg)} negative: " + "; ".join(neg[:2]) + ("..." if len(neg) > 2 else ""))
-
-    raw = "\n".join(parts)
-    return generate_gpt_summary(raw, instruction="Rewrite in plain English.")
+    # bullet each review
+    review_blob = "\n".join(f"- {r.strip()}" for r in reviews)
+    instruction = (
+        "You are a helpful assistant. Here is a list of customer reviews:\n"
+        f"{review_blob}\n\n"
+        "Please summarize in two sections:\n"
+        "• Pros: list the main positive aspects of the shop as bullet points.\n"
+        "• Cons: list the main negative aspects of the shop as bullet points."
+    )
+    return generate_gpt_summary(review_blob, instruction=instruction, max_tokens=300)

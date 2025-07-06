@@ -1,81 +1,92 @@
+import sys
 import firebase_admin
 from firebase_admin import credentials
 from config import Config
 from flask import Flask
 from flask_cors import CORS
-from utils import CachedShop, ZeroReviewShop ,cache
+from utils import CachedShop, ZeroReviewShop, cache
 from mongoengine import connect
 import logging
 from routes import auth_bp, product_bp, profile_bp
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-# Initialize logging
-logging.basicConfig(level=logging.INFO)
+# Setup logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# Initialize Firebase if it hasn't been initialized already
+# Global uncaught exception handler
+def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+# Register it
+sys.excepthook = handle_uncaught_exception
+
+# Initialize Firebase
 if not firebase_admin._apps:
     try:
         cred = credentials.Certificate(Config.FIREBASE_SERVICE_ACCOUNT)
         firebase_admin.initialize_app(cred)
         logger.info("Firebase initialized successfully.")
     except Exception as e:
-        logger.error(f"Error initializing Firebase: {e}")
+        logger.exception("Error initializing Firebase")
 
-# Connect to MongoDB using the URI in your config
+# Connect to MongoDB
 try:
     connect(host=Config.MONGO_DATABASE)
     logger.info("MongoDB connection established successfully.")
 except Exception as e:
-    logger.error(f"Error connecting to MongoDB: {e}")
+    logger.exception("Error connecting to MongoDB")
 
-# Import blueprints
-from routes import auth_bp, product_bp, profile_bp
-
+# Create Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Enable Cross-Origin Resource Sharing
+# Enable CORS
 CORS(app)
 
-# Initialize the cache on the main app
+# Init cache
 cache.init_app(app)
 
-# Register blueprints
+# Register routes
 app.register_blueprint(auth_bp)
 app.register_blueprint(product_bp)
 app.register_blueprint(profile_bp)
 
-# Setup background task for cleanup of invalid data
+# Background job scheduler
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Cleanup job runs every day at midnight to clean invalid data
 def cleanup_invalid_data():
-    # Clean up invalid cache
-    CachedShop.cleanup_invalid_cache()
-    ZeroReviewShop.cleanup_invalid_zero_review_shops()
+    try:
+        CachedShop.cleanup_invalid_cache()
+        ZeroReviewShop.cleanup_invalid_zero_review_shops()
+        logger.info("Cleanup of invalid data completed.")
+    except Exception as e:
+        logger.exception("Error during cleanup job")
 
-# Add cleanup task to the scheduler
+# Schedule cleanup every 24 hours
 scheduler.add_job(
     func=cleanup_invalid_data,
-    trigger=IntervalTrigger(hours=24),  
+    trigger=IntervalTrigger(hours=24),
     id='cleanup_invalid_data',
     name='Clean up invalid cached and zero review shops data',
     replace_existing=True
 )
 
+# Run cleanup once on startup
 cleanup_invalid_data()
-
 
 @app.route("/")
 def home():
-    return "Hello from Flask!"
+    return "Hello from Flask backend."
 
 if __name__ == "__main__":
     try:
-        app.run(debug=True, host="0.0.0.0", port=5000)
-        logger.info("Flask app running on port 5000.")
+        logger.info("Starting Flask app on http://0.0.0.0:5000")
+        app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
     except Exception as e:
-        logger.error(f"Error starting the Flask app: {e}")
+        logger.exception("Error starting Flask app")

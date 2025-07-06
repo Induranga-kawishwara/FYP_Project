@@ -87,6 +87,7 @@ def search_product():
 
 
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
+
     for attempt in range(retries):
         try:
             return process_shop(place, review_count)
@@ -147,18 +148,24 @@ def process_shop(place, review_count):
                 logger.info(f"No valid reviews for shop {place_id}.")
                 return None
 
-            combined_reviews = [" ".join([r["text"] for r in valid_reviews if r.get("text", "").strip()])]
-            if not combined_reviews[0].strip():
+            texts = [r["text"] for r in valid_reviews if r.get("text", "").strip()]
+            if not texts:
                 ZeroReviewShop(place_id=shop["place_id"]).save()
                 logger.info(f"Empty reviews for shop {place_id}.")
                 return None
 
             logger.info(f"Generating predictions for shop {place_id}.")
-            xai_results = predict_review_rating_with_explanations(combined_reviews)
-            summary = generate_summary(combined_reviews)
+            xai_results = predict_review_rating_with_explanations(texts)  # Must support list input
+
+            # Calculate average predicted rating
+            predicted_ratings = xai_results.get("ratings", [])
+            avg_pred_rating = round(sum(predicted_ratings) / len(predicted_ratings), 2) if predicted_ratings else 0
+
+            # Generate summary from all texts
+            summary = generate_summary(texts)  # Must support list input
 
             shop["summary"] = summary
-            shop["predicted_rating"] = xai_results["predicted_rating"]
+            shop["predicted_rating"] = avg_pred_rating
             shop["xai_explanations"] = xai_results["user_friendly_explanation"]
             shop["raw_xai_explanation"] = xai_results["raw_explanation"]
 
@@ -180,6 +187,7 @@ def process_shop(place, review_count):
             logger.info(f"Shop {place_id} cached.")
 
         return shop
+
     except Exception as e:
         logger.error(f"Unhandled error processing shop {place.get('place_id', 'unknown')}: {e}")
         return None

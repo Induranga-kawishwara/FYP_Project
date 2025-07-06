@@ -33,25 +33,21 @@ class CachedShop(Document):
     place_id = StringField(required=True, unique=True)
     rating = FloatField()
     reviews = ListField(DictField())  
-    summary = StringField()
-    predicted_rating = FloatField()
-    xai_explanations = StringField()
-    raw_xai_explanation = StringField()  
-    address = StringField()  
-    lat = FloatField()  
-    lng = FloatField()  
-    cached_at = DateTimeField(default=datetime.datetime.utcnow)  
+    address = StringField()
+    lat = FloatField()
+    lng = FloatField()
+    cached_at = DateTimeField(default=datetime.datetime.utcnow)
 
-    meta = {
-        'collection': 'cached_shops'
-    }
+    meta = {'collection': 'cached_shops'}
 
     def is_cache_valid(self):
-        return (datetime.datetime.utcnow() - self.cached_at).days < 1  # Cache expires after 24 hours
-    
+        # Cache is valid for 7 days
+        return (datetime.datetime.utcnow() - self.cached_at).days < 7
+
     @classmethod
     def cleanup_invalid_cache(cls):
-        expired_shops = cls.objects(cached_at__lt=datetime.datetime.utcnow() - timedelta(days=1))
+        # Delete shops older than 7 days
+        expired_shops = cls.objects(cached_at__lt=datetime.datetime.utcnow() - timedelta(days=7))
         if expired_shops:
             deleted_count = expired_shops.delete()
             logger.info(f"Deleted {deleted_count} expired cached shops.")

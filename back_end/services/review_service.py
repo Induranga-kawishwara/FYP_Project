@@ -192,7 +192,7 @@ def predict_review_rating_with_explanations(reviews: list[str]) -> dict:
     )
     # create user-friendly explanation
     prompt = build_explanation_prompt(raw, reviews[0], avg)
-    user_txt = generate_gpt_summary(prompt, max_tokens=300)
+    user_txt = generate_gpt_summary(prompt, max_tokens=200)
 
     return {
         "predicted_rating": avg,
@@ -215,4 +215,4 @@ def generate_summary(reviews: list[str]) -> str:
         "• Pros: list the main positive aspects of the shop as bullet points.\n"
         "• Cons: list the main negative aspects of the shop as bullet points."
     )
-    return generate_gpt_summary(review_blob, instruction=instruction, max_tokens=300)
+    return generate_gpt_summary(review_blob, instruction=instruction, max_tokens=200)

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from selenium.common.exceptions import WebDriverException
+import traceback
 
 from utils import cache, convert_numpy_types, CachedShop, ZeroReviewShop
 from services import (
@@ -22,6 +23,27 @@ def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
     if review_count == 0:
         return round(global_avg, 2)
     return round((avg_pred * review_count + global_avg * m) / (review_count + m), 2)
+
+
+def safe_jsonify(data):
+    print("awa")
+    try:
+        print("Final shop count:", len(data))
+        for idx, shop in enumerate(data):
+            try:
+                print(f"Shop {idx}: {json.dumps(shop, default=str)[:300]}")
+            except Exception as e:
+                print(f"Shop {idx} serialization failed: {e}")
+                print(traceback.format_exc())
+                shop["__serialization_error__"] = str(e)
+
+        payload = json.dumps({"shops": data}, default=str)
+        return jsonify(json.loads(payload)), 200
+
+    except Exception as e:
+        print("Top-level serialization failure")
+        print(traceback.format_exc())
+        return jsonify({"error": "Serialization failure", "details": str(e)}), 500
 
 
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
@@ -110,9 +132,8 @@ def search_product():
                 shop.get("review_count", 0),
                 global_avg
             )
-
         valid_shops.sort(key=lambda s: s.get("predicted_rating", 0), reverse=True)
-        return jsonify({"shops": valid_shops}), 200
+        return safe_jsonify(valid_shops)
 
     except Exception as e:
         logger.exception("Final rating/sorting block failed")
@@ -148,7 +169,6 @@ def process_shop(place, review_count):
             texts = [r["text"] for r in sorted_reviews[:review_count] if r.get("text")]
             xai = predict_review_rating_with_explanations(texts)
             avg_pred = round(sum(xai.get("ratings", [])) / len(texts), 2) if texts else 0
-            summary = generate_summary(texts)
             return {
                 "name": cs.name,
                 "address": cs.address,
@@ -156,10 +176,10 @@ def process_shop(place, review_count):
                 "place_id": cs.place_id,
                 "lat": cs.lat,
                 "lng": cs.lng,
-                "summary": summary,
                 "review_count": len(texts),
                 "predicted_rating": avg_pred,
-                "xai_explanations": xai["user_friendly_explanation"],
+                # "summary": generate_summary(texts),
+                # "xai_explanations": xai["user_friendly_explanation"],
             }
 
         valid_reviews = fetch_real_reviews(place_id, max_reviews=50)
@@ -176,7 +196,6 @@ def process_shop(place, review_count):
 
         xai = predict_review_rating_with_explanations(top_n_texts)
         avg_pred = round(sum(xai.get("ratings", [])) / len(top_n_texts), 2)
-        summary = generate_summary(top_n_texts)
 
         CachedShop.objects(place_id=place_id).update_one(
             set__name=place["name"],
@@ -196,10 +215,10 @@ def process_shop(place, review_count):
             "place_id": place_id,
             "lat": float(place["geometry"]["location"]["lat"]),
             "lng": float(place["geometry"]["location"]["lng"]),
-            "summary": summary,
-            "predicted_rating": avg_pred,
             "review_count": len(top_n_texts),
-            "xai_explanations": xai["user_friendly_explanation"],
+            "predicted_rating": avg_pred,
+            # "summary": generate_summary(top_n_texts),
+            # "xai_explanations": xai["user_friendly_explanation"],
         }
 
     except WebDriverException as e:

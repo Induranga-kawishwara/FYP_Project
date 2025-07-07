@@ -18,6 +18,12 @@ from services import (
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
 
+def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
+    if review_count == 0:
+        return round(global_avg, 2)
+    return round((avg_pred * review_count + global_avg * m) / (review_count + m), 2)
+
+
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
 def search_product():
     if request.method == "OPTIONS":
@@ -94,8 +100,21 @@ def search_product():
             if not future.done():
                 future.cancel()
 
-    valid_shops.sort(key=lambda s: s.get("predicted_rating", 0), reverse=True)
+    # Compute dynamic global average from all predictions
+    all_preds = [s["predicted_rating"] for s in valid_shops if s.get("predicted_rating") > 0]
+    global_avg = round(sum(all_preds) / len(all_preds), 2) if all_preds else 4.2
+
+    # Apply Bayesian smoothing for fairer ranking
+    for shop in valid_shops:
+        shop["predicted_rating"] = apply_bayesian_rating(
+            shop.get("predicted_rating", 0),
+            shop.get("review_count", 0),
+            global_avg
+        )
+
+    valid_shops.sort(key=lambda s: s["predicted_rating"], reverse=True)
     return jsonify({"shops": valid_shops[:desired_shop_count]})
+
 
 
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
@@ -131,6 +150,7 @@ def process_shop(place, review_count):
 
             xai = predict_review_rating_with_explanations(texts)
             avg_pred = round(sum(xai.get("ratings", [])) / len(texts), 2) if texts else 0
+            summary = generate_summary(texts)
 
             return {
                 "name": cs.name,
@@ -139,7 +159,8 @@ def process_shop(place, review_count):
                 "place_id": cs.place_id,
                 "lat": cs.lat,
                 "lng": cs.lng,
-                "summary": cs.summary,
+                "summary": summary,
+                "review_count": len(texts),
                 "predicted_rating": avg_pred,
                 "xai_explanations": xai["user_friendly_explanation"],
                 "raw_xai_explanation": xai["raw_explanation"]
@@ -190,9 +211,11 @@ def process_shop(place, review_count):
             "lng": float(place["geometry"]["location"]["lng"]),
             "summary": summary,
             "predicted_rating": avg_pred,
+            "review_count": len(top_n_texts),
             "xai_explanations": xai["user_friendly_explanation"],
             "raw_xai_explanation": xai["raw_explanation"]
         }
+
 
     except WebDriverException as e:
         logger.error(f"WebDriver error for {place.get('place_id')}: {e}")

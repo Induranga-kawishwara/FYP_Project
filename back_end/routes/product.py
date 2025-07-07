@@ -170,7 +170,10 @@ def process_shop(place, review_count):
         logger.info(f"Scraping reviews for {place_id}")
         valid_reviews = fetch_real_reviews(place_id, max_reviews=50)
         if not valid_reviews:
-            ZeroReviewShop(place_id=place_id).save()
+            ZeroReviewShop.objects(place_id=place_id).update_one(
+                set__added_at=datetime.datetime.utcnow(),
+                    upsert=True
+            )
             logger.info(f"No valid reviews for {place_id}")
             return None
 
@@ -179,7 +182,10 @@ def process_shop(place, review_count):
         top_n_texts = [r["text"] for r in top_n_reviews if r.get("text")]
 
         if not top_n_texts:
-            ZeroReviewShop(place_id=place_id).save()
+            ZeroReviewShop.objects(place_id=place_id).update_one(
+                set__added_at=datetime.datetime.utcnow(),
+                    upsert=True
+            )
             logger.info(f"Empty reviews for {place_id}")
             return None
 
@@ -189,16 +195,17 @@ def process_shop(place, review_count):
         summary = generate_summary(top_n_texts)
 
         # Cache all 100 reviews
-        CachedShop(
-            name=place["name"],
-            place_id=place_id,
-            rating=float(place.get("rating", 0)),
-            reviews=valid_reviews,
-            address=place.get("formatted_address", "N/A"),
-            lat=float(place["geometry"]["location"]["lat"]),
-            lng=float(place["geometry"]["location"]["lng"]),
-            cached_at=datetime.utcnow()
-        ).save()
+        CachedShop.objects(place_id=place_id).update_one(
+            set__name=place["name"],
+            set__rating=float(place.get("rating", 0)),
+            set__reviews=valid_reviews,
+            set__address=place.get("formatted_address", "N/A"),
+            set__lat=float(place["geometry"]["location"]["lat"]),
+            set__lng=float(place["geometry"]["location"]["lng"]),
+            set__cached_at=datetime.utcnow(),
+            upsert=True
+        )
+
 
         logger.info(f"Cached shop {place_id}")
 

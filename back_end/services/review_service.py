@@ -207,11 +207,13 @@ def generate_summary(reviews: list[str]) -> str:
 
     # bullet each review
     review_blob = "\n".join(f"- {r.strip()}" for r in reviews)
+
     instruction = (
         "You are a helpful assistant. Here is a list of customer reviews:\n"
         f"{review_blob}\n\n"
-        "Please summarize in two sections:\n"
-        "• Pros: list the main positive aspects of the shop as bullet points.\n"
-        "• Cons: list the main negative aspects of the shop as bullet points."
+        "Summarize what customers liked and disliked in a short, friendly paragraph. "
+        "Avoid using '**Pros:**' or '**Cons:**' and bullet points. Instead, write one clear paragraph that highlights both positive and negative feedback (if any). "
+        "Keep it brief but informative."
     )
+
     return generate_gpt_summary(review_blob, instruction=instruction, max_tokens=200)

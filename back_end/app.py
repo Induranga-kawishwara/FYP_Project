@@ -87,6 +87,7 @@ def home():
 if __name__ == "__main__":
     try:
         logger.info("Starting Flask app on http://0.0.0.0:5000")
-        app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
+        app.run(debug=True, host="0.0.0.0", port=5000, threaded=True, use_reloader=False)
     except Exception as e:
         logger.exception("Error starting Flask app")
+

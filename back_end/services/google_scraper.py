@@ -1,5 +1,6 @@
 import time
 import datetime
+import hashlib
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -28,10 +29,11 @@ stop_words = set(stopwords.words("english"))
 # WebDriver options
 options = Options()
 options.add_argument("--headless")
+options.add_argument("--disable-gpu")
 options.add_argument("window-size=1920,1080")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
-options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
 options.add_argument("--disable-images")
 options.add_argument("--disable-extensions")
 options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -39,70 +41,64 @@ options.add_experimental_option('excludeSwitches', ['enable-logging'])
 # Relative date parser
 def parse_relative_date(date_str):
     now = datetime.datetime.now()
-    date_str = date_str.strip().lower()
+    s = date_str.strip().lower().replace("edited", "").replace("ago", "").strip()
+    parts = s.split()
     try:
-        date_str = date_str.replace("edited", "").replace("ago", "").strip()
-        parts = date_str.split()
-        if not parts:
+        if "today" in s:
             return now
-
-        if "today" in date_str:
-            return now
-        elif "yesterday" in date_str:
+        if "yesterday" in s:
             return now - datetime.timedelta(days=1)
-        elif len(parts) >= 2:
-            num = 1 if parts[0] in ["a", "an"] else int(parts[0])
-            if "year" in date_str:
-                return now - datetime.timedelta(days=num * 365)
-            elif "month" in date_str:
-                return now - datetime.timedelta(days=num * 30)
-            elif "week" in date_str:
-                return now - datetime.timedelta(days=num * 7)
-            elif "day" in date_str:
+        if len(parts) >= 2:
+            num = 1 if parts[0] in ("a", "an") else int(parts[0])
+            unit = parts[1]
+            if "year" in unit:
+                return now - datetime.timedelta(days=365 * num)
+            if "month" in unit:
+                return now - datetime.timedelta(days=30 * num)
+            if "week" in unit:
+                return now - datetime.timedelta(days=7 * num)
+            if "day" in unit:
                 return now - datetime.timedelta(days=num)
-    except Exception as e:
-        print(f"Error parsing date '{date_str}': {e}")
+    except:
+        pass
     return now
 
-
-# Detect fake reviews
+# Batched fake review detector
 def detect_fake_reviews(reviews):
-    real_reviews, fake_reviews = [], []
-    for review in reviews:
-        inputs = tokenizer(review, padding="max_length", truncation=True, return_tensors="pt", max_length=256)
-        with torch.no_grad():
-            outputs = model(**inputs)
-        prediction = torch.argmax(outputs.logits, dim=-1).item()
-        (real_reviews if prediction == 0 else fake_reviews).append(review)
-    print(f"Detected {len(real_reviews)} real and {len(fake_reviews)} Ai reviews.")
-    return real_reviews, fake_reviews
+    if not reviews:
+        return [], []
+    inputs = tokenizer(reviews, padding=True, truncation=True, return_tensors="pt", max_length=256)
+    with torch.no_grad():
+        logits = model(**inputs).logits
+    preds = torch.argmax(logits, dim=-1).tolist()
+    real = [r for r, p in zip(reviews, preds) if p == 0]
+    fake = [r for r, p in zip(reviews, preds) if p == 1]
+    return real, fake
 
 # Preprocess text
-def preprocess_review(review):
-    words = review.split()
-    cleaned = [lemmatizer.lemmatize(word.lower()) for word in words if word.lower() not in stop_words]
-    return " ".join(cleaned)
+def preprocess_review(text):
+    tokens = text.split()
+    return " ".join(lemmatizer.lemmatize(w.lower()) for w in tokens if w.lower() not in stop_words)
 
-# Expand review
+# Expand “See more”
 def expand_review(driver, el):
     try:
-        more_btn = el.find_element(By.XPATH, ".//button[@aria-label='See more']")
-        if more_btn:
-            driver.execute_script("arguments[0].click();", more_btn)
-            time.sleep(1)
-    except Exception:
+        btn = el.find_element(By.XPATH, ".//button[@aria-label='See more']")
+        driver.execute_script("arguments[0].click();", btn)
+        time.sleep(0.3)
+    except:
         pass
 
-# Scroll container
+# Scroll reviews container
 def scroll_reviews(driver):
     try:
         container = driver.find_element(By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf")
         driver.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", container)
-        time.sleep(2)
-    except Exception as e:
-        print(f"Scroll error: {e}")
+        time.sleep(1)
+    except:
+        pass
 
-# WebDriver context manager
+# ChromeDriver context
 class ChromeDriver:
     def __init__(self, options):
         self.options = options
@@ -113,85 +109,73 @@ class ChromeDriver:
         return self.driver
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            if self.driver:
+        if self.driver:
+            try:
                 self.driver.quit()
-        except Exception as e:
-            print(f"Error quitting ChromeDriver: {e}")
+            except:
+                pass
 
-# Main review scraping function
-def scrape_reviews(place_id, max_reviews):
-    valid_reviews = {}
-    seen_texts = set()
+# Fetch up to max_reviews real reviews
+def fetch_real_reviews(place_id, max_reviews=50):
+    real_reviews = []
+    seen_hashes = set()
     url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
 
     with ChromeDriver(options) as driver:
         driver.get(url)
         try:
-            reviews_tab = WebDriverWait(driver, 10).until(
+            tab = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label*='Reviews for']"))
             )
-            reviews_tab.click()
-            time.sleep(2)
-        except Exception as e:
-            print(f"Cannot open reviews tab: {e}")
+            tab.click()
+            time.sleep(0.5)
+        except:
             return []
 
-        scroll_attempts = 0
+        scroll_fails = 0
 
-        while len(valid_reviews) < max_reviews:
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf"))
-                )
-            except:
-                break
+        while len(real_reviews) < max_reviews and scroll_fails < 5:
+            elements = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
+            before = len(elements)
 
-            review_elements = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
-            new_reviews = []
-
-            for el in review_elements:
+            batch = []
+            for el in elements:
                 try:
                     expand_review(driver, el)
                     author = el.find_element(By.CSS_SELECTOR, "div.d4r55").text.strip()
                     text = el.find_element(By.CSS_SELECTOR, "span.wiI7pd").text.strip()
-                    date_str = el.find_element(By.CSS_SELECTOR, "span.rsqaWe").text.strip()
-                    review_date = parse_relative_date(date_str)
+                    date_s = el.find_element(By.CSS_SELECTOR, "span.rsqaWe").text.strip()
+                    dt = parse_relative_date(date_s)
 
-                    if not text or text in seen_texts:
+                    proc = preprocess_review(text)
+                    hash_key = hashlib.md5((text + author).encode()).hexdigest()
+                    if not proc or hash_key in seen_hashes:
                         continue
+                    seen_hashes.add(hash_key)
 
-                    seen_texts.add(text)
-                    new_reviews.append({
+                    batch.append({
                         "author": author,
                         "text": text,
-                        "date": review_date,
-                        "processed_text": preprocess_review(text)
+                        "date": dt,
+                        "processed_text": proc
                     })
                 except:
                     continue
 
-            if new_reviews:
-                processed = [r["processed_text"] for r in new_reviews]
-                real_texts, _ = detect_fake_reviews(processed)
+            # Detect and filter fakes
+            if batch:
+                processed_texts = [r["processed_text"] for r in batch]
+                real_texts, _ = detect_fake_reviews(processed_texts)
+                filtered = [r for r in batch if r["processed_text"] in real_texts]
+                real_reviews.extend(filtered)
 
-                for r in new_reviews:
-                    if r["processed_text"] in real_texts:
-                        author = r["author"]
-                        if author not in valid_reviews or r["date"] > valid_reviews[author]["date"]:
-                            valid_reviews[author] = r
-                        if len(valid_reviews) >= max_reviews:
-                            break
-
-            prev_count = len(review_elements)
-            scroll_reviews(driver)
-            curr_count = len(driver.find_elements(By.CSS_SELECTOR, "div.jftiEf"))
-            if curr_count == prev_count:
-                scroll_attempts += 1
-                if scroll_attempts >= 3:
-                    print("No more reviews.")
-                    break
+            after = len(driver.find_elements(By.CSS_SELECTOR, "div.jftiEf"))
+            if after == before:
+                scroll_fails += 1
             else:
-                scroll_attempts = 0
+                scroll_fails = 0
 
-    return sorted(valid_reviews.values(), key=lambda r: r["date"], reverse=True)[:max_reviews]
+            scroll_reviews(driver)
+
+        real_reviews.sort(key=lambda r: r["date"], reverse=True)
+        return real_reviews[:max_reviews]

@@ -171,8 +171,8 @@ def process_shop(place, review_count):
         valid_reviews = fetch_real_reviews(place_id, max_reviews=50)
         if not valid_reviews:
             ZeroReviewShop.objects(place_id=place_id).update_one(
-                set__added_at=datetime.datetime.utcnow(),
-                    upsert=True
+                set__added_at=datetime.utcnow(),
+                upsert=True
             )
             logger.info(f"No valid reviews for {place_id}")
             return None
@@ -183,8 +183,8 @@ def process_shop(place, review_count):
 
         if not top_n_texts:
             ZeroReviewShop.objects(place_id=place_id).update_one(
-                set__added_at=datetime.datetime.utcnow(),
-                    upsert=True
+                set__added_at=datetime.utcnow(),
+                upsert=True
             )
             logger.info(f"Empty reviews for {place_id}")
             return None

@@ -198,7 +198,6 @@ def predict_review_rating_with_explanations(reviews: list[str]) -> dict:
         "predicted_rating": avg,
         "ratings": ratings.tolist(),
         "user_friendly_explanation": user_txt,
-        "raw_explanation": raw
     }
 
 #  Review summary 

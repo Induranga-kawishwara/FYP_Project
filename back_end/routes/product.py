@@ -14,9 +14,9 @@ from services import (
     fetch_real_reviews
 )
 
-# Blueprint and Logger
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
+
 
 def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
     if review_count == 0:
@@ -32,9 +32,9 @@ def search_product():
     data = request.get_json()
     product_name = data.get("product")
     review_count = data.get("reviewCount", 5)
-    coverage     = data.get("coverage", 1)
-    location     = data.get("location")
-    skip_ids     = data.get("offset", [])
+    coverage = data.get("coverage", 1)
+    location = data.get("location")
+    skip_ids = data.get("offset", [])
 
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
@@ -43,7 +43,6 @@ def search_product():
 
     radius = int(coverage) * 1000
     lat, lng = location["lat"], location["lng"]
-
     cache_key = f"shops_{product_name}_{lat}_{lng}_{radius}"
     shops_results = cache.get(cache_key)
 
@@ -69,17 +68,15 @@ def search_product():
     cutoff = datetime.utcnow() - timedelta(days=1)
     filtered_shops = [
         shop for shop in shops_results
-        if (
-            isinstance(shop, dict)
-            and shop.get("place_id") not in skip_ids
-            and not ZeroReviewShop.objects(place_id=shop["place_id"], added_at__gte=cutoff).first()
-        )
+        if isinstance(shop, dict)
+        and shop.get("place_id") not in skip_ids
+        and not ZeroReviewShop.objects(place_id=shop["place_id"], added_at__gte=cutoff).first()
     ]
 
     desired_shop_count = 5
     valid_shops = []
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=5) as executor:
         future_to_place = {
             executor.submit(process_shop_with_retry, shop, review_count): shop
             for shop in filtered_shops
@@ -89,32 +86,37 @@ def search_product():
             try:
                 shop = future.result()
                 if shop:
-                    valid_shops.append(convert_numpy_types(shop))
+                    try:
+                        clean_shop = convert_numpy_types(shop)
+                        json.dumps(clean_shop)
+                        valid_shops.append(clean_shop)
+                    except Exception as e:
+                        logger.error(f"Skipping non-serializable shop: {shop.get('place_id')} -> {e}")
             except Exception as e:
                 logger.error(f"Error processing shop {place.get('place_id')}: {e}", exc_info=True)
-
             if len(valid_shops) >= desired_shop_count:
                 break
-
         for future in future_to_place:
             if not future.done():
                 future.cancel()
 
-    # Compute dynamic global average from all predictions
-    all_preds = [s["predicted_rating"] for s in valid_shops if s.get("predicted_rating") > 0]
-    global_avg = round(sum(all_preds) / len(all_preds), 2) if all_preds else 4.2
+    try:
+        all_preds = [float(s.get("predicted_rating", 0)) for s in valid_shops if float(s.get("predicted_rating", 0)) > 0]
+        global_avg = round(sum(all_preds) / len(all_preds), 2) if all_preds else 4.2
 
-    # Apply Bayesian smoothing for fairer ranking
-    for shop in valid_shops:
-        shop["predicted_rating"] = apply_bayesian_rating(
-            shop.get("predicted_rating", 0),
-            shop.get("review_count", 0),
-            global_avg
-        )
+        for shop in valid_shops:
+            shop["predicted_rating"] = apply_bayesian_rating(
+                shop.get("predicted_rating", 0),
+                shop.get("review_count", 0),
+                global_avg
+            )
 
-    valid_shops.sort(key=lambda s: s["predicted_rating"], reverse=True)
-    return jsonify({"shops": valid_shops[:desired_shop_count]})
+        valid_shops.sort(key=lambda s: s.get("predicted_rating", 0), reverse=True)
+        return jsonify({"shops": valid_shops}), 200
 
+    except Exception as e:
+        logger.exception("Final rating/sorting block failed")
+        return jsonify({"error": "Unexpected error during result preparation"}), 500
 
 
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
@@ -135,23 +137,18 @@ def process_shop(place, review_count):
         place_id = place["place_id"]
         logger.info(f"Processing shop {place_id}")
 
-        # Skip recently zero‐reviewed shops
         zr = ZeroReviewShop.objects(place_id=place_id).first()
         if zr and zr.is_still_invalid():
             logger.info(f"Skipping zero-review shop {place_id}")
             return None
 
-        # If cache valid and has at least N reviews, reuse
         cs = CachedShop.objects(place_id=place_id).first()
         if cs and cs.is_cache_valid() and len(cs.reviews or []) >= review_count:
-            logger.info(f"Using cached reviews for {place_id}")
             sorted_reviews = sorted(cs.reviews, key=lambda r: r["date"], reverse=True)
             texts = [r["text"] for r in sorted_reviews[:review_count] if r.get("text")]
-
             xai = predict_review_rating_with_explanations(texts)
             avg_pred = round(sum(xai.get("ratings", [])) / len(texts), 2) if texts else 0
             summary = generate_summary(texts)
-
             return {
                 "name": cs.name,
                 "address": cs.address,
@@ -163,38 +160,24 @@ def process_shop(place, review_count):
                 "review_count": len(texts),
                 "predicted_rating": avg_pred,
                 "xai_explanations": xai["user_friendly_explanation"],
-                "raw_xai_explanation": xai["raw_explanation"]
             }
 
-        # Otherwise scrape up to 100 reviews
-        logger.info(f"Scraping reviews for {place_id}")
         valid_reviews = fetch_real_reviews(place_id, max_reviews=50)
         if not valid_reviews:
-            ZeroReviewShop.objects(place_id=place_id).update_one(
-                set__added_at=datetime.utcnow(),
-                upsert=True
-            )
-            logger.info(f"No valid reviews for {place_id}")
+            ZeroReviewShop.objects(place_id=place_id).update_one(set__added_at=datetime.utcnow(), upsert=True)
             return None
 
-        valid_reviews = sorted(valid_reviews, key=lambda r: r["date"], reverse=True)
+        valid_reviews.sort(key=lambda r: r["date"], reverse=True)
         top_n_reviews = valid_reviews[:review_count]
         top_n_texts = [r["text"] for r in top_n_reviews if r.get("text")]
-
         if not top_n_texts:
-            ZeroReviewShop.objects(place_id=place_id).update_one(
-                set__added_at=datetime.utcnow(),
-                upsert=True
-            )
-            logger.info(f"Empty reviews for {place_id}")
+            ZeroReviewShop.objects(place_id=place_id).update_one(set__added_at=datetime.utcnow(), upsert=True)
             return None
 
-        logger.info(f"Running XAI predictions for {place_id}")
         xai = predict_review_rating_with_explanations(top_n_texts)
         avg_pred = round(sum(xai.get("ratings", [])) / len(top_n_texts), 2)
         summary = generate_summary(top_n_texts)
 
-        # Cache all 100 reviews
         CachedShop.objects(place_id=place_id).update_one(
             set__name=place["name"],
             set__rating=float(place.get("rating", 0)),
@@ -205,9 +188,6 @@ def process_shop(place, review_count):
             set__cached_at=datetime.utcnow(),
             upsert=True
         )
-
-
-        logger.info(f"Cached shop {place_id}")
 
         return {
             "name": place["name"],
@@ -220,9 +200,7 @@ def process_shop(place, review_count):
             "predicted_rating": avg_pred,
             "review_count": len(top_n_texts),
             "xai_explanations": xai["user_friendly_explanation"],
-            "raw_xai_explanation": xai["raw_explanation"]
         }
-
 
     except WebDriverException as e:
         logger.error(f"WebDriver error for {place.get('place_id')}: {e}")

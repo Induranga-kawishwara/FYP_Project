@@ -4,8 +4,6 @@ import logging
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from selenium.common.exceptions import WebDriverException
-import traceback
 
 from utils import cache, convert_numpy_types, CachedShop, ZeroReviewShop
 from services import (
@@ -26,24 +24,12 @@ def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
 
 
 def safe_jsonify(data):
-    print("awa")
     try:
-        print("Final shop count:", len(data))
-        for idx, shop in enumerate(data):
-            try:
-                print(f"Shop {idx}: {json.dumps(shop, default=str)[:300]}")
-            except Exception as e:
-                print(f"Shop {idx} serialization failed: {e}")
-                print(traceback.format_exc())
-                shop["__serialization_error__"] = str(e)
-
         payload = json.dumps({"shops": data}, default=str)
         return jsonify(json.loads(payload)), 200
-
     except Exception as e:
-        print("Top-level serialization failure")
-        print(traceback.format_exc())
-        return jsonify({"error": "Serialization failure", "details": str(e)}), 500
+        logger.exception("Serialization failure")
+        return jsonify({"error": "Serialization failed", "details": str(e)}), 500
 
 
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
@@ -72,11 +58,11 @@ def search_product():
         try:
             shops_results = json.loads(shops_results)
         except json.JSONDecodeError:
-            logger.error(f"Cache key {cache_key} contained invalid JSON, clearing cache")
+            logger.error(f"Invalid JSON in cache key: {cache_key}")
             shops_results = None
 
     if shops_results is not None and not isinstance(shops_results, list):
-        logger.error(f"Expected list in cache for {cache_key}, got {type(shops_results)}, clearing cache")
+        logger.error(f"Expected list in cache for {cache_key}, got {type(shops_results)}")
         shops_results = None
 
     if not shops_results:
@@ -95,8 +81,8 @@ def search_product():
         and not ZeroReviewShop.objects(place_id=shop["place_id"], added_at__gte=cutoff).first()
     ]
 
-    desired_shop_count = 5
     valid_shops = []
+    desired_shop_count = 5
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         future_to_place = {
@@ -113,9 +99,9 @@ def search_product():
                         json.dumps(clean_shop)
                         valid_shops.append(clean_shop)
                     except Exception as e:
-                        logger.error(f"Skipping non-serializable shop: {shop.get('place_id')} -> {e}")
+                        logger.warning(f"Serialization failed for {shop.get('place_id')}: {e}")
             except Exception as e:
-                logger.error(f"Error processing shop {place.get('place_id')}: {e}", exc_info=True)
+                logger.warning(f"Shop error {place.get('place_id')}: {e}")
             if len(valid_shops) >= desired_shop_count:
                 break
         for future in future_to_place:
@@ -132,12 +118,13 @@ def search_product():
                 shop.get("review_count", 0),
                 global_avg
             )
+
         valid_shops.sort(key=lambda s: s.get("predicted_rating", 0), reverse=True)
         return safe_jsonify(valid_shops)
 
     except Exception as e:
-        logger.exception("Final rating/sorting block failed")
-        return jsonify({"error": "Unexpected error during result preparation"}), 500
+        logger.exception("Rating/sorting error")
+        return jsonify({"error": "Result preparation failed"}), 500
 
 
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
@@ -145,10 +132,10 @@ def process_shop_with_retry(place, review_count, retries=3, delay=5):
         try:
             return process_shop(place, review_count)
         except TimeoutError as e:
-            logger.error(f"Timeout on attempt {attempt} for {place.get('place_id')}: {e}")
+            logger.warning(f"Timeout on attempt {attempt} for {place.get('place_id')}: {e}")
             time.sleep(delay * (2 ** (attempt - 1)))
         except Exception as e:
-            logger.error(f"Error processing shop {place.get('place_id')}: {e}", exc_info=True)
+            logger.warning(f"Shop retry error {place.get('place_id')}: {e}")
             break
     return None
 
@@ -156,11 +143,10 @@ def process_shop_with_retry(place, review_count, retries=3, delay=5):
 def process_shop(place, review_count):
     try:
         place_id = place["place_id"]
-        logger.info(f"Processing shop {place_id}")
+        logger.info(f"Processing {place_id}")
 
         zr = ZeroReviewShop.objects(place_id=place_id).first()
         if zr and zr.is_still_invalid():
-            logger.info(f"Skipping zero-review shop {place_id}")
             return None
 
         cs = CachedShop.objects(place_id=place_id).first()
@@ -221,9 +207,6 @@ def process_shop(place, review_count):
             # "xai_explanations": xai["user_friendly_explanation"],
         }
 
-    except WebDriverException as e:
-        logger.error(f"WebDriver error for {place.get('place_id')}: {e}")
-        return None
     except Exception as e:
-        logger.error(f"Unhandled error processing shop {place.get('place_id')}: {e}", exc_info=True)
+        logger.exception(f"Process shop failed: {place.get('place_id')}")
         return None

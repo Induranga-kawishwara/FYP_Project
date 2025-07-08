@@ -1,17 +1,16 @@
 import sys
-import signal
-import atexit
+import logging
 import firebase_admin
 from firebase_admin import credentials
 from config import Config
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
-from utils import CachedShop, ZeroReviewShop, cache
 from mongoengine import connect
-import logging
+from utils import CachedShop, ZeroReviewShop, cache
 from routes import auth_bp, product_bp, profile_bp
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from waitress import serve
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -26,35 +25,30 @@ def handle_uncaught_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_uncaught_exception
 
-# Graceful shutdown log
-@atexit.register
-def shutdown_handler():
-    logger.info("Flask backend shutting down cleanly...")
-
-signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
-signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
-
 # Initialize Firebase
 if not firebase_admin._apps:
     try:
         cred = credentials.Certificate(Config.FIREBASE_SERVICE_ACCOUNT)
         firebase_admin.initialize_app(cred)
-        logger.info("Firebase initialized successfully.")
-    except Exception:
-        logger.exception("Error initializing Firebase")
+        logger.info(" Firebase initialized successfully.")
+    except Exception as e:
+        logger.exception(" Error initializing Firebase")
 
 # Connect to MongoDB
 try:
     connect(host=Config.MONGO_DATABASE, alias="default")
-    logger.info("MongoDB connection established successfully.")
-except Exception:
-    logger.exception("Error connecting to MongoDB")
+    logger.info(" MongoDB connection established successfully.")
+except Exception as e:
+    logger.exception(" Error connecting to MongoDB")
 
-# Flask app setup
+# Create Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Enable CORS
 CORS(app)
+
+# Init cache
 cache.init_app(app)
 
 # Register Blueprints
@@ -62,7 +56,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(product_bp)
 app.register_blueprint(profile_bp)
 
-# Background job scheduler
+# Background Scheduler Setup
 scheduler = BackgroundScheduler()
 scheduler.start()
 
@@ -70,10 +64,11 @@ def cleanup_invalid_data():
     try:
         CachedShop.cleanup_invalid_cache()
         ZeroReviewShop.cleanup_invalid_zero_review_shops()
-        logger.info("Cleanup of invalid data completed.")
-    except Exception:
-        logger.exception("Error during cleanup job")
+        logger.info(" Cleanup of invalid data completed.")
+    except Exception as e:
+        logger.exception(" Error during cleanup job")
 
+# Schedule cleanup every 24 hours
 scheduler.add_job(
     func=cleanup_invalid_data,
     trigger=IntervalTrigger(hours=24),
@@ -82,17 +77,30 @@ scheduler.add_job(
     replace_existing=True
 )
 
-# Run cleanup on startup
+# Run cleanup immediately on startup
 cleanup_invalid_data()
 
 @app.route("/")
 def home():
-    return "Hello from Flask backend."
+    return " Flask backend is running."
 
+# Log every request
+@app.before_request
+def log_request():
+    logger.info(f" {request.method} {request.path}")
+    if request.method in ["POST", "PUT", "PATCH"]:
+        try:
+            logger.info(f" Payload: {request.get_json()}")
+        except Exception as e:
+            logger.warning(f" Could not parse JSON body: {e}")
+
+# Log every response
+@app.after_request
+def log_response(response):
+    logger.info(f"Responded with status {response.status_code}")
+    return response
+
+# Run using Waitress for Windows stability
 if __name__ == "__main__":
-    try:
-        logger.info("Starting Flask app on http://0.0.0.0:5000")
-        # TEMPORARILY disable threading to avoid race/thread kill issues on Windows
-        app.run(debug=True, host="0.0.0.0", port=5000, threaded=False, use_reloader=False)
-    except Exception:
-        logger.exception("Error starting Flask app")
+    logger.info("Starting backend on http://0.0.0.0:5000 with Waitress")
+    serve(app, host="0.0.0.0", port=5000)

@@ -133,8 +133,8 @@ function ShopFinder() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
 
-  // Opening hours filter states
-  const [filterByOpening, setFilterByOpening] = useState(false);
+  // UPDATED: Opening hours filter states
+  const [filterType, setFilterType] = useState("none"); // "none", "date", or "datetime"
   const [openingDate, setOpeningDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -146,13 +146,6 @@ function ShopFinder() {
 
   // Login Required Modal state
   const [loginRequiredModalOpen, setLoginRequiredModalOpen] = useState(false);
-
-  // Generate time options for opening hours
-  const timeOptions = Array.from({ length: 24 }, (_, i) => {
-    const hour = i % 12 || 12;
-    const period = i < 12 ? "AM" : "PM";
-    return `${hour.toString().padStart(2, "0")}:00 ${period}`;
-  });
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -226,7 +219,7 @@ function ShopFinder() {
       setIsLoading(true);
       setShops([]);
 
-      // Convert time to 24-hour format for backend
+      // Time conversion function
       const convertTimeTo24Hour = (timeStr) => {
         const [time, period] = timeStr.split(" ");
         let [hours, minutes] = time.split(":");
@@ -238,17 +231,22 @@ function ShopFinder() {
         return `${hours.padStart(2, "0")}:${minutes}:00`;
       };
 
+      // UPDATED: Request data with new filterType
       const requestData = {
         product: query,
         reviewCount: finalReviewCount,
         coverage: coverage === "customcoverage" ? customCoverage : coverage,
         location: currentLocation,
-        filterByOpening: filterByOpening,
+        filterType: filterType, // "none", "date", or "datetime"
       };
 
-      if (filterByOpening) {
+      // Conditionally add date/time parameters
+      if (filterType !== "none") {
         requestData.openingDate = openingDate;
-        requestData.openingTime = convertTimeTo24Hour(openingTime);
+
+        if (filterType === "datetime") {
+          requestData.openingTime = convertTimeTo24Hour(openingTime);
+        }
       }
 
       const response = await axios.post(
@@ -277,18 +275,35 @@ function ShopFinder() {
   const loadMoreShops = async () => {
     setIsLoading(true);
     try {
+      // Time conversion function
+      const convertTimeTo24Hour = (timeStr) => {
+        const [time, period] = timeStr.split(" ");
+        let [hours, minutes] = time.split(":");
+        if (period === "PM" && hours !== "12") {
+          hours = parseInt(hours, 10) + 12;
+        } else if (period === "AM" && hours === "12") {
+          hours = "00";
+        }
+        return `${hours.padStart(2, "0")}:${minutes}:00`;
+      };
+
+      // UPDATED: Request data for pagination
       const requestData = {
         product: query,
         reviewCount: reviewCount,
         coverage: coverage === "customcoverage" ? customCoverage : coverage,
         location: currentLocation,
         offset: offsetRef.current,
-        filterByOpening: filterByOpening,
+        filterType: filterType, // "none", "date", or "datetime"
       };
 
-      if (filterByOpening) {
+      // Conditionally add date/time parameters
+      if (filterType !== "none") {
         requestData.openingDate = openingDate;
-        requestData.openingTime = openingTime;
+
+        if (filterType === "datetime") {
+          requestData.openingTime = convertTimeTo24Hour(openingTime);
+        }
       }
 
       const response = await axios.post(
@@ -768,7 +783,7 @@ function ShopFinder() {
         explanation={explanationContent}
       />
 
-      {/* Review Settings Popup with Opening Hours Filter */}
+      {/* UPDATED: Review Settings Popup with new opening hours filter */}
       <ReviewSettingPopup
         open={showReviewModal}
         onClose={() => setShowReviewModal(false)}
@@ -783,9 +798,9 @@ function ShopFinder() {
         setCoverage={setCoverage}
         customCoverage={customCoverage}
         setCustomCoverage={setCustomCoverage}
-        // Opening hours filter props
-        filterByOpening={filterByOpening}
-        setFilterByOpening={setFilterByOpening}
+        // UPDATED: Opening hours filter props
+        filterType={filterType}
+        setFilterType={setFilterType}
         openingDate={openingDate}
         setOpeningDate={setOpeningDate}
         openingTime={openingTime}

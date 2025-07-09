@@ -69,9 +69,8 @@ const ReviewSettingPopup = ({
   setCoverage,
   customCoverage,
   setCustomCoverage,
-  // Opening hours filter props
-  filterByOpening,
-  setFilterByOpening,
+  filterType,
+  setFilterType,
   openingDate,
   setOpeningDate,
   openingTime,
@@ -265,7 +264,7 @@ const ReviewSettingPopup = ({
               )}
             </SettingCard>
 
-            {/* NEW: Opening Hours Filter Section */}
+            {/* Opening Hours Filter Section */}
             <SettingCard>
               <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                 <AccessTime sx={{ color: "primary.main", mr: 2 }} />
@@ -274,61 +273,81 @@ const ReviewSettingPopup = ({
                 </FormLabel>
               </Box>
 
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    color="primary"
-                    checked={filterByOpening}
-                    onChange={(e) => setFilterByOpening(e.target.checked)}
-                  />
-                }
-                label={
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    Show only shops open at specific time
-                  </Typography>
-                }
-              />
-
-              {filterByOpening && (
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      type="date"
-                      label="Date"
-                      value={openingDate}
-                      onChange={(e) => setOpeningDate(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CalendarToday fontSize="small" />
-                          </InputAdornment>
-                        ),
-                      }}
+              <RadioGroup
+                value={filterType}
+                defaultValue={"none"}
+                onChange={(e) => setFilterType(e.target.value)}
+                sx={{ mb: 2 }}
+              >
+                <Grid container spacing={1}>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      value="none"
+                      control={<Radio color="primary" />}
+                      label="Show all shops (no filter)"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Select
-                      fullWidth
-                      value={openingTime}
-                      onChange={(e) => setOpeningTime(e.target.value)}
-                      displayEmpty
-                      renderValue={(selected) => selected || "Select time"}
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <AccessTime fontSize="small" />
-                        </InputAdornment>
-                      }
-                    >
-                      {timeOptions.map((time) => (
-                        <MenuItem key={time} value={time}>
-                          {time}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      value="date"
+                      control={<Radio color="primary" />}
+                      label="Filter by date only"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      value="datetime"
+                      control={<Radio color="primary" />}
+                      label="Filter by specific date and time"
+                    />
                   </Grid>
                 </Grid>
+              </RadioGroup>
+
+              {(filterType === "date" || filterType === "datetime") && (
+                <Box sx={{ mt: 2 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={filterType === "datetime" ? 6 : 12}>
+                      <TextField
+                        fullWidth
+                        type="date"
+                        label="Select date"
+                        value={openingDate}
+                        onChange={(e) => setOpeningDate(e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <CalendarToday fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    {filterType === "datetime" && (
+                      <Grid item xs={12} sm={6}>
+                        <Select
+                          fullWidth
+                          value={openingTime}
+                          onChange={(e) => setOpeningTime(e.target.value)}
+                          displayEmpty
+                          renderValue={(selected) => selected || "Select time"}
+                          startAdornment={
+                            <InputAdornment position="start">
+                              <AccessTime fontSize="small" />
+                            </InputAdornment>
+                          }
+                        >
+                          {timeOptions.map((time) => (
+                            <MenuItem key={time} value={time}>
+                              {time}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
               )}
             </SettingCard>
 

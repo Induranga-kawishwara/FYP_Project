@@ -165,7 +165,7 @@ function ShopFinder() {
           if (res.data && res.data.review_settings) {
             const settings = res.data.review_settings;
             if (
-              ["10", "100", "500", "1000"].includes(
+              ["10", "20", "30", "50"].includes(
                 settings.review_count.toString()
               )
             ) {
@@ -175,9 +175,7 @@ function ShopFinder() {
               setSelectedOption("custom");
               setCustomReviewCount(settings.review_count.toString());
             }
-            if (
-              ["10", "20", "50", "100"].includes(settings.coverage.toString())
-            ) {
+            if (["1", "5", "10", "50"].includes(settings.coverage.toString())) {
               setCoverage(settings.coverage.toString());
               setCustomCoverage("");
             } else {

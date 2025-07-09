@@ -147,7 +147,7 @@ const ReviewSettingPopup = ({
                 onChange={(e) => setSelectedOption(e.target.value)}
               >
                 <Grid container spacing={2}>
-                  {[10, 100, 500, 1000].map((num) => (
+                  {["10", "20", "30", "50"].map((num) => (
                     <Grid item xs={12} sm={6} key={num}>
                       <FormControlLabel
                         value={num.toString()}
@@ -205,7 +205,7 @@ const ReviewSettingPopup = ({
                 sx={{ gap: 2 }}
               >
                 <Grid container spacing={2}>
-                  {["10", "20", "50", "100", "customcoverage"].map((value) => (
+                  {["1", "5", "10", "50", "customcoverage"].map((value) => (
                     <Grid item xs={6} sm={4} key={value}>
                       <FormControlLabel
                         value={value}

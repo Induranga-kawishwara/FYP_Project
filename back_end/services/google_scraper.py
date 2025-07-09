@@ -65,7 +65,7 @@ def detect_fake_reviews(texts):
         logging.error(f"Error in detect_fake_reviews: {e}")
         return [], texts
 
-async def fetch_real_reviews(place_id, max_reviews=20, retries=3):  # Reduced max_reviews
+async def fetch_real_reviews(place_id, max_reviews=50, retries=3):  # Reduced max_reviews
     logging.info(f"[{place_id}] Starting review fetch")
     reviews = []
     seen_hashes = set()

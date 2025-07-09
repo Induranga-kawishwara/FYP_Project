@@ -194,7 +194,7 @@ def process_shop(place, review_count):
                 # "xai_explanations": xai["user_friendly_explanation"],
             }
 
-        future = asyncio.run_coroutine_threadsafe(fetch_real_reviews(place_id, max_reviews=20), loop)  # Reduced max_reviews
+        future = asyncio.run_coroutine_threadsafe(fetch_real_reviews(place_id, max_reviews=50), loop)  # Reduced max_reviews
         try:
             valid_reviews = future.result(timeout=90)
         except ConcurrentTimeoutError as e:

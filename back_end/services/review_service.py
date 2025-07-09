@@ -191,13 +191,13 @@ def predict_review_rating_with_explanations(reviews: list[str]) -> dict:
         f"{t} {'+' if v>0 else '-'}{abs(v):.2f}" for t, v in ex['lime']
     )
     # create user-friendly explanation
-    # prompt = build_explanation_prompt(raw, reviews[0], avg)
-    # user_txt = generate_gpt_summary(prompt, max_tokens=200)
+    prompt = build_explanation_prompt(raw, reviews[0], avg)
+    user_txt = generate_gpt_summary(prompt, max_tokens=200)
 
     return {
         "predicted_rating": avg,
         "ratings": ratings.tolist(),
-        # "user_friendly_explanation": user_txt,
+        "user_friendly_explanation": user_txt,
     }
 
 #  Review summary 

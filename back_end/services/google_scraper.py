@@ -65,7 +65,7 @@ def detect_fake_reviews(texts):
         logging.error(f"Error in detect_fake_reviews: {e}")
         return [], texts
 
-async def fetch_real_reviews(place_id, max_reviews=50, retries=3):  
+async def fetch_real_reviews(place_id, max_reviews, retries=3):  
     logging.info(f"[{place_id}] Starting review fetch")
     reviews = []
     seen_hashes = set()
@@ -80,7 +80,7 @@ async def fetch_real_reviews(place_id, max_reviews=50, retries=3):
                     "--disable-gpu",
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
-                    "--js-flags=--max-old-space-size=256"  # Increased memory limit
+                    "--js-flags=--max-old-space-size=256"  
                 ]
             )
             context = await browser.new_context(user_agent="Mozilla/5.0")

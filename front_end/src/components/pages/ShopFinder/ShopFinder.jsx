@@ -105,24 +105,24 @@ function ShopFinder() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const mapRef = useRef(null);
-  const { token, isValid } = useToken(); // Get the token and validity state
+  const { token, isValid } = useToken();
   const navigate = useNavigate();
   const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
 
   // Shop search related states
   const [query, setQuery] = useState("");
-  const [shops, setShops] = useState([]); // Stores the fetched shops
-  const [isLoading, setIsLoading] = useState(false); // Loading state for initial search
+  const [shops, setShops] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
 
   // Pagination-related states
   const offsetRef = useRef([]);
-  const [hasMoreShops, setHasMoreShops] = useState(true); // If there are more shops to load
-  const [showLoadMoreButton, setShowLoadMoreButton] = useState(false); // Initially hidden, becomes true after first load
+  const [hasMoreShops, setHasMoreShops] = useState(true);
+  const [showLoadMoreButton, setShowLoadMoreButton] = useState(false);
 
-  // Review settings states (no "all shops" option)
+  // Review settings states
   const [reviewCount, setReviewCount] = useState(null);
   const [selectedOption, setSelectedOption] = useState("10");
   const [customReviewCount, setCustomReviewCount] = useState("");
@@ -133,12 +133,26 @@ function ShopFinder() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
 
+  // Opening hours filter states
+  const [filterByOpening, setFilterByOpening] = useState(false);
+  const [openingDate, setOpeningDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [openingTime, setOpeningTime] = useState("12:00 PM");
+
   // Explanation Popup state
   const [openExplanationModal, setOpenExplanationModal] = useState(false);
   const [explanationContent, setExplanationContent] = useState("");
 
   // Login Required Modal state
   const [loginRequiredModalOpen, setLoginRequiredModalOpen] = useState(false);
+
+  // Generate time options for opening hours
+  const timeOptions = Array.from({ length: 24 }, (_, i) => {
+    const hour = i % 12 || 12;
+    const period = i < 12 ? "AM" : "PM";
+    return `${hour.toString().padStart(2, "0")}:00 ${period}`;
+  });
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -194,7 +208,6 @@ function ShopFinder() {
   }, []);
 
   const handleSearch = () => {
-    // If 'dontAskAgain' is true, and the user is not logged in, show login required modal
     if (dontAskAgain && (!token || !isValid)) {
       setLoginRequiredModalOpen(true);
       return;
@@ -211,29 +224,46 @@ function ShopFinder() {
   const performSearch = async (finalReviewCount) => {
     try {
       setIsLoading(true);
+      setShops([]);
 
-      // Clear previous shops before adding new results
-      setShops([]); // This will reset the shops state
+      // Convert time to 24-hour format for backend
+      const convertTimeTo24Hour = (timeStr) => {
+        const [time, period] = timeStr.split(" ");
+        let [hours, minutes] = time.split(":");
+        if (period === "PM" && hours !== "12") {
+          hours = parseInt(hours, 10) + 12;
+        } else if (period === "AM" && hours === "12") {
+          hours = "00";
+        }
+        return `${hours.padStart(2, "0")}:${minutes}:00`;
+      };
+
+      const requestData = {
+        product: query,
+        reviewCount: finalReviewCount,
+        coverage: coverage === "customcoverage" ? customCoverage : coverage,
+        location: currentLocation,
+        filterByOpening: filterByOpening,
+      };
+
+      if (filterByOpening) {
+        requestData.openingDate = openingDate;
+        requestData.openingTime = convertTimeTo24Hour(openingTime);
+      }
 
       const response = await axios.post(
         "http://127.0.0.1:5000/product/search_product",
-        {
-          product: query,
-          reviewCount: finalReviewCount,
-          coverage: coverage === "customcoverage" ? customCoverage : coverage,
-          location: currentLocation,
-        }
+        requestData
       );
-      console.log("Search Response:", response.data);
 
       const newShops = response.data.shops;
 
       if (newShops.length === 0) {
         setHasMoreShops(false);
       } else {
-        setShops(newShops); // Set new shops directly
+        setShops(newShops);
         const newPlaceIds = newShops.map((shop) => shop.place_id);
-        offsetRef.current = newPlaceIds; // Update offset for pagination
+        offsetRef.current = newPlaceIds;
       }
 
       setIsLoading(false);
@@ -247,25 +277,33 @@ function ShopFinder() {
   const loadMoreShops = async () => {
     setIsLoading(true);
     try {
+      const requestData = {
+        product: query,
+        reviewCount: reviewCount,
+        coverage: coverage === "customcoverage" ? customCoverage : coverage,
+        location: currentLocation,
+        offset: offsetRef.current,
+        filterByOpening: filterByOpening,
+      };
+
+      if (filterByOpening) {
+        requestData.openingDate = openingDate;
+        requestData.openingTime = openingTime;
+      }
+
       const response = await axios.post(
         "http://127.0.0.1:5000/product/search_product",
-        {
-          product: query,
-          reviewCount: reviewCount,
-          coverage: coverage === "customcoverage" ? customCoverage : coverage,
-          location: currentLocation,
-          offset: offsetRef.current, // Continue from the current offset
-        }
+        requestData
       );
 
       const newShops = response.data.shops;
 
       if (newShops.length === 0) {
-        setHasMoreShops(false); // No more shops to load
+        setHasMoreShops(false);
       } else {
-        setShops((prevShops) => [...prevShops, ...newShops]); // Append new shops
+        setShops((prevShops) => [...prevShops, ...newShops]);
         const newPlaceIds = newShops.map((shop) => shop.place_id);
-        offsetRef.current = [...offsetRef.current, ...newPlaceIds]; // Update offset
+        offsetRef.current = [...offsetRef.current, ...newPlaceIds];
       }
 
       setIsLoading(false);
@@ -714,7 +752,7 @@ function ShopFinder() {
       {showLoadMoreButton && hasMoreShops && (
         <Box sx={{ textAlign: "center", mt: 4 }}>
           <Button
-            onClick={loadMoreShops} // Call the function to load more shops
+            onClick={loadMoreShops}
             variant="outlined"
             disabled={isLoading}
           >
@@ -730,7 +768,7 @@ function ShopFinder() {
         explanation={explanationContent}
       />
 
-      {/* Review Settings Popup */}
+      {/* Review Settings Popup with Opening Hours Filter */}
       <ReviewSettingPopup
         open={showReviewModal}
         onClose={() => setShowReviewModal(false)}
@@ -745,6 +783,13 @@ function ShopFinder() {
         setCoverage={setCoverage}
         customCoverage={customCoverage}
         setCustomCoverage={setCustomCoverage}
+        // Opening hours filter props
+        filterByOpening={filterByOpening}
+        setFilterByOpening={setFilterByOpening}
+        openingDate={openingDate}
+        setOpeningDate={setOpeningDate}
+        openingTime={openingTime}
+        setOpeningTime={setOpeningTime}
       />
 
       {/* Login Required Modal */}

@@ -16,8 +16,18 @@ import {
   Fade,
   useTheme,
   styled,
+  MenuItem,
+  Select,
+  InputAdornment,
 } from "@mui/material";
-import { Close, Settings, Explore, RateReview } from "@mui/icons-material";
+import {
+  Close,
+  Settings,
+  Explore,
+  RateReview,
+  AccessTime,
+  CalendarToday,
+} from "@mui/icons-material";
 
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
@@ -59,8 +69,22 @@ const ReviewSettingPopup = ({
   setCoverage,
   customCoverage,
   setCustomCoverage,
+  // Opening hours filter props
+  filterByOpening,
+  setFilterByOpening,
+  openingDate,
+  setOpeningDate,
+  openingTime,
+  setOpeningTime,
 }) => {
   const theme = useTheme();
+
+  // Generate time options for the dropdown
+  const timeOptions = Array.from({ length: 24 }, (_, i) => {
+    const hour = i % 12 || 12;
+    const period = i < 12 ? "AM" : "PM";
+    return `${hour.toString().padStart(2, "0")}:00 ${period}`;
+  });
 
   return (
     <Modal open={open} onClose={onClose} closeAfterTransition>
@@ -238,6 +262,73 @@ const ReviewSettingPopup = ({
                     sx: { borderRadius: "8px" },
                   }}
                 />
+              )}
+            </SettingCard>
+
+            {/* NEW: Opening Hours Filter Section */}
+            <SettingCard>
+              <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                <AccessTime sx={{ color: "primary.main", mr: 2 }} />
+                <FormLabel component="legend" sx={{ fontWeight: 600 }}>
+                  Opening Hours Filter
+                </FormLabel>
+              </Box>
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    color="primary"
+                    checked={filterByOpening}
+                    onChange={(e) => setFilterByOpening(e.target.checked)}
+                  />
+                }
+                label={
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    Show only shops open at specific time
+                  </Typography>
+                }
+              />
+
+              {filterByOpening && (
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Date"
+                      value={openingDate}
+                      onChange={(e) => setOpeningDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <CalendarToday fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Select
+                      fullWidth
+                      value={openingTime}
+                      onChange={(e) => setOpeningTime(e.target.value)}
+                      displayEmpty
+                      renderValue={(selected) => selected || "Select time"}
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <AccessTime fontSize="small" />
+                        </InputAdornment>
+                      }
+                    >
+                      {timeOptions.map((time) => (
+                        <MenuItem key={time} value={time}>
+                          {time}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </Grid>
+                </Grid>
               )}
             </SettingCard>
 

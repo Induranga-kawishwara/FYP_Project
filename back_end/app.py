@@ -30,16 +30,16 @@ if not firebase_admin._apps:
     try:
         cred = credentials.Certificate(Config.FIREBASE_SERVICE_ACCOUNT)
         firebase_admin.initialize_app(cred)
-        logger.info(" Firebase initialized successfully.")
+        logger.info("Firebase initialized successfully.")
     except Exception as e:
-        logger.exception(" Error initializing Firebase")
+        logger.exception("Error initializing Firebase")
 
 # Connect to MongoDB
 try:
     connect(host=Config.MONGO_DATABASE, alias="default")
-    logger.info(" MongoDB connection established successfully.")
+    logger.info("MongoDB connection established successfully.")
 except Exception as e:
-    logger.exception(" Error connecting to MongoDB")
+    logger.exception("Error connecting to MongoDB")
 
 # Create Flask app
 app = Flask(__name__)
@@ -64,9 +64,9 @@ def cleanup_invalid_data():
     try:
         CachedShop.cleanup_invalid_cache()
         ZeroReviewShop.cleanup_invalid_zero_review_shops()
-        logger.info(" Cleanup of invalid data completed.")
+        logger.info("Cleanup of invalid data completed.")
     except Exception as e:
-        logger.exception(" Error during cleanup job")
+        logger.exception("Error during cleanup job")
 
 # Schedule cleanup every 24 hours
 scheduler.add_job(
@@ -82,17 +82,17 @@ cleanup_invalid_data()
 
 @app.route("/")
 def home():
-    return " Flask backend is running."
+    return "Flask backend is running."
 
 # Log every request
 @app.before_request
 def log_request():
-    logger.info(f" {request.method} {request.path}")
+    logger.info(f"{request.method} {request.path}")
     if request.method in ["POST", "PUT", "PATCH"]:
         try:
-            logger.info(f" Payload: {request.get_json()}")
+            logger.info(f"Payload: {request.get_json()}")
         except Exception as e:
-            logger.warning(f" Could not parse JSON body: {e}")
+            logger.warning(f"Could not parse JSON body: {e}")
 
 # Log every response
 @app.after_request

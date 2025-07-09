@@ -1,8 +1,12 @@
 import json
 import time
 import logging
+import asyncio
+import nest_asyncio
+import threading
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
+from concurrent.futures import TimeoutError as ConcurrentTimeoutError
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from utils import cache, convert_numpy_types, CachedShop, ZeroReviewShop
@@ -16,12 +20,24 @@ from services import (
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
 
+# Setup asyncio loop
+nest_asyncio.apply()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+def start_loop():
+    try:
+        loop.run_forever()
+    except Exception as e:
+        logger.error(f"Asyncio loop error: {e}")
+
+loop_thread = threading.Thread(target=start_loop, daemon=True)
+loop_thread.start()
 
 def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
     if review_count == 0:
         return round(global_avg, 2)
     return round((avg_pred * review_count + global_avg * m) / (review_count + m), 2)
-
 
 def safe_jsonify(data):
     try:
@@ -30,7 +46,6 @@ def safe_jsonify(data):
     except Exception as e:
         logger.exception("Serialization failure")
         return jsonify({"error": "Serialization failed", "details": str(e)}), 500
-
 
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
 def search_product():
@@ -43,6 +58,9 @@ def search_product():
     coverage = data.get("coverage", 1)
     location = data.get("location")
     skip_ids = data.get("offset", [])
+
+    logger.info(f"Payload: {data}")
+    logger.info(f"Searching product: {product_name} with {review_count} reviews")
 
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
@@ -66,9 +84,13 @@ def search_product():
         shops_results = None
 
     if not shops_results:
-        shops_results = fetch_and_filter_shops_with_text(product_name, lat, lng, radius)
-        if shops_results:
-            cache.set(cache_key, shops_results, timeout=300)
+        try:
+            shops_results = fetch_and_filter_shops_with_text(product_name, lat, lng, radius)
+            if shops_results:
+                cache.set(cache_key, shops_results, timeout=300)
+        except Exception as e:
+            logger.error(f"Error fetching shops: {e}")
+            return jsonify({"error": "Failed to fetch shops", "details": str(e)}), 500
 
     if not shops_results:
         return jsonify({"error": "No shops found"}), 404
@@ -84,7 +106,7 @@ def search_product():
     valid_shops = []
     desired_shop_count = 5
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         future_to_place = {
             executor.submit(process_shop_with_retry, shop, review_count): shop
             for shop in filtered_shops
@@ -126,19 +148,17 @@ def search_product():
         logger.exception("Rating/sorting error")
         return jsonify({"error": "Result preparation failed"}), 500
 
-
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
     for attempt in range(1, retries + 1):
         try:
             return process_shop(place, review_count)
-        except TimeoutError as e:
+        except ConcurrentTimeoutError as e:
             logger.warning(f"Timeout on attempt {attempt} for {place.get('place_id')}: {e}")
             time.sleep(delay * (2 ** (attempt - 1)))
         except Exception as e:
             logger.warning(f"Shop retry error {place.get('place_id')}: {e}")
             break
     return None
-
 
 def process_shop(place, review_count):
     try:
@@ -147,14 +167,20 @@ def process_shop(place, review_count):
 
         zr = ZeroReviewShop.objects(place_id=place_id).first()
         if zr and zr.is_still_invalid():
+            logger.info(f"ZeroReviewShop {place_id} is still invalid, skipping")
             return None
 
         cs = CachedShop.objects(place_id=place_id).first()
         if cs and cs.is_cache_valid() and len(cs.reviews or []) >= review_count:
-            sorted_reviews = sorted(cs.reviews, key=lambda r: r["date"], reverse=True)
-            texts = [r["text"] for r in sorted_reviews[:review_count] if r.get("text")]
-            xai = predict_review_rating_with_explanations(texts)
-            avg_pred = round(sum(xai.get("ratings", [])) / len(texts), 2) if texts else 0
+            texts = [r["text"] for r in sorted(cs.reviews, key=lambda r: r["date"], reverse=True)[:review_count]]
+            try:
+                logger.info(f"[{place_id}] Predicting ratings for {len(texts)} reviews")
+                xai = predict_review_rating_with_explanations(texts)
+                avg_pred = round(sum(xai.get("ratings", [])) / len(texts), 2) if texts else 0
+            except Exception as e:
+                logger.warning(f"Model prediction failed for {place_id}: {e}")
+                return None
+
             return {
                 "name": cs.name,
                 "address": cs.address,
@@ -168,8 +194,17 @@ def process_shop(place, review_count):
                 # "xai_explanations": xai["user_friendly_explanation"],
             }
 
-        valid_reviews = fetch_real_reviews(place_id, max_reviews=50)
+        future = asyncio.run_coroutine_threadsafe(fetch_real_reviews(place_id, max_reviews=20), loop)  # Reduced max_reviews
+        try:
+            valid_reviews = future.result(timeout=90)
+        except ConcurrentTimeoutError as e:
+            logger.error(f"Timeout fetching reviews for {place_id}: {e}")
+            ZeroReviewShop.objects(place_id=place_id).update_one(set__added_at=datetime.utcnow(), upsert=True)
+            return None
+
+        logger.info(f"Fetched {len(valid_reviews)} reviews for {place_id}")
         if not valid_reviews:
+            logger.warning(f"No valid reviews found for {place_id}, marking as zero review shop")
             ZeroReviewShop.objects(place_id=place_id).update_one(set__added_at=datetime.utcnow(), upsert=True)
             return None
 
@@ -177,19 +212,32 @@ def process_shop(place, review_count):
         top_n_reviews = valid_reviews[:review_count]
         top_n_texts = [r["text"] for r in top_n_reviews if r.get("text")]
         if not top_n_texts:
+            logger.warning(f"No valid review texts for {place_id}, marking as zero review shop")
             ZeroReviewShop.objects(place_id=place_id).update_one(set__added_at=datetime.utcnow(), upsert=True)
             return None
 
-        xai = predict_review_rating_with_explanations(top_n_texts)
-        avg_pred = round(sum(xai.get("ratings", [])) / len(top_n_texts), 2)
+        try:
+            logger.info(f"[{place_id}] Predicting ratings for {len(top_n_texts)} reviews")
+            xai = predict_review_rating_with_explanations(top_n_texts)
+            avg_pred = round(sum(xai.get("ratings", [])) / len(top_n_texts), 2)
+        except Exception as e:
+            logger.warning(f"Model prediction failed for {place_id}: {e}")
+            return None
+
+        try:
+            lat = float(place["geometry"]["location"]["lat"])
+            lng = float(place["geometry"]["location"]["lng"])
+        except Exception as e:
+            logger.error(f"Invalid geo data for {place_id}: {e} | {place}")
+            return None
 
         CachedShop.objects(place_id=place_id).update_one(
             set__name=place["name"],
             set__rating=float(place.get("rating", 0)),
             set__reviews=valid_reviews,
             set__address=place.get("formatted_address", "N/A"),
-            set__lat=float(place["geometry"]["location"]["lat"]),
-            set__lng=float(place["geometry"]["location"]["lng"]),
+            set__lat=lat,
+            set__lng=lng,
             set__cached_at=datetime.utcnow(),
             upsert=True
         )
@@ -199,11 +247,11 @@ def process_shop(place, review_count):
             "address": place.get("formatted_address", "N/A"),
             "rating": float(place.get("rating", 0)),
             "place_id": place_id,
-            "lat": float(place["geometry"]["location"]["lat"]),
-            "lng": float(place["geometry"]["location"]["lng"]),
+            "lat": lat,
+            "lng": lng,
             "review_count": len(top_n_texts),
             "predicted_rating": avg_pred,
-            # "summary": generate_summary(top_n_texts),
+            # "summary": generate_summary(texts),
             # "xai_explanations": xai["user_friendly_explanation"],
         }
 

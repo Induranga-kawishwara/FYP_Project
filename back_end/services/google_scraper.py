@@ -1,47 +1,37 @@
-import time
-import datetime
 import hashlib
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+import datetime
+import logging
+import asyncio
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 
-# NLTK Resources
-nltk.download("stopwords")
-nltk.download("wordnet")
-nltk.download("omw-1.4")
+# Setup
+torch.set_num_threads(1)
+nltk.download("stopwords", quiet=True)
+nltk.download("wordnet", quiet=True)
+nltk.download("omw-1.4", quiet=True)
 
-# Load DistilBERT-based AI Review Detection Model
+stop_words = set(stopwords.words("english"))
+lemmatizer = WordNetLemmatizer()
+
+# Load model
 tokenizer = AutoTokenizer.from_pretrained("models/aiReviewModel")
 model = AutoModelForSequenceClassification.from_pretrained("models/aiReviewModel")
 model.eval()
 
-lemmatizer = WordNetLemmatizer()
-stop_words = set(stopwords.words("english"))
+def preprocess_review(text):
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    return " ".join(lemmatizer.lemmatize(w.lower()) for w in text.split() if w.lower() not in stop_words)
 
-# WebDriver options
-options = Options()
-options.add_argument("--headless")
-options.add_argument("--disable-gpu")
-options.add_argument("window-size=1920,1080")
-options.add_argument("--no-sandbox")
-options.add_argument("--disable-dev-shm-usage")
-options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-options.add_argument("--disable-images")
-options.add_argument("--disable-extensions")
-options.add_experimental_option('excludeSwitches', ['enable-logging'])
-
-# Relative date parser
 def parse_relative_date(date_str):
     now = datetime.datetime.now()
-    s = date_str.strip().lower().replace("edited", "").replace("ago", "").strip()
+    s = date_str.strip().lower().replace("edited", "").replace("ago", "")
     parts = s.split()
     try:
         if "today" in s:
@@ -51,131 +41,147 @@ def parse_relative_date(date_str):
         if len(parts) >= 2:
             num = 1 if parts[0] in ("a", "an") else int(parts[0])
             unit = parts[1]
-            if "year" in unit:
-                return now - datetime.timedelta(days=365 * num)
-            if "month" in unit:
-                return now - datetime.timedelta(days=30 * num)
-            if "week" in unit:
-                return now - datetime.timedelta(days=7 * num)
-            if "day" in unit:
-                return now - datetime.timedelta(days=num)
+            if "year" in unit: return now - datetime.timedelta(days=365 * num)
+            if "month" in unit: return now - datetime.timedelta(days=30 * num)
+            if "week" in unit: return now - datetime.timedelta(days=7 * num)
+            if "day" in unit: return now - datetime.timedelta(days=num)
     except:
         pass
     return now
 
-# Batched fake review detector
-def detect_fake_reviews(reviews):
-    if not reviews:
-        return [], []
-    inputs = tokenizer(reviews, padding=True, truncation=True, return_tensors="pt", max_length=256)
-    with torch.no_grad():
-        logits = model(**inputs).logits
-    preds = torch.argmax(logits, dim=-1).tolist()
-    real = [r for r, p in zip(reviews, preds) if p == 0]
-    fake = [r for r, p in zip(reviews, preds) if p == 1]
-    return real, fake
-
-# Preprocess text
-def preprocess_review(text):
-    tokens = text.split()
-    return " ".join(lemmatizer.lemmatize(w.lower()) for w in tokens if w.lower() not in stop_words)
-
-# Expand “See more”
-def expand_review(driver, el):
+def detect_fake_reviews(texts):
     try:
-        btn = el.find_element(By.XPATH, ".//button[@aria-label='See more']")
-        driver.execute_script("arguments[0].click();", btn)
-        time.sleep(0.3)
-    except:
-        pass
+        valid_texts = [t for t in texts if t.strip()]
+        if not valid_texts:
+            return [], []
+        inputs = tokenizer(valid_texts, padding=True, truncation=True, return_tensors="pt", max_length=256)
+        with torch.no_grad():
+            logits = model(**inputs).logits
+        preds = torch.argmax(logits, dim=-1).tolist()
+        real = [t for t, p in zip(valid_texts, preds) if p == 0]
+        fake = [t for t, p in zip(valid_texts, preds) if p == 1]
+        return real, fake
+    except Exception as e:
+        logging.error(f"Error in detect_fake_reviews: {e}")
+        return [], texts
 
-# Scroll reviews container
-def scroll_reviews(driver):
-    try:
-        container = driver.find_element(By.CSS_SELECTOR, "div.m6QErb.DxyBCb.kA9KIf.dS8AEf")
-        driver.execute_script("arguments[0].scrollTo(0, arguments[0].scrollHeight);", container)
-        time.sleep(1)
-    except:
-        pass
-
-# ChromeDriver context
-class ChromeDriver:
-    def __init__(self, options):
-        self.options = options
-        self.driver = None
-
-    def __enter__(self):
-        self.driver = webdriver.Chrome(ChromeDriverManager().install(), options=self.options)
-        return self.driver
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.driver:
-            try:
-                self.driver.quit()
-            except:
-                pass
-
-# Fetch up to max_reviews real reviews
-def fetch_real_reviews(place_id, max_reviews=50):
-    real_reviews = []
+async def fetch_real_reviews(place_id, max_reviews=20, retries=3):  # Reduced max_reviews
+    logging.info(f"[{place_id}] Starting review fetch")
+    reviews = []
     seen_hashes = set()
-    url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+    scroll_fails = 0
 
-    with ChromeDriver(options) as driver:
-        driver.get(url)
+    async with async_playwright() as p:
+        logging.info(f"[{place_id}] Launching browser")
         try:
-            tab = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label*='Reviews for']"))
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--js-flags=--max-old-space-size=256"  # Increased memory limit
+                ]
             )
-            tab.click()
-            time.sleep(0.5)
-        except:
+            context = await browser.new_context(user_agent="Mozilla/5.0")
+            page = await context.new_page()
+
+            try:
+                for attempt in range(1, retries + 1):
+                    try:
+                        logging.info(f"[{place_id}] Navigating to Google Maps (Attempt {attempt})")
+                        await page.goto(f"https://www.google.com/maps/place/?q=place_id:{place_id}", timeout=30000)
+                        break
+                    except PlaywrightTimeout:
+                        if attempt < retries:
+                            logging.warning(f"[{place_id}] Timeout on attempt {attempt}, retrying...")
+                            await asyncio.sleep(5 * attempt)
+                        else:
+                            logging.error(f"[{place_id}] Failed to load page after {retries} attempts")
+                            return []
+
+                logging.info(f"[{place_id}] Waiting for reviews button")
+                await page.wait_for_selector("button[aria-label*='Reviews for']", timeout=10000)
+                logging.info(f"[{place_id}] Clicking reviews tab")
+                await page.click("button[aria-label*='Reviews for']")
+                await page.wait_for_timeout(1000)
+
+                while len(reviews) < max_reviews and scroll_fails < 5:
+                    logging.info(f"[{place_id}] Querying review elements")
+                    elements = await page.query_selector_all("div.jftiEf")
+                    before = len(elements)
+                    batch = []
+                    for el in elements:
+                        try:
+                            await el.hover()
+                            see_more = await el.query_selector("button[aria-label='See more']")
+                            if see_more:
+                                await see_more.click()
+
+                            author_el = await el.query_selector("div.d4r55")
+                            text_el = await el.query_selector("span.wiI7pd")
+                            date_el = await el.query_selector("span.rsqaWe")
+
+                            author = (await author_el.inner_text()).strip() if author_el else "Unknown"
+                            text = (await text_el.inner_text()).strip() if text_el else ""
+                            date_s = (await date_el.inner_text()).strip() if date_el else "today"
+
+                            if not text:
+                                continue
+
+                            dt = parse_relative_date(date_s)
+                            proc = preprocess_review(text)
+                            if not proc:
+                                continue
+                            hash_key = hashlib.md5((author + text).encode()).hexdigest()
+                            if hash_key in seen_hashes:
+                                continue
+                            seen_hashes.add(hash_key)
+
+                            batch.append({
+                                "author": author,
+                                "text": text,
+                                "date": dt,
+                                "processed_text": proc
+                            })
+                        except Exception as e:
+                            logging.warning(f"[{place_id}] Error extracting review: {e}")
+                            continue
+
+                    if batch:
+                        real_proc, _ = detect_fake_reviews([b["processed_text"] for b in batch])
+                        reviews += [r for r in batch if r["processed_text"] in real_proc]
+
+                    after = len(await page.query_selector_all("div.jftiEf"))
+                    scroll_fails = scroll_fails + 1 if after == before else 0
+
+                    logging.info(f"[{place_id}] Reviews: {len(reviews)}, Scroll fails: {scroll_fails}")
+
+                    try:
+                        await page.eval_on_selector(
+                            "div.m6QErb.DxyBCb.kA9KIf.dS8AEf",
+                            "(el) => el.scrollBy(0, el.scrollHeight)"
+                        )
+                        await page.wait_for_timeout(1000)
+                    except Exception as e:
+                        logging.warning(f"[{place_id}] Scroll failed: {e}")
+                        break
+
+            except Exception as e:
+                logging.error(f"[{place_id}] Unexpected error in review fetching: {e}")
+                return []
+            finally:
+                logging.info(f"[{place_id}] Closing browser resources")
+                try:
+                    await page.close()
+                    await context.close()
+                    await browser.close()
+                except Exception as e:
+                    logging.error(f"[{place_id}] Error closing browser: {e}")
+
+        except Exception as e:
+            logging.error(f"[{place_id}] Failed to launch browser: {e}")
             return []
 
-        scroll_fails = 0
-
-        while len(real_reviews) < max_reviews and scroll_fails < 5:
-            elements = driver.find_elements(By.CSS_SELECTOR, "div.jftiEf")
-            before = len(elements)
-
-            batch = []
-            for el in elements:
-                try:
-                    expand_review(driver, el)
-                    author = el.find_element(By.CSS_SELECTOR, "div.d4r55").text.strip()
-                    text = el.find_element(By.CSS_SELECTOR, "span.wiI7pd").text.strip()
-                    date_s = el.find_element(By.CSS_SELECTOR, "span.rsqaWe").text.strip()
-                    dt = parse_relative_date(date_s)
-
-                    proc = preprocess_review(text)
-                    hash_key = hashlib.md5((text + author).encode()).hexdigest()
-                    if not proc or hash_key in seen_hashes:
-                        continue
-                    seen_hashes.add(hash_key)
-
-                    batch.append({
-                        "author": author,
-                        "text": text,
-                        "date": dt,
-                        "processed_text": proc
-                    })
-                except:
-                    continue
-
-            # Detect and filter fakes
-            if batch:
-                processed_texts = [r["processed_text"] for r in batch]
-                real_texts, _ = detect_fake_reviews(processed_texts)
-                filtered = [r for r in batch if r["processed_text"] in real_texts]
-                real_reviews.extend(filtered)
-
-            after = len(driver.find_elements(By.CSS_SELECTOR, "div.jftiEf"))
-            if after == before:
-                scroll_fails += 1
-            else:
-                scroll_fails = 0
-
-            scroll_reviews(driver)
-
-        real_reviews.sort(key=lambda r: r["date"], reverse=True)
-        return real_reviews[:max_reviews]
+        reviews.sort(key=lambda x: x["date"], reverse=True)
+        return reviews[:max_reviews]

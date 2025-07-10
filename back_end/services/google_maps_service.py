@@ -61,9 +61,9 @@ def fetch_place_details(place_id):
     return resp.json().get("result", {})
 
 
-def fetch_and_filter_shops_with_text(product_name, lat, lng, radius_km):
-
-    candidates = fetch_all_shops(product_name, lat, lng, radius_km)
+def fetch_and_filter_shops_with_text(product_name, lat, lng, radius_m):
+    # Use radius_m (meters) for the Places API
+    candidates = fetch_all_shops(product_name, lat, lng, radius_m)
     final = []
 
     for shop in candidates:
@@ -73,36 +73,31 @@ def fetch_and_filter_shops_with_text(product_name, lat, lng, radius_km):
 
         s_lat = shop["geometry"]["location"]["lat"]
         s_lng = shop["geometry"]["location"]["lng"]
-        if calculate_distance(lat, lng, s_lat, s_lng) > radius_km:
+
+        # calculate_distance returns km -> convert to meters
+        distance_m = calculate_distance(lat, lng, s_lat, s_lng) * 1000
+        if distance_m > radius_m:
+            # this shop is outside the requested coverage
             continue
 
         try:
             details = fetch_place_details(pid)
             reviews = details.get("reviews", [])
-            # require at least one non-empty text review
             if not any(r.get("text", "").strip() for r in reviews):
                 continue
 
-            # preserve rating & attach extras
             shop["reviews"] = reviews
 
-            # **FULL** opening_hours dict
             opening = details.get("opening_hours", {}) or {}
-            shop["opening_hours"] = opening
-
-            # for convenience, also top-level weekday_text
-            shop["weekday_text"] = opening.get("weekday_text", [])
-
-            # phone numbers
-            shop["phone"]                     = details.get("formatted_phone_number")
+            shop["opening_hours"]   = opening
+            shop["weekday_text"]    = opening.get("weekday_text", [])
+            shop["phone"]           = details.get("formatted_phone_number")
             shop["international_phone_number"] = details.get("international_phone_number")
 
             final.append(shop)
-
         except Exception as e:
             print(f"Error fetching details for {pid}: {e}")
             continue
 
-    # sort by rating descending
     final.sort(key=lambda s: s.get("rating", 0), reverse=True)
     return final

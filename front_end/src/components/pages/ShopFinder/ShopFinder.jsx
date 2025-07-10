@@ -27,6 +27,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Collapse,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -37,6 +38,8 @@ import {
   Settings as SettingsIcon,
   Directions as DirectionsIcon,
   Storefront,
+  ExpandMore,
+  ExpandLess,
 } from "@mui/icons-material";
 import {
   LoadScript,
@@ -47,6 +50,7 @@ import {
 import ExplanationPopup from "../../reUse/ExplanationPopup/ExplanationPopup.jsx";
 import ReviewSettingPopup from "../../reUse/ReviewSettingPopup/ReviewSettingPopup.jsx";
 
+// Styled components
 const GradientButton = styled(Button)(({ theme }) => ({
   background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
   color: "white",
@@ -89,6 +93,24 @@ const ShopCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
+const Details = styled("details")({
+  padding: "4px 0",
+});
+
+const Summary = styled("summary")({
+  outline: "none",
+  listStyle: "none",
+  cursor: "pointer",
+  fontWeight: 500,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  "&::-webkit-details-marker": {
+    display: "none",
+  },
+});
+
+// Helper functions
 const deg2rad = (deg) => deg * (Math.PI / 180);
 const computeDistance = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
@@ -99,6 +121,28 @@ const computeDistance = (lat1, lng1, lat2, lng2) => {
     Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+};
+
+const getCurrentDayHours = (shop) => {
+  if (!shop.opening_hours?.weekday_text) return null;
+
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const today = new Date().getDay();
+  const todayName = days[today];
+
+  const todayHours = shop.opening_hours.weekday_text.find((text) =>
+    text.startsWith(todayName)
+  );
+
+  return todayHours || null;
 };
 
 function ShopFinder() {
@@ -133,7 +177,7 @@ function ShopFinder() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
 
-  // UPDATED: Opening hours filter states
+  // Opening hours filter states
   const [filterType, setFilterType] = useState("none"); // "none", "date", or "datetime"
   const [openingDate, setOpeningDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -146,6 +190,17 @@ function ShopFinder() {
 
   // Login Required Modal state
   const [loginRequiredModalOpen, setLoginRequiredModalOpen] = useState(false);
+
+  // State for expanded opening hours per shop
+  const [expandedShops, setExpandedShops] = useState({});
+
+  // Toggle expanded state for a shop
+  const toggleExpanded = (placeId) => {
+    setExpandedShops((prev) => ({
+      ...prev,
+      [placeId]: !prev[placeId],
+    }));
+  };
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
@@ -218,6 +273,7 @@ function ShopFinder() {
     try {
       setIsLoading(true);
       setShops([]);
+      setExpandedShops({});
 
       // Time conversion function
       const convertTimeTo24Hour = (timeStr) => {
@@ -628,6 +684,62 @@ function ShopFinder() {
                       km away
                     </Typography>
                   </Box>
+
+                  {/* Opening Hours in InfoWindow */}
+                  {selectedShop.opening_hours?.open_now !== undefined && (
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          bgcolor: selectedShop.opening_hours.open_now
+                            ? "success.main"
+                            : "error.main",
+                          mr: 1,
+                        }}
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedShop.opening_hours.open_now
+                          ? "Open Now"
+                          : "Closed Now"}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {getCurrentDayHours(selectedShop) && (
+                    <Box sx={{ mb: 1 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.primary"
+                        fontWeight="500"
+                      >
+                        Today:{" "}
+                        {getCurrentDayHours(selectedShop).split(":")[1].trim()}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {selectedShop.opening_hours?.weekday_text && (
+                    <Box sx={{ mb: 2, maxHeight: 200, overflowY: "auto" }}>
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        Opening Hours:
+                      </Typography>
+                      {selectedShop.opening_hours.weekday_text.map(
+                        (hours, index) => (
+                          <Typography
+                            key={index}
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.8rem", py: 0.5 }}
+                          >
+                            {hours}
+                          </Typography>
+                        )
+                      )}
+                    </Box>
+                  )}
+
                   <Box sx={{ display: "flex", gap: 1.5, mt: 2 }}>
                     <Button
                       variant="contained"
@@ -744,6 +856,85 @@ function ShopFinder() {
                         </Box>
                       </Box>
                     </Box>
+
+                    {/* Current Opening Hours */}
+                    {shop.opening_hours?.open_now !== undefined && (
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                      >
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            bgcolor: shop.opening_hours.open_now
+                              ? "success.main"
+                              : "error.main",
+                            mr: 1,
+                          }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {shop.opening_hours.open_now
+                            ? "Open Now"
+                            : "Closed Now"}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {getCurrentDayHours(shop) && (
+                      <Box sx={{ mb: 1 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.primary"
+                          fontWeight="500"
+                        >
+                          Today: {getCurrentDayHours(shop).split(":")[1].trim()}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* All Opening Hours - Collapsible */}
+                    {shop.opening_hours?.weekday_text && (
+                      <Box sx={{ mb: 2 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            cursor: "pointer",
+                            justifyContent: "space-between",
+                            py: 1,
+                          }}
+                          onClick={() => toggleExpanded(shop.place_id)}
+                        >
+                          <Typography variant="body2" fontWeight="500">
+                            Full Opening Hours
+                          </Typography>
+                          {expandedShops[shop.place_id] ? (
+                            <ExpandLess />
+                          ) : (
+                            <ExpandMore />
+                          )}
+                        </Box>
+
+                        <Collapse in={expandedShops[shop.place_id]}>
+                          <Box sx={{ mt: 1 }}>
+                            {shop.opening_hours.weekday_text.map(
+                              (hours, index) => (
+                                <Typography
+                                  key={index}
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ fontSize: "0.8rem", py: 0.5 }}
+                                >
+                                  {hours}
+                                </Typography>
+                              )
+                            )}
+                          </Box>
+                        </Collapse>
+                      </Box>
+                    )}
+
                     <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                       <LocationIcon sx={{ color: "action" }} />
                       <Typography variant="body2" color="text.secondary">
@@ -781,7 +972,7 @@ function ShopFinder() {
         explanation={explanationContent}
       />
 
-      {/* UPDATED: Review Settings Popup with new opening hours filter */}
+      {/* Review Settings Popup */}
       <ReviewSettingPopup
         open={showReviewModal}
         onClose={() => setShowReviewModal(false)}

@@ -287,7 +287,6 @@ function ShopFinder() {
         return `${hours.padStart(2, "0")}:${minutes}:00`;
       };
 
-      // UPDATED: Request data for pagination
       const requestData = {
         product: query,
         reviewCount: reviewCount,

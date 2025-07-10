@@ -37,6 +37,7 @@ import {
   Info as InfoIcon,
   Settings as SettingsIcon,
   Directions as DirectionsIcon,
+  Phone as PhoneIcon,
   Storefront,
   ExpandMore,
   ExpandLess,
@@ -93,23 +94,6 @@ const ShopCard = styled(Card)(({ theme, selected }) => ({
   },
 }));
 
-const Details = styled("details")({
-  padding: "4px 0",
-});
-
-const Summary = styled("summary")({
-  outline: "none",
-  listStyle: "none",
-  cursor: "pointer",
-  fontWeight: 500,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  "&::-webkit-details-marker": {
-    display: "none",
-  },
-});
-
 // Helper functions
 const deg2rad = (deg) => deg * (Math.PI / 180);
 const computeDistance = (lat1, lng1, lat2, lng2) => {
@@ -136,13 +120,16 @@ const getCurrentDayHours = (shop) => {
     "Saturday",
   ];
   const today = new Date().getDay();
-  const todayName = days[today];
+  return shop.opening_hours.weekday_text[today] || null;
+};
 
-  const todayHours = shop.opening_hours.weekday_text.find((text) =>
-    text.startsWith(todayName)
-  );
-
-  return todayHours || null;
+const formatPhoneNumber = (phone) => {
+  if (!phone) return "";
+  // Simple formatting for Sri Lankan numbers
+  if (phone.startsWith("0")) {
+    return `+94 ${phone.substring(1)}`;
+  }
+  return phone;
 };
 
 function ShopFinder() {
@@ -160,6 +147,7 @@ function ShopFinder() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.006 });
+  const [error, setError] = useState(null);
 
   // Pagination-related states
   const offsetRef = useRef([]);
@@ -178,7 +166,7 @@ function ShopFinder() {
   const [modalTriggeredBySearch, setModalTriggeredBySearch] = useState(false);
 
   // Opening hours filter states
-  const [filterType, setFilterType] = useState("none"); // "none", "date", or "datetime"
+  const [filterType, setFilterType] = useState("none");
   const [openingDate, setOpeningDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -274,8 +262,8 @@ function ShopFinder() {
       setIsLoading(true);
       setShops([]);
       setExpandedShops({});
+      setError(null);
 
-      // Time conversion function
       const convertTimeTo24Hour = (timeStr) => {
         const [time, period] = timeStr.split(" ");
         let [hours, minutes] = time.split(":");
@@ -295,7 +283,6 @@ function ShopFinder() {
         filterType: filterType,
       };
 
-      // Conditionally add date/time parameters
       if (filterType !== "none") {
         requestData.openingDate = openingDate;
 
@@ -313,6 +300,7 @@ function ShopFinder() {
 
       if (newShops.length === 0) {
         setHasMoreShops(false);
+        setError("No shops found matching your criteria");
       } else {
         setShops(newShops);
         const newPlaceIds = newShops.map((shop) => shop.place_id);
@@ -324,13 +312,15 @@ function ShopFinder() {
     } catch (error) {
       console.error("Search Error:", error);
       setIsLoading(false);
+      setError("Failed to search for shops. Please try again.");
+      setShops([]);
+      setHasMoreShops(false);
     }
   };
 
   const loadMoreShops = async () => {
     setIsLoading(true);
     try {
-      // Time conversion function
       const convertTimeTo24Hour = (timeStr) => {
         const [time, period] = timeStr.split(" ");
         let [hours, minutes] = time.split(":");
@@ -351,7 +341,6 @@ function ShopFinder() {
         filterType: filterType,
       };
 
-      // Conditionally add date/time parameters
       if (filterType !== "none") {
         requestData.openingDate = openingDate;
 
@@ -379,6 +368,7 @@ function ShopFinder() {
     } catch (error) {
       console.error("Error loading more shops:", error);
       setIsLoading(false);
+      setError("Failed to load more shops. Please try again.");
     }
   };
 
@@ -396,8 +386,14 @@ function ShopFinder() {
   };
 
   const getXaiExplanation = () => {
-    if (!selectedShop?.xai_explanations) return;
-    setExplanationContent(selectedShop.xai_explanations);
+    if (
+      !selectedShop?.xai_explanations ||
+      selectedShop.xai_explanations.includes("GPT summarization failed")
+    ) {
+      setExplanationContent("Explanation not available");
+    } else {
+      setExplanationContent(selectedShop.xai_explanations);
+    }
     setOpenExplanationModal(true);
   };
 
@@ -562,6 +558,13 @@ function ShopFinder() {
         </Grid>
       </Box>
 
+      {/* Error Message */}
+      {error && (
+        <Box sx={{ mb: 4, textAlign: "center" }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      )}
+
       {/* Interactive Map */}
       <LoadScript googleMapsApiKey={googleMapsApiKey}>
         <Box
@@ -659,6 +662,17 @@ function ShopFinder() {
                   >
                     {selectedShop.name}
                   </Typography>
+
+                  {/* Phone Number */}
+                  {selectedShop.phone && (
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <PhoneIcon sx={{ color: "primary.main", mr: 1 }} />
+                      <Typography variant="body1" color="text.secondary">
+                        {formatPhoneNumber(selectedShop.phone)}
+                      </Typography>
+                    </Box>
+                  )}
+
                   <Box
                     sx={{
                       display: "flex",
@@ -685,7 +699,7 @@ function ShopFinder() {
                     </Typography>
                   </Box>
 
-                  {/* Opening Hours in InfoWindow */}
+                  {/* Opening Hours */}
                   {selectedShop.opening_hours?.open_now !== undefined && (
                     <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
                       <Box
@@ -857,6 +871,24 @@ function ShopFinder() {
                       </Box>
                     </Box>
 
+                    {/* Phone Number */}
+                    {shop.phone && (
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                      >
+                        <PhoneIcon
+                          sx={{
+                            color: "primary.main",
+                            mr: 1,
+                            fontSize: "1rem",
+                          }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {formatPhoneNumber(shop.phone)}
+                        </Typography>
+                      </Box>
+                    )}
+
                     {/* Current Opening Hours */}
                     {shop.opening_hours?.open_now !== undefined && (
                       <Box
@@ -942,7 +974,10 @@ function ShopFinder() {
                       </Typography>
                     </Box>
                     <Typography variant="body2" color="text.secondary">
-                      {shop.summary || "No summary available"}
+                      {shop.summary &&
+                      !shop.summary.includes("GPT summarization failed")
+                        ? shop.summary
+                        : "Summary not available"}
                     </Typography>
                   </CardContent>
                 </ShopCard>

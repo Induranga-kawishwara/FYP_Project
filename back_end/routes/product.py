@@ -4,10 +4,10 @@ import logging
 import asyncio
 import nest_asyncio
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as _time
 from flask import Blueprint, request, jsonify
 
-from utils import cache, convert_numpy_types, CachedShop, ZeroReviewShop
+from utils import cache, convert_numpy_types, CachedShop, ZeroReviewShop , is_open_on
 from services import (
     fetch_and_filter_shops_with_text,
     predict_review_rating_with_explanations,
@@ -18,24 +18,17 @@ from services import (
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
 
-#  AsyncIO setup  
+# AsyncIO setup  
 nest_asyncio.apply()
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
+threading.Thread(target=lambda: loop.run_forever(), daemon=True).start()
 
-def start_loop():
-    try:
-        loop.run_forever()
-    except Exception as e:
-        logger.error(f"Asyncio loop error: {e}")
-
-threading.Thread(target=start_loop, daemon=True).start()
-
-#  Helpers 
 def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
     if review_count == 0:
         return round(global_avg, 2)
     return round((avg_pred * review_count + global_avg * m) / (review_count + m), 2)
+
 
 def safe_jsonify(data):
     try:
@@ -45,44 +38,40 @@ def safe_jsonify(data):
         logger.exception("Serialization failure")
         return jsonify({"error": "Serialization failed", "details": str(e)}), 500
 
+
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
     from concurrent.futures import TimeoutError as ConcurrentTimeoutError
     for attempt in range(1, retries + 1):
         try:
             return process_shop(place, review_count)
         except ConcurrentTimeoutError as e:
-            logger.warning(f"Timeout on attempt {attempt} for {place.get('place_id')}: {e}")
+            logger.warning(f"Timeout on attempt {attempt} for {place['place_id']}: {e}")
             time.sleep(delay * (2 ** (attempt - 1)))
         except Exception as e:
-            logger.warning(f"Shop retry error {place.get('place_id')}: {e}")
+            logger.warning(f"Shop retry error {place['place_id']}: {e}")
             break
     return None
+
 
 def process_shop(place, review_count):
     try:
         place_id = place["place_id"]
         logger.info(f"Processing {place_id}")
 
-        # Skip if recently flagged as zero-review
+        # skip zero-review
         zr = ZeroReviewShop.objects(place_id=place_id).first()
         if zr and zr.is_still_invalid():
-            logger.info(f"ZeroReviewShop {place_id} is still invalid, skipping")
             return None
 
-        # Try cache
+        # serve from cache if valid
         cs = CachedShop.objects(place_id=place_id).first()
         if cs and cs.is_cache_valid() and len(cs.reviews or []) >= review_count:
             texts = [
                 r["text"]
                 for r in sorted(cs.reviews, key=lambda r: r["date"], reverse=True)[:review_count]
             ]
-            try:
-                logger.info(f"[{place_id}] Predicting ratings for {len(texts)} reviews")
-                xai = predict_review_rating_with_explanations(texts)
-                avg_pred = round(sum(xai.get("ratings", [])) / len(texts), 2) if texts else 0
-            except Exception as e:
-                logger.warning(f"Model prediction failed for {place_id}: {e}")
-                return None
+            xai = predict_review_rating_with_explanations(texts)
+            avg_pred = round(sum(xai["ratings"]) / len(texts), 2) if texts else 0.0
 
             return {
                 "name": cs.name,
@@ -97,7 +86,7 @@ def process_shop(place, review_count):
                 "xai_explanations": xai["user_friendly_explanation"],
             }
 
-        # Fetch live via Playwright
+        # otherwise fetch live
         future = asyncio.run_coroutine_threadsafe(
             fetch_real_reviews(place_id, max_reviews=review_count),
             loop
@@ -111,7 +100,6 @@ def process_shop(place, review_count):
             )
             return None
 
-        logger.info(f"Fetched {len(valid_reviews)} reviews for {place_id}")
         if not valid_reviews:
             ZeroReviewShop.objects(place_id=place_id).update_one(
                 set__added_at=datetime.utcnow(), upsert=True
@@ -119,21 +107,16 @@ def process_shop(place, review_count):
             return None
 
         valid_reviews.sort(key=lambda r: r["date"], reverse=True)
-        top_n_reviews = valid_reviews[:review_count]
-        top_n_texts = [r["text"] for r in top_n_reviews if r.get("text")]
-        if not top_n_texts:
+        top = valid_reviews[:review_count]
+        texts = [r["text"] for r in top if r.get("text")]
+        if not texts:
             ZeroReviewShop.objects(place_id=place_id).update_one(
                 set__added_at=datetime.utcnow(), upsert=True
             )
             return None
 
-        try:
-            logger.info(f"[{place_id}] Predicting ratings for {len(top_n_texts)} reviews")
-            xai = predict_review_rating_with_explanations(top_n_texts)
-            avg_pred = round(sum(xai.get("ratings", [])) / len(top_n_texts), 2)
-        except Exception as e:
-            logger.warning(f"Model prediction failed for {place_id}: {e}")
-            return None
+        xai = predict_review_rating_with_explanations(texts)
+        avg_pred = round(sum(xai["ratings"]) / len(texts), 2)
 
         lat = float(place["geometry"]["location"]["lat"])
         lng = float(place["geometry"]["location"]["lng"])
@@ -156,9 +139,9 @@ def process_shop(place, review_count):
             "place_id": place_id,
             "lat": lat,
             "lng": lng,
-            "review_count": len(top_n_texts),
+            "review_count": len(texts),
             "predicted_rating": avg_pred,
-            "summary": generate_summary(top_n_texts),
+            "summary": generate_summary(texts),
             "xai_explanations": xai["user_friendly_explanation"],
         }
 
@@ -166,7 +149,7 @@ def process_shop(place, review_count):
         logger.exception(f"Process shop failed: {place.get('place_id')}")
         return None
 
-#  Main route 
+
 @product_bp.route("/search_product", methods=["POST", "OPTIONS"])
 def search_product():
     if request.method == "OPTIONS":
@@ -179,9 +162,19 @@ def search_product():
     location      = data.get("location")
     skip_ids      = data.get("offset", [])
 
+    # read filter settings
+    filter_type = data.get("filterType", "none")  
+    opening_date = None
+    opening_time = None
+    if filter_type in ("date", "datetime"):
+        opening_date = datetime.strptime(data["openingDate"], "%Y-%m-%d").date()
+        if filter_type == "datetime":
+            opening_time = datetime.strptime(data["openingTime"], "%H:%M:%S").time()
+
     logger.info(f"Payload: {data}")
     logger.info(f"Searching product: {product_name} with {review_count} reviews")
 
+    # validate
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
     if not location or not location.get("lat") or not location.get("lng"):
@@ -203,16 +196,24 @@ def search_product():
             shops_results = fetch_and_filter_shops_with_text(product_name, lat, lng, radius)
             cache.set(cache_key, shops_results, timeout=300)
         except Exception as e:
-            logger.error(f"Error fetching shops: {e}")
             return jsonify({"error": "Failed to fetch shops", "details": str(e)}), 500
+
+    # apply opening‐hours filter
+    if filter_type in ("date", "datetime"):
+        shops_results = [
+            s for s in shops_results
+            if is_open_on(
+                s.get("opening_hours", {}), opening_date, opening_time
+            )
+        ]
 
     if not shops_results:
         return jsonify({"error": "No shops found"}), 404
 
     cutoff = datetime.utcnow() - timedelta(days=1)
-    filtered_shops = [
+    filtered = [
         s for s in shops_results
-        if s.get("place_id") not in skip_ids
+        if s["place_id"] not in skip_ids
         and not ZeroReviewShop.objects(
             place_id=s["place_id"], added_at__gte=cutoff
         ).first()
@@ -221,36 +222,32 @@ def search_product():
     valid_shops = []
     desired_shop_count = 5
 
-    # Sequential loop instead of ThreadPoolExecutor
-    for place in filtered_shops:
+    for place in filtered:
         shop = process_shop_with_retry(place, review_count)
         if shop:
+            clean = convert_numpy_types(shop)
             try:
-                clean = convert_numpy_types(shop)
                 json.dumps(clean)
                 valid_shops.append(clean)
-            except Exception as e:
-                logger.warning(f"Serialization failed for {shop.get('place_id')}: {e}")
+            except:
+                pass
         if len(valid_shops) >= desired_shop_count:
             break
 
-    # Bayesian smoothing + sorting 
+    # Bayesian smoothing + sort
     try:
-        preds = [
-            float(s.get("predicted_rating", 0))
-            for s in valid_shops if float(s.get("predicted_rating", 0)) > 0
-        ]
-        global_avg = round(sum(preds) / len(preds), 2) if preds else 4.2
+        preds = [s["predicted_rating"] for s in valid_shops if s["predicted_rating"] > 0]
+        global_avg = round(sum(preds)/len(preds), 2) if preds else 4.2
 
         for s in valid_shops:
             s["predicted_rating"] = apply_bayesian_rating(
-                s.get("predicted_rating", 0),
-                s.get("review_count", 0),
+                s["predicted_rating"],
+                s["review_count"],
                 global_avg
             )
 
         valid_shops.sort(key=lambda s: s["predicted_rating"], reverse=True)
         return safe_jsonify(valid_shops)
-    except Exception as e:
-        logger.exception("Rating/sorting error")
+
+    except Exception:
         return jsonify({"error": "Result preparation failed"}), 500

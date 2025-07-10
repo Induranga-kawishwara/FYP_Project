@@ -231,13 +231,12 @@ function ShopFinder() {
         return `${hours.padStart(2, "0")}:${minutes}:00`;
       };
 
-      // UPDATED: Request data with new filterType
       const requestData = {
         product: query,
         reviewCount: finalReviewCount,
         coverage: coverage === "customcoverage" ? customCoverage : coverage,
         location: currentLocation,
-        filterType: filterType, // "none", "date", or "datetime"
+        filterType: filterType,
       };
 
       // Conditionally add date/time parameters
@@ -293,7 +292,7 @@ function ShopFinder() {
         coverage: coverage === "customcoverage" ? customCoverage : coverage,
         location: currentLocation,
         offset: offsetRef.current,
-        filterType: filterType, // "none", "date", or "datetime"
+        filterType: filterType,
       };
 
       // Conditionally add date/time parameters
@@ -797,7 +796,6 @@ function ShopFinder() {
         setCoverage={setCoverage}
         customCoverage={customCoverage}
         setCustomCoverage={setCustomCoverage}
-        // UPDATED: Opening hours filter props
         filterType={filterType}
         setFilterType={setFilterType}
         openingDate={openingDate}

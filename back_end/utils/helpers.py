@@ -18,7 +18,6 @@ def convert_numpy_types(data):
 def is_open_on(opening_hours: dict, target_date: datetime.date, target_time: _time=None) -> bool:
 
     periods = opening_hours.get("periods", [])
-    # map Python Mon=0…Sun=6 to Google Sun=0…Sat=6
     gwday = (target_date.weekday() + 1) % 7
 
     for p in periods:

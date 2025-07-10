@@ -17,7 +17,9 @@ nltk.download("averaged_perceptron_tagger", quiet=True)
 nltk.download("vader_lexicon", quiet=True)
 
 #  OpenAI client 
-client = OpenAI(api_key=Config.GPT_API_KEY)
+client = OpenAI(api_key="")
+# client = OpenAI(api_key=Config.GPT_API_KEY)
+
 
 #  Load models & vectorizers 
 BASE_PATH = "models/reviewPredictionModel/"

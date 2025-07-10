@@ -7,7 +7,13 @@ import threading
 from datetime import datetime, timedelta, time as _time
 from flask import Blueprint, request, jsonify
 
-from utils import cache, convert_numpy_types, CachedShop, ZeroReviewShop , is_open_on
+from utils import (
+    cache,
+    convert_numpy_types,
+    CachedShop,
+    ZeroReviewShop,
+    is_open_on
+)
 from services import (
     fetch_and_filter_shops_with_text,
     predict_review_rating_with_explanations,
@@ -18,11 +24,12 @@ from services import (
 product_bp = Blueprint('product', __name__, url_prefix='/product')
 logger = logging.getLogger(__name__)
 
-# AsyncIO setup  
+#  AsyncIO setup 
 nest_asyncio.apply()
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 threading.Thread(target=lambda: loop.run_forever(), daemon=True).start()
+
 
 def apply_bayesian_rating(avg_pred, review_count, global_avg, m=3):
     if review_count == 0:
@@ -54,16 +61,17 @@ def process_shop_with_retry(place, review_count, retries=3, delay=5):
 
 
 def process_shop(place, review_count):
+
     try:
         place_id = place["place_id"]
         logger.info(f"Processing {place_id}")
 
-        # skip zero-review
+        # Try zero‐review skip 
         zr = ZeroReviewShop.objects(place_id=place_id).first()
         if zr and zr.is_still_invalid():
             return None
 
-        # serve from cache if valid
+        # ─Serve from cache if valid 
         cs = CachedShop.objects(place_id=place_id).first()
         if cs and cs.is_cache_valid() and len(cs.reviews or []) >= review_count:
             texts = [
@@ -84,9 +92,13 @@ def process_shop(place, review_count):
                 "predicted_rating": avg_pred,
                 "summary": generate_summary(texts),
                 "xai_explanations": xai["user_friendly_explanation"],
+                "phone": cs.phone,
+                "international_phone_number": cs.international_phone_number,
+                "opening_hours": cs.opening_hours,
+                "weekday_text": cs.weekday_text,
             }
 
-        # otherwise fetch live
+        # Otherwise fetch live reviews 
         future = asyncio.run_coroutine_threadsafe(
             fetch_real_reviews(place_id, max_reviews=review_count),
             loop
@@ -118,6 +130,7 @@ def process_shop(place, review_count):
         xai = predict_review_rating_with_explanations(texts)
         avg_pred = round(sum(xai["ratings"]) / len(texts), 2)
 
+        # pull lat/lng from place payload
         lat = float(place["geometry"]["location"]["lat"])
         lng = float(place["geometry"]["location"]["lng"])
 
@@ -129,6 +142,10 @@ def process_shop(place, review_count):
             set__lat=lat,
             set__lng=lng,
             set__cached_at=datetime.utcnow(),
+            set__phone=place.get("phone"),
+            set__international_phone_number=place.get("international_phone_number"),
+            set__opening_hours=place.get("opening_hours", {}),
+            set__weekday_text=place.get("weekday_text", []),
             upsert=True
         )
 
@@ -143,6 +160,10 @@ def process_shop(place, review_count):
             "predicted_rating": avg_pred,
             "summary": generate_summary(texts),
             "xai_explanations": xai["user_friendly_explanation"],
+            "phone": place.get("phone"),
+            "international_phone_number": place.get("international_phone_number"),
+            "opening_hours": place.get("opening_hours", {}),
+            "weekday_text": place.get("weekday_text", []),
         }
 
     except Exception as e:
@@ -163,7 +184,7 @@ def search_product():
     skip_ids      = data.get("offset", [])
 
     # read filter settings
-    filter_type = data.get("filterType", "none")  
+    filter_type = data.get("filterType", "none")
     opening_date = None
     opening_time = None
     if filter_type in ("date", "datetime"):
@@ -174,7 +195,7 @@ def search_product():
     logger.info(f"Payload: {data}")
     logger.info(f"Searching product: {product_name} with {review_count} reviews")
 
-    # validate
+    # validation
     if not product_name:
         return jsonify({"error": "Product name is required"}), 400
     if not location or not location.get("lat") or not location.get("lng"):
@@ -193,18 +214,19 @@ def search_product():
 
     if not shops_results:
         try:
-            shops_results = fetch_and_filter_shops_with_text(product_name, lat, lng, radius)
+            shops_results = fetch_and_filter_shops_with_text(
+                product_name, lat, lng, radius
+            )
             cache.set(cache_key, shops_results, timeout=300)
         except Exception as e:
             return jsonify({"error": "Failed to fetch shops", "details": str(e)}), 500
 
-    # apply opening‐hours filter
+    # apply opening-hours filter
     if filter_type in ("date", "datetime"):
         shops_results = [
             s for s in shops_results
-            if is_open_on(
-                s.get("opening_hours", {}), opening_date, opening_time
-            )
+            if is_open_on(s.get("opening_hours", {}),
+                          opening_date, opening_time)
         ]
 
     if not shops_results:

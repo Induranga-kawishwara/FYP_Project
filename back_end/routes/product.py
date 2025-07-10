@@ -5,6 +5,7 @@ import asyncio
 import nest_asyncio
 import threading
 from datetime import datetime, timedelta, time as _time
+from concurrent.futures import TimeoutError as ConcurrentTimeoutError
 from flask import Blueprint, request, jsonify
 
 from utils import (
@@ -47,7 +48,6 @@ def safe_jsonify(data):
 
 
 def process_shop_with_retry(place, review_count, retries=3, delay=5):
-    from concurrent.futures import TimeoutError as ConcurrentTimeoutError
     for attempt in range(1, retries + 1):
         try:
             return process_shop(place, review_count)

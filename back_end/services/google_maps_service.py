@@ -1,9 +1,9 @@
 import time
 import requests
-from utils import calculate_distance
+from datetime import datetime, date, time as _time
 from tenacity import retry, wait_fixed, stop_after_attempt
 from config import Config
-
+from utils import calculate_distance, is_open_on
 
 @retry(wait=wait_fixed(2), stop=stop_after_attempt(3))
 def get_google_response(url):
@@ -11,9 +11,7 @@ def get_google_response(url):
     resp.raise_for_status()
     return resp.json()
 
-
 def fetch_all_shops(product_name, lat, lng, radius):
-
     base = "https://maps.googleapis.com/maps/api/place/textsearch/json?"
     all_shops = []
     next_page = None
@@ -28,8 +26,7 @@ def fetch_all_shops(product_name, lat, lng, radius):
         )
         if next_page:
             qs += f"&pagetoken={next_page}"
-            time.sleep(2)  # allow next_page_token to become valid
-
+            time.sleep(2)
         data = get_google_response(base + qs)
         all_shops.extend(data.get("results", []))
         next_page = data.get("next_page_token")
@@ -38,18 +35,9 @@ def fetch_all_shops(product_name, lat, lng, radius):
 
     return all_shops
 
-
 def fetch_place_details(place_id):
 
-    fields = [
-        "name",
-        "rating",
-        "user_ratings_total",
-        "reviews",
-        "opening_hours",
-        "formatted_phone_number",
-        "international_phone_number",
-    ]
+    fields = ["name", "rating", "opening_hours", "formatted_phone_number"]
     url = (
         "https://maps.googleapis.com/maps/api/place/details/json"
         f"?place_id={place_id}"
@@ -60,44 +48,48 @@ def fetch_place_details(place_id):
     resp.raise_for_status()
     return resp.json().get("result", {})
 
+def fetch_and_filter_shops_with_text(
+    product_name: str,
+    lat: float,
+    lng: float,
+    radius_m: int,
+    opening_date: date = None,
+    opening_time: _time = None
+):
 
-def fetch_and_filter_shops_with_text(product_name, lat, lng, radius_m):
-    # Use radius_m (meters) for the Places API
     candidates = fetch_all_shops(product_name, lat, lng, radius_m)
-    final = []
+    filtered = []
 
     for shop in candidates:
         pid = shop.get("place_id")
         if not pid or "rating" not in shop:
             continue
 
+        # distance filter
         s_lat = shop["geometry"]["location"]["lat"]
         s_lng = shop["geometry"]["location"]["lng"]
-
-        # calculate_distance returns km -> convert to meters
-        distance_m = calculate_distance(lat, lng, s_lat, s_lng) * 1000
-        if distance_m > radius_m:
-            # this shop is outside the requested coverage
+        if calculate_distance(lat, lng, s_lat, s_lng) * 1000 > radius_m:
             continue
 
+        # if no date/time filter, include basic info only
+        if opening_date is None:
+            filtered.append(shop)
+            continue
+
+        # fetch details for opening_hours & phone
         try:
             details = fetch_place_details(pid)
-            reviews = details.get("reviews", [])
-            if not any(r.get("text", "").strip() for r in reviews):
-                continue
+            oh = details.get("opening_hours", {}) or {}
+        except Exception:
+            continue  # skip on details-error
 
-            shop["reviews"] = reviews
+        # only include if open on that date/time
+        if is_open_on(oh, opening_date, opening_time):
+            shop["opening_hours"] = oh
+            shop["weekday_text"]  = oh.get("weekday_text", [])
+            shop["phone"]         = details.get("formatted_phone_number", "N/A")
+            filtered.append(shop)
 
-            opening = details.get("opening_hours", {}) or {}
-            shop["opening_hours"]   = opening
-            shop["weekday_text"]    = opening.get("weekday_text", [])
-            shop["phone"]           = details.get("formatted_phone_number")
-            shop["international_phone_number"] = details.get("international_phone_number")
-
-            final.append(shop)
-        except Exception as e:
-            print(f"Error fetching details for {pid}: {e}")
-            continue
-
-    final.sort(key=lambda s: s.get("rating", 0), reverse=True)
-    return final
+    # sort by Google rating desc
+    filtered.sort(key=lambda s: s.get("rating", 0), reverse=True)
+    return filtered

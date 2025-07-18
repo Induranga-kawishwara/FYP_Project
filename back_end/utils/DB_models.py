@@ -44,7 +44,6 @@ class CachedShop(Document):
     lng = FloatField()
     cached_at = DateTimeField(default=datetime.datetime.utcnow)
     phone = StringField()                        
-    international_phone_number = StringField()   
     opening_hours = DictField()                 
     weekday_text = ListField(StringField())     
 

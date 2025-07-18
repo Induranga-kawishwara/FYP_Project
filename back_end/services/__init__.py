@@ -3,7 +3,7 @@ Services package for handling external API interactions and business logic.
 """
 __version__ = "1.0.0"
 
-from .google_maps_service import fetch_and_filter_shops_with_text
+from .google_maps_service import fetch_and_filter_shops_with_text , fetch_place_details
 from .review_service import predict_review_rating_with_explanations, generate_summary
 from .google_scraper import fetch_real_reviews
 
@@ -12,4 +12,5 @@ __all__ = [
     "predict_review_rating_with_explanations",
     "generate_summary",
     "fetch_real_reviews"
+    "fetch_place_details"
 ]

@@ -138,7 +138,7 @@ function ShopFinder() {
   const mapRef = useRef(null);
   const { token, isValid } = useToken();
   const navigate = useNavigate();
-  const googleMapsApiKey = "AIzaSyAMTYNccdhFeYEjhT9AQstckZvyD68Zk1w";
+  const googleMapsApiKey = "AIzaSyAKdRvJukRRZC2vfjSwnbVd3MSDnJZ25Jk";
 
   // Shop search related states
   const [query, setQuery] = useState("");

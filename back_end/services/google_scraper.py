@@ -106,7 +106,7 @@ async def fetch_real_reviews(place_id, max_reviews, retries=3):
                 await page.click("button[aria-label*='Reviews for']")
                 await page.wait_for_timeout(1000)
 
-                while len(reviews) < max_reviews and scroll_fails < 5:
+                while len(reviews) < max_reviews and scroll_fails < 2:
                     logging.info(f"[{place_id}] Querying review elements")
                     elements = await page.query_selector_all("div.jftiEf")
                     before = len(elements)

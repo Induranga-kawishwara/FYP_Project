@@ -202,6 +202,7 @@ def get_explanations(review: str) -> dict:
         out["lime"] = le.as_list()
     except Exception as e:
         out["error"] = out.get("error") or str(e)
+    print(out)    
 
     return out
 

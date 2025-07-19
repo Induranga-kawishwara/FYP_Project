@@ -4,6 +4,7 @@ import torch
 from openai import OpenAI
 import nltk
 import shap
+import pandas as pd
 
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from lime.lime_text import LimeTextExplainer
@@ -18,7 +19,6 @@ nltk.download("vader_lexicon", quiet=True)
 
 #  OpenAI client 
 client = OpenAI(api_key=Config.GPT_API_KEY)
-
 
 #  Load models & vectorizers 
 BASE_PATH = "models/reviewPredictionModel/"
@@ -64,6 +64,39 @@ lime_explainer = LimeTextExplainer(class_names=[f"Rating {i}" for i in range(1, 
 sia = SentimentIntensityAnalyzer()
 af  = Afinn()
 
+#  Build feature_names list
+bert_names   = [f"cls_{i}" for i in range(768)]
+logit_names  = [f"logit_{i}" for i in range(1, 6)]
+tfidf_names  = list(tfidf_vectorizer.get_feature_names_out())
+src_name     = ["source_dummy"]
+meta_names   = [
+    "meta_token_count",
+    "meta_exclamations",
+    "meta_questions",
+    "meta_vader_compound",
+    "meta_adj_count",
+    "meta_afinn_score",
+]
+feature_names = bert_names + logit_names + tfidf_names + src_name + meta_names
+_FULL_DIM = len(feature_names)
+assert _FULL_DIM == (
+    768 + 5 + tfidf_vectorizer.get_feature_names_out().shape[0] + 1 + 6
+)
+
+#  Map to human-readable labels
+pretty_names = {
+    **{name: f"DistilBERT embedding #{i}" for i, name in enumerate(bert_names)},
+    **{f"logit_{i}": f"P(model={i})" for i in range(1, 6)},
+    **{name: f"word ‘{name.replace('tfidf_', '').replace('_', ' ’')}’" for name in tfidf_names},
+    "source_dummy": "Review source (dummy)",
+    "meta_token_count": "Number of words in review",
+    "meta_exclamations": "Count of ‘!’",
+    "meta_questions": "Count of ‘?’",
+    "meta_vader_compound": "Overall sentiment score (VADER)",
+    "meta_adj_count": "Number of adjectives",
+    "meta_afinn_score": "Sentiment score (Afinn)"
+}
+
 #  GPT Summary Function 
 def generate_gpt_summary(raw_text: str,
                          instruction: str = "Summarize this:",
@@ -108,15 +141,6 @@ def compute_meta_features(text: str) -> np.ndarray:
         af.score(text)
     ]], dtype=np.float32)
 
-#  Full dimension constant 
-_FULL_DIM = (
-    768 +  # BERT CLS embedding
-    5   +  # logits
-    tfidf_vectorizer.get_feature_names_out().shape[0] +
-    1   +  # dummy source
-    6      # meta-features
-)
-
 #  Combine features 
 def get_combined_features(text: str) -> np.ndarray:
     try:
@@ -155,19 +179,22 @@ def predict_review_rating(reviews: list[str]) -> tuple[np.ndarray, np.ndarray]:
 
 #  Explanations 
 def get_explanations(review: str) -> dict:
-    feats = get_combined_features(review).astype(np.float32)
+    df_feats = pd.DataFrame(get_combined_features(review).astype(np.float32), columns=feature_names)
     out = {"shap_full": [], "shap_top": [], "lime": [], "error": None}
 
     try:
-        sv = tree_explainer.shap_values(feats)
+        sv = tree_explainer.shap_values(df_feats)
         _, p = predict_review_rating([review])
         cls = int(np.argmax(p[0]))
         arr = sv[cls][0]
-        out["shap_full"] = [float(v) for v in arr]
         idx = np.argsort(np.abs(arr))[::-1][:8]
-        out["shap_top"] = [{"feature": int(i), "value": float(arr[i])} for i in idx]
+        out["shap_top"] = [
+            {"feature": pretty_names[feature_names[i]], "value": float(arr[i])}
+            for i in idx
+        ]
     except Exception as e:
         out["error"] = f"SHAP failed: {e}"
+
     try:
         def _lm(texts: list[str]) -> np.ndarray:
             return xgb_model.predict_proba(np.vstack([get_combined_features(t) for t in texts]))
@@ -175,6 +202,7 @@ def get_explanations(review: str) -> dict:
         out["lime"] = le.as_list()
     except Exception as e:
         out["error"] = out.get("error") or str(e)
+
     return out
 
 #  Combined predict + explain 
@@ -184,14 +212,10 @@ def predict_review_rating_with_explanations(reviews: list[str]) -> dict:
 
     ratings, _ = predict_review_rating(reviews)
     avg = round(np.mean(ratings), 2)
-    # build raw explanation from first review
     ex = get_explanations(reviews[0])
-    raw = "SHAP top contributions:\n" + "\n".join(
-        f"feat_{d['feature']} {'+' if d['value']>0 else '-'}{abs(d['value']):.2f}" for d in ex['shap_top']
-    ) + "\n\nLIME top features:\n" + "\n".join(
+    raw = "SHAP top contributions: " + " ".join( f"{d['feature']} {'+' if d['value']>0 else '-'}{abs(d['value']):.2f}" for d in ex['shap_top']) + "LIME top features:" + "".join(
         f"{t} {'+' if v>0 else '-'}{abs(v):.2f}" for t, v in ex['lime']
     )
-    # create user-friendly explanation
     prompt = build_explanation_prompt(raw, reviews[0], avg)
     user_txt = generate_gpt_summary(prompt, max_tokens=200)
 
@@ -206,12 +230,8 @@ def generate_summary(reviews: list[str]) -> str:
     if not reviews:
         return "No reviews."
 
-    # bullet each review
-    review_blob = "\n".join(f"- {r.strip()}" for r in reviews)
-
-    instruction = (
-        "You are a helpful assistant. Here is a list of customer reviews:\n"
-        f"{review_blob}\n\n"
+    review_blob = "".join(f"- {r.strip()}" for r in reviews)
+    instruction = ("You are a helpful assistant. Here is a list of customer reviews:"f"{review_blob}"
         "Summarize what customers liked and disliked in a short, friendly paragraph. "
         "Avoid using '**Pros:**' or '**Cons:**' and bullet points. Instead, write one clear paragraph that highlights both positive and negative feedback (if any). "
         "Keep it brief but informative."
